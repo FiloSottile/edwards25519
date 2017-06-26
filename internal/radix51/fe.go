@@ -210,6 +210,14 @@ func FeCSwap(a, b *FieldElement, c uint64) {
 	b[4] ^= t[4]
 }
 
+func FeEqual(a, b *FieldElement) uint64 {
+	var result uint64
+	for i := 0; i < 5; i++ {
+		result |= a[i] ^ b[i]
+	}
+	return (result ^ 0)
+}
+
 func FeFromBytes(v *FieldElement, x *[32]byte) {
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8

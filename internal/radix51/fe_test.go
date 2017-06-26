@@ -144,6 +144,21 @@ func vartimeEqual(x, y FieldElement) bool {
 	return true
 }
 
+func TestFeEqual(t *testing.T) {
+	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
+	var y FieldElement = [5]uint64{5, 4, 3, 2, 1}
+
+	eq := FeEqual(&x, &x)
+	if eq != 0 {
+		t.Errorf("wrong about equality")
+	}
+
+	eq = FeEqual(&x, &y)
+	if eq == 0 {
+		t.Errorf("wrong about inequality")
+	}
+}
+
 func TestFeInvert(t *testing.T) {
 	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
 	var one FieldElement = [5]uint64{1, 0, 0, 0, 0}
