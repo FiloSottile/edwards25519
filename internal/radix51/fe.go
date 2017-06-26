@@ -4,12 +4,14 @@
 // public domain amd64-51-30k version of ed25519 from SUPERCOP.
 package radix51
 
+import "math/big"
+
 // FieldElement represents an element of the field GF(2^255-19). An element t
 // represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
 // t[4]*2^204.
 type FieldElement [5]uint64
 
-func (v *FieldElement) FeZero() {
+func FeZero(v *FieldElement) {
 	v[0] = 0
 	v[1] = 0
 	v[2] = 0
@@ -17,7 +19,7 @@ func (v *FieldElement) FeZero() {
 	v[4] = 0
 }
 
-func (v *FieldElement) FeOne() {
+func FeOne(v *FieldElement) {
 	v[0] = 1
 	v[1] = 0
 	v[2] = 0
@@ -26,7 +28,7 @@ func (v *FieldElement) FeOne() {
 }
 
 // SetInt sets the receiving FieldElement to the specified small integer.
-func (v *FieldElement) SetInt(x uint64) {
+func SetInt(v *FieldElement, x uint64) {
 	v[0] = x
 	v[1] = 0
 	v[2] = 0
@@ -116,7 +118,7 @@ func FeSub(out, a, b *FieldElement) {
 // FeNeg sets out = -a
 func FeNeg(out, a *FieldElement) {
 	var t FieldElement
-	t.SetInt(0)
+	FeZero(&t)
 	FeSub(out, &t, a)
 }
 
@@ -210,12 +212,17 @@ func FeCSwap(a, b *FieldElement, c uint64) {
 	b[4] ^= t[4]
 }
 
-func FeEqual(a, b *FieldElement) uint64 {
+// Returns true if two field elements are equal.
+func FeEqual(a, b *FieldElement) bool {
 	var result uint64
 	for i := 0; i < 5; i++ {
 		result |= a[i] ^ b[i]
 	}
-	return (result ^ 0)
+	return result == 0
+}
+
+func FeCopy(out, in *FieldElement) {
+	copy(out[:], in[:])
 }
 
 func FeFromBytes(v *FieldElement, x *[32]byte) {
@@ -305,4 +312,25 @@ func FeToBytes(r *[32]byte, v *FieldElement) {
 	r[29] = byte((t[4] >> 28) & 0xff)
 	r[30] = byte((t[4] >> 36) & 0xff)
 	r[31] = byte((t[4] >> 44))
+}
+
+func FeFromBig(h *FieldElement, in *big.Int) {
+	tmpBytes := in.Bytes()
+	var buf, reverse [32]byte
+	copy(buf[32-len(tmpBytes):], tmpBytes)
+	for i := 0; i < 32; i++ {
+		reverse[i] = buf[31-i]
+	}
+	FeFromBytes(h, &reverse)
+}
+
+func FeToBig(h *FieldElement) *big.Int {
+	var buf, reverse [32]byte
+	FeToBytes(&buf, h) // does inline reduction
+	for i := 0; i < 32; i++ {
+		reverse[i] = buf[31-i]
+	}
+	out := new(big.Int)
+	out.SetBytes(reverse[:])
+	return out
 }
