@@ -4,7 +4,10 @@
 // public domain amd64-51-30k version of ed25519 from SUPERCOP.
 package radix51
 
-import "math/big"
+import (
+	"math/big"
+	"math/bits"
+)
 
 // FieldElement represents an element of the field GF(2^255-19). An element t
 // represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
@@ -314,14 +317,25 @@ func FeToBytes(r *[32]byte, v *FieldElement) {
 	r[31] = byte((t[4] >> 44))
 }
 
-func FeFromBig(h *FieldElement, in *big.Int) {
-	tmpBytes := in.Bytes()
-	var buf, reverse [32]byte
-	copy(buf[32-len(tmpBytes):], tmpBytes)
-	for i := 0; i < 32; i++ {
-		reverse[i] = buf[31-i]
+func FeFromBig(h *FieldElement, num *big.Int) {
+	var buf [32]byte
+
+	offset := 0
+	words := num.Bits()
+	numWords := len(words)
+
+	for n := 0; n < numWords; n++ {
+		word := words[n]
+		for i := 0; i < bits.UintSize/8; i++ {
+			if offset >= len(buf) {
+				break
+			}
+			buf[offset] = byte(word >> uint((i << 3)))
+			offset++
+		}
 	}
-	FeFromBytes(h, &reverse)
+
+	FeFromBytes(h, &buf)
 }
 
 func FeToBig(h *FieldElement) *big.Int {

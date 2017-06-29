@@ -98,8 +98,8 @@ func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupE
 }
 
 func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
-	var p ProjectiveGroupElement = v.ToProjective()
-	return p.Double().ToExtended()
+	// return v.ToProjective().Double().ToExtended()
+	panic("not yet implemented")
 }
 
 // Projective coordinates are XYZ with x = X/Z, y = Y/Z, or the "P2"
@@ -125,17 +125,16 @@ func (v *ProjectiveGroupElement) ToAffine() (*big.Int, *big.Int) {
 	return field.FeToBig(&x), field.FeToBig(&y)
 }
 
+// HWCD Section 3: "Given (X : Y : Z) in [projective coordinates] passing to
+// [extended coordinates, (X : Y : T : Z)] can be performed in 3M+1S by computing
+// (XZ, YZ, XY, Z^2)"
 func (v *ProjectiveGroupElement) ToExtended() *ExtendedGroupElement {
 	var r ExtendedGroupElement
-	var zinv field.FieldElement
 
-	field.FeCopy(&r.X, &v.X)
-	field.FeCopy(&r.Y, &v.Y)
-	field.FeCopy(&r.Z, &v.Z)
-
-	field.FeInvert(&zinv, &v.Z)
-	field.FeMul(&r.T, &v.X, &v.Y)  // XY = ZT
-	field.FeMul(&r.T, &r.T, &zinv) // T = ZT/Z
+	field.FeMul(&r.X, &v.X, &v.Z)
+	field.FeMul(&r.Y, &v.Y, &v.Z)
+	field.FeMul(&r.T, &v.X, &v.Y)
+	field.FeSquare(&r.Z, &v.Z)
 
 	return &r
 }
@@ -166,8 +165,8 @@ func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
 //       Z3 = F^2-2*F
 //
 // This assumption is one reason why this package is internal. For instance, it
-// will not hold during a Montgomery ladder using extended coordinates.
-// TODO: Hand off or switch entirely to dbl-2008-bbjlp when package is public.
+// will not hold throughout a Montgomery ladder using extended coordinates.
+// TODO: Check or switch entirely to dbl-2008-bbjlp like everyone else.
 func (v *ProjectiveGroupElement) DoubleZ1() *ProjectiveGroupElement {
 	var p, q ProjectiveGroupElement
 	var t0, t1 field.FieldElement

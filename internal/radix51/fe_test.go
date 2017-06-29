@@ -149,12 +149,12 @@ func TestFeEqual(t *testing.T) {
 	var y FieldElement = [5]uint64{5, 4, 3, 2, 1}
 
 	eq := FeEqual(&x, &x)
-	if eq != 0 {
+	if !eq {
 		t.Errorf("wrong about equality")
 	}
 
 	eq = FeEqual(&x, &y)
-	if eq == 0 {
+	if eq {
 		t.Errorf("wrong about inequality")
 	}
 }
