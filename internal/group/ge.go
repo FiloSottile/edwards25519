@@ -76,24 +76,24 @@ func (v *ExtendedGroupElement) Zero() *ExtendedGroupElement {
 // TODO We know Z1=1 and Z2=1 here, so mmadd-2008-hwcd-3 (6M + 1S + 1*k + 9add) could apply
 func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupElement {
 	var tmp1, tmp2, A, B, C, D, E, F, G, H field.FieldElement
-	field.FeSub(&tmp1, &p1.Y, &p1.X)  // tmp1 <-- Y1-X1
-	field.FeSub(&tmp2, &p2.Y, &p2.X)  // tmp2 <-- Y2-X2
-	field.FeMul(&A, &tmp1, &tmp2)     // A <-- tmp1*tmp2 = (Y1-X1)*(Y2-X2)
-	field.FeAdd(&tmp1, &p1.Y, &p1.X)  // tmp1 <-- Y1+X1
-	field.FeAdd(&tmp2, &p2.Y, &p2.X)  // tmp2 <-- Y2+X2
-	field.FeMul(&B, &tmp1, &tmp2)     // B <-- tmp1*tmp2 = (Y1+X1)*(Y2+X2)
-	field.FeMul(&tmp1, &p1.T, &p2.T)  // tmp1 <-- T1*T2
-	field.FeMul(&C, &tmp1, &field.D2) // C <-- tmp1*2d = T1*2d*T2
-	field.FeMul(&tmp1, &p1.Z, &p2.Z)  // tmp1 <-- Z1*Z2
-	field.FeAdd(&D, &tmp1, &tmp1)     // D <-- tmp1 + tmp1 = 2*Z1*Z2
-	field.FeSub(&E, &B, &A)           // E <-- B-A
-	field.FeSub(&F, &D, &C)           // F <-- D-C
-	field.FeAdd(&G, &D, &C)           // G <-- D+C
-	field.FeAdd(&H, &B, &A)           // H <-- B+A
-	field.FeMul(&v.X, &E, &F)         // X3 <-- E*F
-	field.FeMul(&v.Y, &G, &H)         // Y3 <-- G*H
-	field.FeMul(&v.T, &E, &H)         // T3 <-- E*H
-	field.FeMul(&v.Z, &F, &G)         // Z3 <-- F*G
+	field.FeSub(&tmp1, &p1.Y, &p1.X) // tmp1 <-- Y1-X1
+	field.FeSub(&tmp2, &p2.Y, &p2.X) // tmp2 <-- Y2-X2
+	field.FeMul(&A, &tmp1, &tmp2)    // A <-- tmp1*tmp2 = (Y1-X1)*(Y2-X2)
+	field.FeAdd(&tmp1, &p1.Y, &p1.X) // tmp1 <-- Y1+X1
+	field.FeAdd(&tmp2, &p2.Y, &p2.X) // tmp2 <-- Y2+X2
+	field.FeMul(&B, &tmp1, &tmp2)    // B <-- tmp1*tmp2 = (Y1+X1)*(Y2+X2)
+	field.FeMul(&tmp1, &p1.T, &p2.T) // tmp1 <-- T1*T2
+	field.FeMul(&C, &tmp1, &D2)      // C <-- tmp1*2d = T1*2d*T2
+	field.FeMul(&tmp1, &p1.Z, &p2.Z) // tmp1 <-- Z1*Z2
+	field.FeAdd(&D, &tmp1, &tmp1)    // D <-- tmp1 + tmp1 = 2*Z1*Z2
+	field.FeSub(&E, &B, &A)          // E <-- B-A
+	field.FeSub(&F, &D, &C)          // F <-- D-C
+	field.FeAdd(&G, &D, &C)          // G <-- D+C
+	field.FeAdd(&H, &B, &A)          // H <-- B+A
+	field.FeMul(&v.X, &E, &F)        // X3 <-- E*F
+	field.FeMul(&v.Y, &G, &H)        // Y3 <-- G*H
+	field.FeMul(&v.T, &E, &H)        // T3 <-- E*H
+	field.FeMul(&v.Z, &F, &G)        // Z3 <-- F*G
 	return v
 }
 

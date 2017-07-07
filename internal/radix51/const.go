@@ -12,7 +12,4 @@ var (
 	FieldZero FieldElement = [5]uint64{0, 0, 0, 0, 0}
 	FieldOne  FieldElement = [5]uint64{1, 0, 0, 0, 0}
 	FieldTwo  FieldElement = [5]uint64{2, 0, 0, 0, 0}
-
-	// 2*d, used in addition formula
-	D2 FieldElement = [5]uint64{1859910466990425, 932731440258426, 1072319116312658, 1815898335770999, 633789495995903}
 )
