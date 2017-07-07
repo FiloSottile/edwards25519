@@ -339,12 +339,26 @@ func FeFromBig(h *FieldElement, num *big.Int) {
 }
 
 func FeToBig(h *FieldElement) *big.Int {
-	var buf, reverse [32]byte
-	FeToBytes(&buf, h) // does inline reduction
-	for i := 0; i < 32; i++ {
-		reverse[i] = buf[31-i]
+	var buf [32]byte
+	FeToBytes(&buf, h) // does a reduction
+
+	numWords := 256 / bits.UintSize
+	words := make([]big.Word, numWords)
+
+	offset := 0
+	byteSize := uint(bits.UintSize >> 3)
+	for n := 0; n < numWords; n++ {
+		word := uint(0)
+		for i := uint(0); i < byteSize; i++ {
+			if offset >= len(buf) {
+				break
+			}
+			word |= uint(buf[offset]) << (i << 3)
+			offset++
+		}
+		words[n] = big.Word(word)
 	}
+
 	out := new(big.Int)
-	out.SetBytes(reverse[:])
-	return out
+	return out.SetBits(words)
 }
