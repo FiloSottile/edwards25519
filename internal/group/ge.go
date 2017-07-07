@@ -97,9 +97,71 @@ func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupE
 	return v
 }
 
+// This implements the explicit formulas from HWCD Section 3.3, "Dedicated
+// Doubling in [extended coordinates]".
+//
+// Explicit formula is as follows. Cost is 4M + 4S + 1D. For Ed25519, a = -1:
+//
+//       A ← X1^2
+//       B ← Y1^2
+//       C ← 2*Z1^2
+//       D ← a*A
+//       E ← (X1+Y1)^2 − A − B
+//       G ← D+B
+//       F ← G−C
+//       H ← D−B
+//       X3 ← E*F
+//       Y3 ← G*H
+//       T3 ← E*H
+//       Z3 ← F*G
+//
+// In ref10/donna/dalek etc, this is instead handled by a faster
+// mixed-coordinate doubling that results in a "Completed" group element
+// instead of another point in extended coordinates. I have implemented it
+// this way to see if more straightforward code is worth the (hopefully small)
+// performance tradeoff.
 func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
-	// return v.ToProjective().Double().ToExtended()
-	panic("not yet implemented")
+	// TODO: Convert to projective coordinates? Section 4.3 mixed doubling?
+	// TODO: make a decision about how these APIs work wrt chaining/smashing
+	// *v = *(v.ToProjective().Double().ToExtended())
+	// return v
+
+	var A, B, C, D, E, F, G, H field.FieldElement
+
+	// A ← X1^2, B ← Y1^2
+	field.FeSquare(&A, &v.X)
+	field.FeSquare(&B, &v.Y)
+
+	// C ← 2*Z1^2
+	field.FeSquare(&C, &v.Z)
+	field.FeAdd(&C, &C, &C) // TODO should probably implement FeSquare2
+
+	// D ← -1*A
+	field.FeNeg(&D, &A) // implemented as substraction
+
+	// E ← (X1+Y1)^2 − A − B
+	var t0 field.FieldElement
+	field.FeAdd(&t0, &v.X, &v.Y)
+	field.FeSquare(&t0, &t0)
+	field.FeSub(&E, &t0, &A)
+	field.FeSub(&E, &E, &B)
+
+	// G ← D+B
+	field.FeAdd(&G, &D, &B)
+	// F ← G−C
+	field.FeSub(&F, &G, &C)
+	// H ← D−B
+	field.FeSub(&H, &D, &B)
+	// X3 ← E*F
+	field.FeMul(&v.X, &E, &F)
+	// Y3 ← G*H
+	field.FeMul(&v.Y, &G, &H)
+	// T3 ← E*H
+	field.FeMul(&v.T, &E, &H)
+	// Z3 ← F*G
+	field.FeMul(&v.Z, &F, &G)
+
+	return v
 }
 
 // Projective coordinates are XYZ with x = X/Z, y = Y/Z, or the "P2"
@@ -165,9 +227,13 @@ func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
 //       Z3 = F^2-2*F
 //
 // This assumption is one reason why this package is internal. For instance, it
-// will not hold throughout a Montgomery ladder using extended coordinates.
-// TODO: Check or switch entirely to dbl-2008-bbjlp like everyone else.
+// will not hold throughout a Montgomery ladder, when we convert to projective
+// from possibly arbitrary extended coordinates.
 func (v *ProjectiveGroupElement) DoubleZ1() *ProjectiveGroupElement {
+	// TODO This function is inconsistent with the other ones in that it
+	// returns a copy rather than smashing the receiver. It doesn't matter
+	// because it is always called on ephemeral intermediate values, but should
+	// fix.
 	var p, q ProjectiveGroupElement
 	var t0, t1 field.FieldElement
 
@@ -176,12 +242,10 @@ func (v *ProjectiveGroupElement) DoubleZ1() *ProjectiveGroupElement {
 	// C = X1^2, D = Y1^2
 	field.FeSquare(&t0, &p.X)
 	field.FeSquare(&t1, &p.Y)
-	field.FeMul(&p.Z, &p.X, &p.Y)
 
-	// B = (X1+Y1)^2 = X1^2 + Y1^2 + 2*(X*Y)
-	field.FeAdd(&q.X, &t0, &t1)
-	field.FeAdd(&q.X, &q.X, &p.Z)
-	field.FeAdd(&q.X, &q.X, &p.Z)
+	// B = (X1+Y1)^2
+	field.FeAdd(&p.Z, &p.X, &p.Y) // Z is irrelevant but already allocated
+	field.FeSquare(&q.X, &p.Z)
 
 	// E = a*C where a = -1
 	field.FeNeg(&q.Z, &t0)
