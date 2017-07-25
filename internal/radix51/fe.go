@@ -1,4 +1,6 @@
-// Copyright 2017 George Tankersley. All rights reserved.
+// Copyright (c) 2017 George Tankersley. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 // Field arithmetic in radix 2^51 representation. This code is a port of the
 // public domain amd64-51-30k version of ed25519 from SUPERCOP.

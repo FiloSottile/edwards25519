@@ -1,4 +1,6 @@
-// Copyright 2017 George Tankersley. All rights reserved.
+// Copyright (c) 2017 George Tankersley. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 // Constants used in the implementation of GF(2^255-19) field arithmetic.
 package radix51
