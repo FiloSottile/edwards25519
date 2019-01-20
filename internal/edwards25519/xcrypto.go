@@ -13,5 +13,6 @@ type ExtendedGroupElement = x.ExtendedGroupElement
 type FieldElement = x.FieldElement
 
 var FeMul = x.FeMul
+var FeSquare = x.FeSquare
 var FeNeg = x.FeNeg
 var FeIsNegative = x.FeIsNegative
