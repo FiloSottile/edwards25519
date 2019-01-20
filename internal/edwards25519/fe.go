@@ -21,6 +21,27 @@ func FeEqual(a, b *FieldElement) int {
 	return subtle.ConstantTimeCompare(sa[:], sb[:])
 }
 
+// FeSelect sets out to v if cond == 1, and to u if cond == 0.
+// out, v and u are allowed to overlap.
+func FeSelect(out, v, u *FieldElement, cond int) {
+	FeCMove(out, u, int32(cond^1))
+	FeCMove(out, v, int32(cond))
+}
+
+// FeCondNeg sets u to -u if cond == 1, and to u if cond == 0.
+func FeCondNeg(u *FieldElement, cond int) {
+	var neg FieldElement
+	FeNeg(&neg, u)
+	FeCMove(u, &neg, int32(cond))
+}
+
+// FeAbs sets out to |u|. out and u are allowed to overlap.
+func FeAbs(out, u *FieldElement) {
+	var neg FieldElement
+	FeNeg(&neg, u)
+	FeSelect(out, &neg, u, int(FeIsNegative(u)))
+}
+
 func feFromBig(dst *FieldElement, n *big.Int) {
 	var buf [32]byte
 	nn := n.Bytes()
