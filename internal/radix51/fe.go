@@ -192,31 +192,6 @@ func FeInvert(out, z *FieldElement) {
 	FeMul(out, &t, &z11) // 2^255 - 21
 }
 
-// FeCSwap implements a constant-time conditional swap. That is:
-// (a, b) = (b, a) if c = 1
-// (a, b) = (a, b) if c = 0
-func FeCSwap(a, b *FieldElement, c uint64) {
-	var t FieldElement
-
-	t[0] ^= c & (a[0] ^ b[0])
-	t[1] ^= c & (a[1] ^ b[1])
-	t[2] ^= c & (a[2] ^ b[2])
-	t[3] ^= c & (a[3] ^ b[3])
-	t[4] ^= c & (a[4] ^ b[4])
-
-	a[0] ^= t[0]
-	a[1] ^= t[1]
-	a[2] ^= t[2]
-	a[3] ^= t[3]
-	a[4] ^= t[4]
-
-	b[0] ^= t[0]
-	b[1] ^= t[1]
-	b[2] ^= t[2]
-	b[3] ^= t[3]
-	b[4] ^= t[4]
-}
-
 // Returns true if two field elements are equal.
 func FeEqual(a, b *FieldElement) bool {
 	var result uint64
