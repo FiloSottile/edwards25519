@@ -7,51 +7,57 @@ package edwards25519
 
 import (
 	"crypto/subtle"
-	"math/big"
 
-	x "github.com/gtank/ristretto255/internal/edwards25519/internal/edwards25519"
+	"github.com/gtank/ristretto255/internal/edwards25519/internal/radix51"
 )
 
 // FeEqual returns 1 if a and b are equal, and 0 otherwise.
 func FeEqual(a, b *FieldElement) int {
 	var sa, sb [32]byte
-	x.FeToBytes(&sa, a)
-	x.FeToBytes(&sb, b)
+	radix51.FeToBytes(&sa, a)
+	radix51.FeToBytes(&sb, b)
 	return subtle.ConstantTimeCompare(sa[:], sb[:])
 }
 
 // FeSelect sets out to v if cond == 1, and to u if cond == 0.
 // out, v and u are allowed to overlap.
 func FeSelect(out, v, u *FieldElement, cond int) {
-	x.FeCMove(out, u, int32(cond^1))
-	x.FeCMove(out, v, int32(cond))
+	b := uint64(cond) * 0xffffffffffffffff
+	out[0] = (b & v[0]) | (^b & u[0])
+	out[1] = (b & v[1]) | (^b & u[1])
+	out[2] = (b & v[2]) | (^b & u[2])
+	out[3] = (b & v[3]) | (^b & u[3])
+	out[4] = (b & v[4]) | (^b & u[4])
 }
 
 // FeCondNeg sets u to -u if cond == 1, and to u if cond == 0.
 func FeCondNeg(u *FieldElement, cond int) {
 	var neg FieldElement
 	FeNeg(&neg, u)
-	x.FeCMove(u, &neg, int32(cond))
+
+	b := uint64(cond) * 0xffffffffffffffff
+	u[0] ^= b & (u[0] ^ neg[0])
+	u[1] ^= b & (u[1] ^ neg[1])
+	u[2] ^= b & (u[2] ^ neg[2])
+	u[3] ^= b & (u[3] ^ neg[3])
+	u[4] ^= b & (u[4] ^ neg[4])
+}
+
+// FeIsNegative returns 1 if u is negative, and 0 otherwise.
+func FeIsNegative(u *FieldElement) int {
+	var b [32]byte
+	radix51.FeToBytes(&b, u)
+	return int(b[0] & 1)
 }
 
 // FeAbs sets out to |u|. out and u are allowed to overlap.
 func FeAbs(out, u *FieldElement) {
 	var neg FieldElement
 	FeNeg(&neg, u)
-	FeSelect(out, &neg, u, int(FeIsNegative(u)))
+	FeSelect(out, &neg, u, FeIsNegative(u))
 }
 
-func feFromBig(dst *FieldElement, n *big.Int) {
-	var buf [32]byte
-	nn := n.Bytes()
-	copy(buf[len(buf)-len(nn):], nn)
-	for i := range buf[:len(buf)/2] {
-		buf[i], buf[len(buf)-1] = buf[len(buf)-1], buf[i]
-	}
-	x.FeFromBytes(dst, &buf)
-}
-
-// Copied from second-level internal/edwards25519
+// fePow22523 is from x/crypto/ed25519/internal/edwards25519.
 func fePow22523(out, z *FieldElement) {
 	var t0, t1, t2 FieldElement
 	var i int

@@ -5,14 +5,16 @@
 
 package edwards25519
 
-import x "github.com/gtank/ristretto255/internal/edwards25519/internal/edwards25519"
+import (
+	"github.com/gtank/ristretto255/internal/edwards25519/internal/group"
+	"github.com/gtank/ristretto255/internal/edwards25519/internal/radix51"
+)
 
-// Expose some types and functions from the x/crypto code to ristretto255.
+// Expose some types and functions from the internal package to ristretto255.
 
-type ExtendedGroupElement = x.ExtendedGroupElement
-type FieldElement = x.FieldElement
+type ExtendedGroupElement = group.ExtendedGroupElement
+type FieldElement = radix51.FieldElement
 
-var FeMul = x.FeMul
-var FeSquare = x.FeSquare
-var FeNeg = x.FeNeg
-var FeIsNegative = x.FeIsNegative
+var FeMul = radix51.FeMul
+var FeSquare = radix51.FeSquare
+var FeNeg = radix51.FeNeg

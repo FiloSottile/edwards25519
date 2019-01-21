@@ -5,7 +5,11 @@
 
 package edwards25519
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/gtank/ristretto255/internal/edwards25519/internal/radix51"
+)
 
 var (
 	SQRT_M1           FieldElement
@@ -24,9 +28,9 @@ func init() {
 		CONST_D_MINUS_ONE_SQ, _    = new(big.Int).SetString("40440834346308536858101042469323190826248399146238708352240133220865137265952", 10)
 	)
 
-	feFromBig(&SQRT_M1, CONST_SQRT_M1)
-	feFromBig(&SQRT_AD_MINUS_ONE, CONST_SQRT_AD_MINUS_ONE)
-	feFromBig(&INVSQRT_A_MINUS_D, CONST_INVSQRT_A_MINUS_D)
-	feFromBig(&ONE_MINUS_D_SQ, CONST_ONE_MINUS_D_SQ)
-	feFromBig(&D_MINUS_ONE_SQ, CONST_D_MINUS_ONE_SQ)
+	radix51.FeFromBig(&SQRT_M1, CONST_SQRT_M1)
+	radix51.FeFromBig(&SQRT_AD_MINUS_ONE, CONST_SQRT_AD_MINUS_ONE)
+	radix51.FeFromBig(&INVSQRT_A_MINUS_D, CONST_INVSQRT_A_MINUS_D)
+	radix51.FeFromBig(&ONE_MINUS_D_SQ, CONST_ONE_MINUS_D_SQ)
+	radix51.FeFromBig(&D_MINUS_ONE_SQ, CONST_D_MINUS_ONE_SQ)
 }
