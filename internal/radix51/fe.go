@@ -192,15 +192,6 @@ func FeInvert(out, z *FieldElement) {
 	FeMul(out, &t, &z11) // 2^255 - 21
 }
 
-// Returns true if two field elements are equal.
-func FeEqual(a, b *FieldElement) bool {
-	var result uint64
-	for i := 0; i < 5; i++ {
-		result |= a[i] ^ b[i]
-	}
-	return result == 0
-}
-
 func FeCopy(out, in *FieldElement) {
 	copy(out[:], in[:])
 }
