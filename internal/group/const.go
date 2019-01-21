@@ -1,6 +1,6 @@
 package group
 
-import "github.com/gtank/ristretto255/internal/edwards25519/internal/radix51"
+import "github.com/gtank/ristretto255/internal/radix51"
 
 var (
 	// d, a constant in the curve equation

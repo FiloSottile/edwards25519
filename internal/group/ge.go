@@ -5,7 +5,7 @@ package group
 import (
 	"math/big"
 
-	field "github.com/gtank/ristretto255/internal/edwards25519/internal/radix51"
+	field "github.com/gtank/ristretto255/internal/radix51"
 )
 
 // From EFD https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
