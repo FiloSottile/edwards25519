@@ -6,5 +6,10 @@
 
 package radix51
 
+// Mul sets out = a * b.
+func (v *FieldElement) Mul(x, y *FieldElement) {
+	feMul(v, x, y)
+}
+
 // go:noescape
-func FeMul(out, a, b *FieldElement)
+func feMul(out, a, b *FieldElement)

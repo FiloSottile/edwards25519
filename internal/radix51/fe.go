@@ -15,10 +15,21 @@ import (
 
 // FieldElement represents an element of the field GF(2^255-19). An element t
 // represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
-// t[4]*2^204.
+// t[4]*2^204. The zero value is a valid zero element.
 type FieldElement [5]uint64
 
-func FeZero(v *FieldElement) {
+const (
+	// The vaule 2^51-1, used in carry propagation
+	maskLow51Bits = uint64(1)<<51 - 1
+)
+
+var (
+	Zero = &FieldElement{0, 0, 0, 0, 0}
+	One  = &FieldElement{1, 0, 0, 0, 0}
+	Two  = &FieldElement{2, 0, 0, 0, 0}
+)
+
+func (v *FieldElement) Zero() {
 	v[0] = 0
 	v[1] = 0
 	v[2] = 0
@@ -26,7 +37,7 @@ func FeZero(v *FieldElement) {
 	v[4] = 0
 }
 
-func FeOne(v *FieldElement) {
+func (v *FieldElement) One() {
 	v[0] = 1
 	v[1] = 0
 	v[2] = 0
@@ -35,7 +46,7 @@ func FeOne(v *FieldElement) {
 }
 
 // SetInt sets the receiving FieldElement to the specified small integer.
-func SetInt(v *FieldElement, x uint64) {
+func (v *FieldElement) SetInt(x uint64) {
 	v[0] = x
 	v[1] = 0
 	v[2] = 0
@@ -43,62 +54,58 @@ func SetInt(v *FieldElement, x uint64) {
 	v[4] = 0
 }
 
-func FeReduce(t, v *FieldElement) {
-	// Copy v
-	*t = *v
-
+func (v *FieldElement) Reduce() {
 	// Lev v = v[0] + v[1]*2^51 + v[2]*2^102 + v[3]*2^153 + v[4]*2^204
 	// Reduce each limb below 2^51, propagating carries.
-	t[1] += t[0] >> 51
-	t[0] = t[0] & maskLow51Bits
-	t[2] += t[1] >> 51
-	t[1] = t[1] & maskLow51Bits
-	t[3] += t[2] >> 51
-	t[2] = t[2] & maskLow51Bits
-	t[4] += t[3] >> 51
-	t[3] = t[3] & maskLow51Bits
-	t[0] += (t[4] >> 51) * 19
-	t[4] = t[4] & maskLow51Bits
+	v[1] += v[0] >> 51
+	v[0] = v[0] & maskLow51Bits
+	v[2] += v[1] >> 51
+	v[1] = v[1] & maskLow51Bits
+	v[3] += v[2] >> 51
+	v[2] = v[2] & maskLow51Bits
+	v[4] += v[3] >> 51
+	v[3] = v[3] & maskLow51Bits
+	v[0] += (v[4] >> 51) * 19
+	v[4] = v[4] & maskLow51Bits
 
-	// We now hate a field element t < 2^255, but need t <= 2^255-19
+	// We now hate a field element v < 2^255, but need v <= 2^255-19
 	// TODO Document why this works. It's the elaborate comment about r = h-pq etc etc.
 
 	// Get the carry bit
-	c := (t[0] + 19) >> 51
-	c = (t[1] + c) >> 51
-	c = (t[2] + c) >> 51
-	c = (t[3] + c) >> 51
-	c = (t[4] + c) >> 51
+	c := (v[0] + 19) >> 51
+	c = (v[1] + c) >> 51
+	c = (v[2] + c) >> 51
+	c = (v[3] + c) >> 51
+	c = (v[4] + c) >> 51
 
-	t[0] += 19 * c
+	v[0] += 19 * c
 
-	t[1] += t[0] >> 51
-	t[0] = t[0] & maskLow51Bits
-	t[2] += t[1] >> 51
-	t[1] = t[1] & maskLow51Bits
-	t[3] += t[2] >> 51
-	t[2] = t[2] & maskLow51Bits
-	t[4] += t[3] >> 51
-	t[3] = t[3] & maskLow51Bits
+	v[1] += v[0] >> 51
+	v[0] = v[0] & maskLow51Bits
+	v[2] += v[1] >> 51
+	v[1] = v[1] & maskLow51Bits
+	v[3] += v[2] >> 51
+	v[2] = v[2] & maskLow51Bits
+	v[4] += v[3] >> 51
+	v[3] = v[3] & maskLow51Bits
 	// no additional carry
-	t[4] = t[4] & maskLow51Bits
+	v[4] = v[4] & maskLow51Bits
 }
 
-// FeAdd sets out = a + b. Long sequences of additions without reduction that
+// Add sets v = a + b. Long sequences of additions without reduction that
 // let coefficients grow larger than 54 bits would be a problem. Paper
 // cautions: "do not have such sequences of additions".
-func FeAdd(out, a, b *FieldElement) {
-	out[0] = a[0] + b[0]
-	out[1] = a[1] + b[1]
-	out[2] = a[2] + b[2]
-	out[3] = a[3] + b[3]
-	out[4] = a[4] + b[4]
+func (v *FieldElement) Add(a, b *FieldElement) {
+	v[0] = a[0] + b[0]
+	v[1] = a[1] + b[1]
+	v[2] = a[2] + b[2]
+	v[3] = a[3] + b[3]
+	v[4] = a[4] + b[4]
 }
 
-// FeSub sets out = a - b
-func FeSub(out, a, b *FieldElement) {
-	var t FieldElement
-	t = *b
+// Sub sets v = a - b.
+func (v *FieldElement) Sub(a, b *FieldElement) {
+	t := *b
 
 	// Reduce each limb below 2^51, propagating carries. Ensures that results
 	// fit within the limbs. This would not be required for reduced input.
@@ -115,90 +122,88 @@ func FeSub(out, a, b *FieldElement) {
 
 	// This is slightly more complicated. Because we use unsigned coefficients, we
 	// first add a multiple of p and then subtract.
-	out[0] = (a[0] + 0xFFFFFFFFFFFDA) - t[0]
-	out[1] = (a[1] + 0xFFFFFFFFFFFFE) - t[1]
-	out[2] = (a[2] + 0xFFFFFFFFFFFFE) - t[2]
-	out[3] = (a[3] + 0xFFFFFFFFFFFFE) - t[3]
-	out[4] = (a[4] + 0xFFFFFFFFFFFFE) - t[4]
+	v[0] = (a[0] + 0xFFFFFFFFFFFDA) - t[0]
+	v[1] = (a[1] + 0xFFFFFFFFFFFFE) - t[1]
+	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - t[2]
+	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - t[3]
+	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - t[4]
 }
 
-// FeNeg sets out = -a
-func FeNeg(out, a *FieldElement) {
-	var t FieldElement
-	FeZero(&t)
-	FeSub(out, &t, a)
+// Neg sets v = -a.
+func (v *FieldElement) Neg(a *FieldElement) {
+	v.Sub(&FieldElement{}, a)
 }
 
-// FeInvert sets out = 1/z mod p by calculating z^(p-2), p-2 = 2^255 - 21.
-func FeInvert(out, z *FieldElement) {
+// Invert sets v = 1/z mod p by calculating z^(p-2), p-2 = 2^255 - 21.
+func (v *FieldElement) Invert(z *FieldElement) {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
 	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
 	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t FieldElement
 
-	FeSquare(&z2, z)        // 2
-	FeSquare(&t, &z2)       // 4
-	FeSquare(&t, &t)        // 8
-	FeMul(&z9, &t, z)       // 9
-	FeMul(&z11, &z9, &z2)   // 11
-	FeSquare(&t, &z11)      // 22
-	FeMul(&z2_5_0, &t, &z9) // 2^5 - 2^0 = 31
+	z2.Square(z)        // 2
+	t.Square(&z2)       // 4
+	t.Square(&t)        // 8
+	z9.Mul(&t, z)       // 9
+	z11.Mul(&z9, &z2)   // 11
+	t.Square(&z11)      // 22
+	z2_5_0.Mul(&t, &z9) // 2^5 - 2^0 = 31
 
-	FeSquare(&t, &z2_5_0) // 2^6 - 2^1
+	t.Square(&z2_5_0) // 2^6 - 2^1
 	for i := 0; i < 4; i++ {
-		FeSquare(&t, &t) // 2^10 - 2^5
+		t.Square(&t) // 2^10 - 2^5
 	}
-	FeMul(&z2_10_0, &t, &z2_5_0) // 2^10 - 2^0
+	z2_10_0.Mul(&t, &z2_5_0) // 2^10 - 2^0
 
-	FeSquare(&t, &z2_10_0) // 2^11 - 2^1
+	t.Square(&z2_10_0) // 2^11 - 2^1
 	for i := 0; i < 9; i++ {
-		FeSquare(&t, &t) // 2^20 - 2^10
+		t.Square(&t) // 2^20 - 2^10
 	}
-	FeMul(&z2_20_0, &t, &z2_10_0) // 2^20 - 2^0
+	z2_20_0.Mul(&t, &z2_10_0) // 2^20 - 2^0
 
-	FeSquare(&t, &z2_20_0) // 2^21 - 2^1
+	t.Square(&z2_20_0) // 2^21 - 2^1
 	for i := 0; i < 19; i++ {
-		FeSquare(&t, &t) // 2^40 - 2^20
+		t.Square(&t) // 2^40 - 2^20
 	}
-	FeMul(&t, &t, &z2_20_0) // 2^40 - 2^0
+	t.Mul(&t, &z2_20_0) // 2^40 - 2^0
 
-	FeSquare(&t, &t) // 2^41 - 2^1
+	t.Square(&t) // 2^41 - 2^1
 	for i := 0; i < 9; i++ {
-		FeSquare(&t, &t) // 2^50 - 2^10
+		t.Square(&t) // 2^50 - 2^10
 	}
-	FeMul(&z2_50_0, &t, &z2_10_0) // 2^50 - 2^0
+	z2_50_0.Mul(&t, &z2_10_0) // 2^50 - 2^0
 
-	FeSquare(&t, &z2_50_0) // 2^51 - 2^1
+	t.Square(&z2_50_0) // 2^51 - 2^1
 	for i := 0; i < 49; i++ {
-		FeSquare(&t, &t) // 2^100 - 2^50
+		t.Square(&t) // 2^100 - 2^50
 	}
-	FeMul(&z2_100_0, &t, &z2_50_0) // 2^100 - 2^0
+	z2_100_0.Mul(&t, &z2_50_0) // 2^100 - 2^0
 
-	FeSquare(&t, &z2_100_0) // 2^101 - 2^1
+	t.Square(&z2_100_0) // 2^101 - 2^1
 	for i := 0; i < 99; i++ {
-		FeSquare(&t, &t) // 2^200 - 2^100
+		t.Square(&t) // 2^200 - 2^100
 	}
-	FeMul(&t, &t, &z2_100_0) // 2^200 - 2^0
+	t.Mul(&t, &z2_100_0) // 2^200 - 2^0
 
-	FeSquare(&t, &t) // 2^201 - 2^1
+	t.Square(&t) // 2^201 - 2^1
 	for i := 0; i < 49; i++ {
-		FeSquare(&t, &t) // 2^250 - 2^50
+		t.Square(&t) // 2^250 - 2^50
 	}
-	FeMul(&t, &t, &z2_50_0) // 2^250 - 2^0
+	t.Mul(&t, &z2_50_0) // 2^250 - 2^0
 
-	FeSquare(&t, &t) // 2^251 - 2^1
-	FeSquare(&t, &t) // 2^252 - 2^2
-	FeSquare(&t, &t) // 2^253 - 2^3
-	FeSquare(&t, &t) // 2^254 - 2^4
-	FeSquare(&t, &t) // 2^255 - 2^5
+	t.Square(&t) // 2^251 - 2^1
+	t.Square(&t) // 2^252 - 2^2
+	t.Square(&t) // 2^253 - 2^3
+	t.Square(&t) // 2^254 - 2^4
+	t.Square(&t) // 2^255 - 2^5
 
-	FeMul(out, &t, &z11) // 2^255 - 21
+	v.Mul(&t, &z11) // 2^255 - 21
 }
 
-func FeCopy(out, in *FieldElement) {
-	copy(out[:], in[:])
+func (v *FieldElement) Set(a *FieldElement) {
+	*v = *a
 }
 
-func FeFromBytes(v *FieldElement, x *[32]byte) {
+func (v *FieldElement) FromBytes(x *[32]byte) {
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8
 	v[0] |= uint64(x[2]) << 16
@@ -241,9 +246,9 @@ func FeFromBytes(v *FieldElement, x *[32]byte) {
 	v[4] |= uint64(x[31]&127) << 44
 }
 
-func FeToBytes(r *[32]byte, v *FieldElement) {
-	var t FieldElement
-	FeReduce(&t, v)
+func (v *FieldElement) ToBytes(r *[32]byte) {
+	t := *v
+	t.Reduce()
 
 	r[0] = byte(t[0] & 0xff)
 	r[1] = byte((t[0] >> 8) & 0xff)
@@ -287,7 +292,7 @@ func FeToBytes(r *[32]byte, v *FieldElement) {
 	r[31] = byte((t[4] >> 44))
 }
 
-func FeFromBig(h *FieldElement, num *big.Int) {
+func (v *FieldElement) FromBig(num *big.Int) {
 	var buf [32]byte
 
 	offset := 0
@@ -305,12 +310,12 @@ func FeFromBig(h *FieldElement, num *big.Int) {
 		}
 	}
 
-	FeFromBytes(h, &buf)
+	v.FromBytes(&buf)
 }
 
-func FeToBig(h *FieldElement) *big.Int {
+func (v *FieldElement) ToBig() *big.Int {
 	var buf [32]byte
-	FeToBytes(&buf, h) // does a reduction
+	v.ToBytes(&buf) // does a reduction
 
 	numWords := 256 / bits.UintSize
 	words := make([]big.Word, numWords)
@@ -333,48 +338,48 @@ func FeToBig(h *FieldElement) *big.Int {
 	return out.SetBits(words)
 }
 
-// FeEqual returns 1 if a and b are equal, and 0 otherwise.
-func FeEqual(a, b *FieldElement) int {
-	var sa, sb [32]byte
-	FeToBytes(&sa, a)
-	FeToBytes(&sb, b)
-	return subtle.ConstantTimeCompare(sa[:], sb[:])
+// Equal returns 1 if v and u are equal, and 0 otherwise.
+func (v *FieldElement) Equal(u *FieldElement) int {
+	var sa, sv [32]byte
+	u.ToBytes(&sa)
+	v.ToBytes(&sv)
+	return subtle.ConstantTimeCompare(sa[:], sv[:])
 }
 
-// FeSelect sets out to v if cond == 1, and to u if cond == 0.
-// out, v and u are allowed to overlap.
-func FeSelect(out, v, u *FieldElement, cond int) {
+// Select sets v to a if cond == 1, and to b if cond == 0.
+// v, a and b are allowed to overlap.
+func (v *FieldElement) Select(a, b *FieldElement, cond int) {
+	m := uint64(cond) * 0xffffffffffffffff
+	v[0] = (m & a[0]) | (^m & b[0])
+	v[1] = (m & a[1]) | (^m & b[1])
+	v[2] = (m & a[2]) | (^m & b[2])
+	v[3] = (m & a[3]) | (^m & b[3])
+	v[4] = (m & a[4]) | (^m & b[4])
+}
+
+// CondNeg sets v to -v if cond == 1, and to v if cond == 0.
+func (v *FieldElement) CondNeg(cond int) {
+	var t FieldElement
+	t.Neg(v)
+
 	b := uint64(cond) * 0xffffffffffffffff
-	out[0] = (b & v[0]) | (^b & u[0])
-	out[1] = (b & v[1]) | (^b & u[1])
-	out[2] = (b & v[2]) | (^b & u[2])
-	out[3] = (b & v[3]) | (^b & u[3])
-	out[4] = (b & v[4]) | (^b & u[4])
+	v[0] ^= b & (v[0] ^ t[0])
+	v[1] ^= b & (v[1] ^ t[1])
+	v[2] ^= b & (v[2] ^ t[2])
+	v[3] ^= b & (v[3] ^ t[3])
+	v[4] ^= b & (v[4] ^ t[4])
 }
 
-// FeCondNeg sets u to -u if cond == 1, and to u if cond == 0.
-func FeCondNeg(u *FieldElement, cond int) {
-	var neg FieldElement
-	FeNeg(&neg, u)
-
-	b := uint64(cond) * 0xffffffffffffffff
-	u[0] ^= b & (u[0] ^ neg[0])
-	u[1] ^= b & (u[1] ^ neg[1])
-	u[2] ^= b & (u[2] ^ neg[2])
-	u[3] ^= b & (u[3] ^ neg[3])
-	u[4] ^= b & (u[4] ^ neg[4])
-}
-
-// FeIsNegative returns 1 if u is negative, and 0 otherwise.
-func FeIsNegative(u *FieldElement) int {
+// IsNegative returns 1 if v is negative, and 0 otherwise.
+func (v *FieldElement) IsNegative() int {
 	var b [32]byte
-	FeToBytes(&b, u)
+	v.ToBytes(&b)
 	return int(b[0] & 1)
 }
 
-// FeAbs sets out to |u|. out and u are allowed to overlap.
-func FeAbs(out, u *FieldElement) {
-	var neg FieldElement
-	FeNeg(&neg, u)
-	FeSelect(out, &neg, u, FeIsNegative(u))
+// Abs sets v to |u|. v and u are allowed to overlap.
+func (v *FieldElement) Abs(u *FieldElement) {
+	var t FieldElement
+	t.Neg(u)
+	v.Select(&t, u, u.IsNegative())
 }

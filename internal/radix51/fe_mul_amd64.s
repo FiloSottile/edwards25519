@@ -7,8 +7,8 @@
 
 // +build amd64,!noasm
 
-// func FeMul(outp *uint64, xp *uint64, yp *uint64)
-TEXT ·FeMul(SB),$0-24
+// func feMul(outp *uint64, xp *uint64, yp *uint64)
+TEXT ·feMul(SB),$0-24
 	MOVQ outp+0(FP), DI
 	MOVQ xp+8(FP), BX
 	MOVQ yp+16(FP), CX

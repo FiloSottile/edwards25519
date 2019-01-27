@@ -1,12 +1,19 @@
-// Implements group logic for the Ed25519 curve.
+// Copyright (c) 2017 George Tankersley. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
+// Package group mplements group logic for the Ed25519 curve.
 package group
 
 import (
 	"math/big"
 
-	field "github.com/gtank/ed25519/internal/radix51"
+	"github.com/gtank/ed25519/internal/radix51"
 )
+
+// D is a constant in the curve equation.
+var D = &radix51.FieldElement{929955233495203, 466365720129213,
+	1662059464998953, 2033849074728123, 1442794654840575}
 
 // From EFD https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
 // An elliptic curve in twisted Edwards form has parameters a, d and coordinates
@@ -24,7 +31,7 @@ import (
 // This representation was introduced in the HisilWongCarterDawson paper "Twisted
 // Edwards curves revisited" (Asiacrypt 2008).
 type ExtendedGroupElement struct {
-	X, Y, Z, T field.FieldElement
+	X, Y, Z, T radix51.FieldElement
 }
 
 // Converts (x,y) to (X:Y:T:Z) extended coordinates, or "P3" in ref10. As
@@ -32,10 +39,10 @@ type ExtendedGroupElement struct {
 // 2008, Section 3.1 (https://eprint.iacr.org/2008/522.pdf)
 // See also https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-3
 func (v *ExtendedGroupElement) FromAffine(x, y *big.Int) {
-	field.FeFromBig(&v.X, x)
-	field.FeFromBig(&v.Y, y)
-	field.FeMul(&v.T, &v.X, &v.Y)
-	field.FeOne(&v.Z)
+	v.X.FromBig(x)
+	v.Y.FromBig(y)
+	v.T.Mul(&v.X, &v.Y)
+	v.Z.One()
 }
 
 // Extended coordinates are XYZT with x = X/Z, y = Y/Z, or the "P3"
@@ -43,57 +50,60 @@ func (v *ExtendedGroupElement) FromAffine(x, y *big.Int) {
 // from projective to affine. Per HWCD, it is safe to move from extended to
 // projective by simply ignoring T.
 func (v *ExtendedGroupElement) ToAffine() (*big.Int, *big.Int) {
-	var x, y, zinv field.FieldElement
+	var x, y, zinv radix51.FieldElement
 
-	field.FeInvert(&zinv, &v.Z)
-	field.FeMul(&x, &v.X, &zinv)
-	field.FeMul(&y, &v.Y, &zinv)
+	zinv.Invert(&v.Z)
+	x.Mul(&v.X, &zinv)
+	y.Mul(&v.Y, &zinv)
 
-	return field.FeToBig(&x), field.FeToBig(&y)
+	return x.ToBig(), y.ToBig()
 }
 
 // Per HWCD, it is safe to move from extended to projective by simply ignoring T.
 func (v *ExtendedGroupElement) ToProjective() *ProjectiveGroupElement {
 	var p ProjectiveGroupElement
 
-	field.FeCopy(&p.X, &v.X)
-	field.FeCopy(&p.Y, &v.Y)
-	field.FeCopy(&p.Z, &v.Z)
+	p.X.Set(&v.X)
+	p.Y.Set(&v.Y)
+	p.Z.Set(&v.Z)
 
 	return &p
 }
 
 func (v *ExtendedGroupElement) Zero() *ExtendedGroupElement {
-	field.FeZero(&v.X)
-	field.FeOne(&v.Y)
-	field.FeOne(&v.Z)
-	field.FeZero(&v.T)
+	v.X.Zero()
+	v.Y.One()
+	v.Z.One()
+	v.T.Zero()
 	return v
 }
+
+var twoD = &radix51.FieldElement{1859910466990425, 932731440258426,
+	1072319116312658, 1815898335770999, 633789495995903}
 
 // This is the same addition formula everyone uses, "add-2008-hwcd-3".
 // https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-3
 // TODO We know Z1=1 and Z2=1 here, so mmadd-2008-hwcd-3 (6M + 1S + 1*k + 9add) could apply
 func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupElement {
-	var tmp1, tmp2, A, B, C, D, E, F, G, H field.FieldElement
-	field.FeSub(&tmp1, &p1.Y, &p1.X) // tmp1 <-- Y1-X1
-	field.FeSub(&tmp2, &p2.Y, &p2.X) // tmp2 <-- Y2-X2
-	field.FeMul(&A, &tmp1, &tmp2)    // A <-- tmp1*tmp2 = (Y1-X1)*(Y2-X2)
-	field.FeAdd(&tmp1, &p1.Y, &p1.X) // tmp1 <-- Y1+X1
-	field.FeAdd(&tmp2, &p2.Y, &p2.X) // tmp2 <-- Y2+X2
-	field.FeMul(&B, &tmp1, &tmp2)    // B <-- tmp1*tmp2 = (Y1+X1)*(Y2+X2)
-	field.FeMul(&tmp1, &p1.T, &p2.T) // tmp1 <-- T1*T2
-	field.FeMul(&C, &tmp1, &D2)      // C <-- tmp1*2d = T1*2d*T2
-	field.FeMul(&tmp1, &p1.Z, &p2.Z) // tmp1 <-- Z1*Z2
-	field.FeAdd(&D, &tmp1, &tmp1)    // D <-- tmp1 + tmp1 = 2*Z1*Z2
-	field.FeSub(&E, &B, &A)          // E <-- B-A
-	field.FeSub(&F, &D, &C)          // F <-- D-C
-	field.FeAdd(&G, &D, &C)          // G <-- D+C
-	field.FeAdd(&H, &B, &A)          // H <-- B+A
-	field.FeMul(&v.X, &E, &F)        // X3 <-- E*F
-	field.FeMul(&v.Y, &G, &H)        // Y3 <-- G*H
-	field.FeMul(&v.T, &E, &H)        // T3 <-- E*H
-	field.FeMul(&v.Z, &F, &G)        // Z3 <-- F*G
+	var tmp1, tmp2, A, B, C, D, E, F, G, H radix51.FieldElement
+	tmp1.Sub(&p1.Y, &p1.X) // tmp1 <-- Y1-X1
+	tmp2.Sub(&p2.Y, &p2.X) // tmp2 <-- Y2-X2
+	A.Mul(&tmp1, &tmp2)    // A <-- tmp1*tmp2 = (Y1-X1)*(Y2-X2)
+	tmp1.Add(&p1.Y, &p1.X) // tmp1 <-- Y1+X1
+	tmp2.Add(&p2.Y, &p2.X) // tmp2 <-- Y2+X2
+	B.Mul(&tmp1, &tmp2)    // B <-- tmp1*tmp2 = (Y1+X1)*(Y2+X2)
+	tmp1.Mul(&p1.T, &p2.T) // tmp1 <-- T1*T2
+	C.Mul(&tmp1, twoD)     // C <-- tmp1*2d = T1*2*d*T2
+	tmp1.Mul(&p1.Z, &p2.Z) // tmp1 <-- Z1*Z2
+	D.Add(&tmp1, &tmp1)    // D <-- tmp1 + tmp1 = 2*Z1*Z2
+	E.Sub(&B, &A)          // E <-- B-A
+	F.Sub(&D, &C)          // F <-- D-C
+	G.Add(&D, &C)          // G <-- D+C
+	H.Add(&B, &A)          // H <-- B+A
+	v.X.Mul(&E, &F)        // X3 <-- E*F
+	v.Y.Mul(&G, &H)        // Y3 <-- G*H
+	v.T.Mul(&E, &H)        // T3 <-- E*H
+	v.Z.Mul(&F, &G)        // Z3 <-- F*G
 	return v
 }
 
@@ -126,40 +136,33 @@ func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
 	// *v = *(v.ToProjective().Double().ToExtended())
 	// return v
 
-	var A, B, C, D, E, F, G, H field.FieldElement
+	var A, B, C, D, E, F, G, H radix51.FieldElement
 
 	// A ← X1^2, B ← Y1^2
-	field.FeSquare(&A, &v.X)
-	field.FeSquare(&B, &v.Y)
+	A.Square(&v.X)
+	B.Square(&v.Y)
 
 	// C ← 2*Z1^2
-	field.FeSquare(&C, &v.Z)
-	field.FeAdd(&C, &C, &C) // TODO should probably implement FeSquare2
+	C.Square(&v.Z)
+	C.Add(&C, &C) // TODO should probably implement FeSquare2
 
 	// D ← -1*A
-	field.FeNeg(&D, &A) // implemented as substraction
+	D.Neg(&A) // implemented as substraction
 
 	// E ← (X1+Y1)^2 − A − B
-	var t0 field.FieldElement
-	field.FeAdd(&t0, &v.X, &v.Y)
-	field.FeSquare(&t0, &t0)
-	field.FeSub(&E, &t0, &A)
-	field.FeSub(&E, &E, &B)
+	var t0 radix51.FieldElement
+	t0.Add(&v.X, &v.Y)
+	t0.Square(&t0)
+	E.Sub(&t0, &A)
+	E.Sub(&E, &B)
 
-	// G ← D+B
-	field.FeAdd(&G, &D, &B)
-	// F ← G−C
-	field.FeSub(&F, &G, &C)
-	// H ← D−B
-	field.FeSub(&H, &D, &B)
-	// X3 ← E*F
-	field.FeMul(&v.X, &E, &F)
-	// Y3 ← G*H
-	field.FeMul(&v.Y, &G, &H)
-	// T3 ← E*H
-	field.FeMul(&v.T, &E, &H)
-	// Z3 ← F*G
-	field.FeMul(&v.Z, &F, &G)
+	G.Add(&D, &B)   // G ← D+B
+	F.Sub(&G, &C)   // F ← G−C
+	H.Sub(&D, &B)   // H ← D−B
+	v.X.Mul(&E, &F) // X3 ← E*F
+	v.Y.Mul(&G, &H) // Y3 ← G*H
+	v.T.Mul(&E, &H) // T3 ← E*H
+	v.Z.Mul(&F, &G) // Z3 ← F*G
 
 	return v
 }
@@ -168,23 +171,23 @@ func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
 // representation in ref10. This representation has a cheaper doubling formula
 // than extended coordinates.
 type ProjectiveGroupElement struct {
-	X, Y, Z field.FieldElement
+	X, Y, Z radix51.FieldElement
 }
 
 func (v *ProjectiveGroupElement) FromAffine(x, y *big.Int) {
-	field.FeFromBig(&v.X, x)
-	field.FeFromBig(&v.Y, y)
-	field.FeOne(&v.Z)
+	v.X.FromBig(x)
+	v.Y.FromBig(y)
+	v.Z.Zero()
 }
 
 func (v *ProjectiveGroupElement) ToAffine() (*big.Int, *big.Int) {
-	var x, y, zinv field.FieldElement
+	var x, y, zinv radix51.FieldElement
 
-	field.FeInvert(&zinv, &v.Z)
-	field.FeMul(&x, &v.X, &zinv)
-	field.FeMul(&y, &v.Y, &zinv)
+	zinv.Invert(&v.Z)
+	x.Mul(&v.X, &zinv)
+	y.Mul(&v.Y, &zinv)
 
-	return field.FeToBig(&x), field.FeToBig(&y)
+	return x.ToBig(), y.ToBig()
 }
 
 // HWCD Section 3: "Given (X : Y : Z) in [projective coordinates] passing to
@@ -193,18 +196,18 @@ func (v *ProjectiveGroupElement) ToAffine() (*big.Int, *big.Int) {
 func (v *ProjectiveGroupElement) ToExtended() *ExtendedGroupElement {
 	var r ExtendedGroupElement
 
-	field.FeMul(&r.X, &v.X, &v.Z)
-	field.FeMul(&r.Y, &v.Y, &v.Z)
-	field.FeMul(&r.T, &v.X, &v.Y)
-	field.FeSquare(&r.Z, &v.Z)
+	r.X.Mul(&v.X, &v.Z)
+	r.Y.Mul(&v.Y, &v.Z)
+	r.T.Mul(&v.X, &v.Y)
+	r.Z.Square(&v.Z)
 
 	return &r
 }
 
 func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
-	field.FeZero(&v.X)
-	field.FeOne(&v.Y)
-	field.FeOne(&v.Z)
+	v.X.Zero()
+	v.Y.One()
+	v.Z.One()
 	return v
 }
 
@@ -235,38 +238,38 @@ func (v *ProjectiveGroupElement) DoubleZ1() *ProjectiveGroupElement {
 	// because it is always called on ephemeral intermediate values, but should
 	// fix.
 	var p, q ProjectiveGroupElement
-	var t0, t1 field.FieldElement
+	var t0, t1 radix51.FieldElement
 
 	p = *v
 
 	// C = X1^2, D = Y1^2
-	field.FeSquare(&t0, &p.X)
-	field.FeSquare(&t1, &p.Y)
+	t0.Square(&p.X)
+	t1.Square(&p.Y)
 
 	// B = (X1+Y1)^2
-	field.FeAdd(&p.Z, &p.X, &p.Y) // Z is irrelevant but already allocated
-	field.FeSquare(&q.X, &p.Z)
+	p.Z.Add(&p.X, &p.Y) // Z is irrelevant but already allocated
+	q.X.Square(&p.Z)
 
 	// E = a*C where a = -1
-	field.FeNeg(&q.Z, &t0)
+	q.Z.Neg(&t0)
 
 	// F = E + D
-	field.FeAdd(&p.X, &q.Z, &t1)
+	p.X.Add(&q.Z, &t1)
 
 	// X3 = (B-C-D)*(F-2)
-	field.FeSub(&p.Y, &q.X, &t0)
-	field.FeSub(&p.Y, &p.Y, &t1)
-	field.FeSub(&p.Z, &p.X, &field.FieldTwo)
-	field.FeMul(&q.X, &p.Y, &p.Z)
+	p.Y.Sub(&q.X, &t0)
+	p.Y.Sub(&p.Y, &t1)
+	p.Z.Sub(&p.X, radix51.Two)
+	q.X.Mul(&p.Y, &p.Z)
 
 	// Y3 = F*(E-D)
-	field.FeSub(&p.Y, &q.Z, &t1)
-	field.FeMul(&q.Y, &p.X, &p.Y)
+	p.Y.Sub(&q.Z, &t1)
+	q.Y.Mul(&p.X, &p.Y)
 
 	// Z3 = F^2 - 2*F
-	field.FeSquare(&q.Z, &p.X)
-	field.FeSub(&q.Z, &q.Z, &p.X)
-	field.FeSub(&q.Z, &q.Z, &p.X)
+	q.Z.Square(&p.X)
+	q.Z.Sub(&q.Z, &p.X)
+	q.Z.Sub(&q.Z, &p.X)
 
 	return &q
 }

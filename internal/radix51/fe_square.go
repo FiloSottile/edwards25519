@@ -6,8 +6,8 @@
 
 package radix51
 
-// FeSquare sets out = x*x
-func FeSquare(out, x *FieldElement) {
+// Square sets v = x * x.
+func (v *FieldElement) Square(x *FieldElement) {
 	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
@@ -90,9 +90,9 @@ func FeSquare(out, x *FieldElement) {
 	r00 += (r40 >> 51) * 19
 	r40 &= maskLow51Bits
 
-	out[0] = r00
-	out[1] = r10
-	out[2] = r20
-	out[3] = r30
-	out[4] = r40
+	v[0] = r00
+	v[1] = r10
+	v[2] = r20
+	v[3] = r30
+	v[4] = r40
 }
