@@ -62,14 +62,10 @@ func (v *ExtendedGroupElement) ToAffine() (*big.Int, *big.Int) {
 }
 
 // Per HWCD, it is safe to move from extended to projective by simply ignoring T.
-func (v *ExtendedGroupElement) ToProjective() *ProjectiveGroupElement {
-	var p ProjectiveGroupElement
-
+func (v *ExtendedGroupElement) ToProjective(p *ProjectiveGroupElement) {
 	p.X.Set(&v.X)
 	p.Y.Set(&v.Y)
 	p.Z.Set(&v.Z)
-
-	return &p
 }
 
 func (v *ExtendedGroupElement) Zero() *ExtendedGroupElement {
@@ -193,15 +189,11 @@ func (v *ProjectiveGroupElement) ToAffine() (*big.Int, *big.Int) {
 // HWCD Section 3: "Given (X : Y : Z) in [projective coordinates] passing to
 // [extended coordinates, (X : Y : T : Z)] can be performed in 3M+1S by computing
 // (XZ, YZ, XY, Z^2)"
-func (v *ProjectiveGroupElement) ToExtended() *ExtendedGroupElement {
-	var r ExtendedGroupElement
-
+func (v *ProjectiveGroupElement) ToExtended(r *ExtendedGroupElement) {
 	r.X.Mul(&v.X, &v.Z)
 	r.Y.Mul(&v.Y, &v.Z)
 	r.T.Mul(&v.X, &v.Y)
 	r.Z.Square(&v.Z)
-
-	return &r
 }
 
 func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
