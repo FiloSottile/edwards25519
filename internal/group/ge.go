@@ -1,4 +1,5 @@
 // Copyright (c) 2017 George Tankersley. All rights reserved.
+// Copyright (c) 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -231,44 +232,30 @@ func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
 // This assumption is one reason why this package is internal. For instance, it
 // will not hold throughout a Montgomery ladder, when we convert to projective
 // from possibly arbitrary extended coordinates.
-func (v *ProjectiveGroupElement) DoubleZ1() *ProjectiveGroupElement {
-	// TODO This function is inconsistent with the other ones in that it
-	// returns a copy rather than smashing the receiver. It doesn't matter
-	// because it is always called on ephemeral intermediate values, but should
-	// fix.
-	var p, q ProjectiveGroupElement
-	var t0, t1 radix51.FieldElement
+func (v *ProjectiveGroupElement) DoubleZ1(u *ProjectiveGroupElement) *ProjectiveGroupElement {
+	var B, C, D, E, F radix51.FieldElement
 
-	p = *v
+	if u.Z.Equal(radix51.Zero) != 1 {
+		panic("ed25519: DoubleZ1 called with Z != 1")
+	}
 
-	// C = X1^2, D = Y1^2
-	t0.Square(&p.X)
-	t1.Square(&p.Y)
-
-	// B = (X1+Y1)^2
-	p.Z.Add(&p.X, &p.Y) // Z is irrelevant but already allocated
-	q.X.Square(&p.Z)
-
-	// E = a*C where a = -1
-	q.Z.Neg(&t0)
-
-	// F = E + D
-	p.X.Add(&q.Z, &t1)
+	B.Square(B.Add(&u.X, &u.Y)) // B = (X1+Y1)^2
+	C.Square(&u.X)              // C = X1^2
+	D.Square(&u.Y)              // D = Y1^2
+	E.Neg(&C)                   // E = a*C where a = -1
+	F.Add(&E, &D)               // F = E + D
 
 	// X3 = (B-C-D)*(F-2)
-	p.Y.Sub(&q.X, &t0)
-	p.Y.Sub(&p.Y, &t1)
-	p.Z.Sub(&p.X, radix51.Two)
-	q.X.Mul(&p.Y, &p.Z)
+	v.Y.Sub(v.Y.Sub(&B, &C), &D)
+	v.X.Mul(&v.Y, v.X.Sub(&F, radix51.Two))
 
 	// Y3 = F*(E-D)
-	p.Y.Sub(&q.Z, &t1)
-	q.Y.Mul(&p.X, &p.Y)
+	v.Y.Mul(&F, v.Y.Sub(&E, &D))
 
 	// Z3 = F^2 - 2*F
-	q.Z.Square(&p.X)
-	q.Z.Sub(&q.Z, &p.X)
-	q.Z.Sub(&q.Z, &p.X)
+	v.Z.Square(&F)
+	v.Z.Sub(&v.Z, &F)
+	v.Z.Sub(&v.Z, &F)
 
-	return &q
+	return v
 }
