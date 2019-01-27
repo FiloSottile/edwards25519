@@ -29,32 +29,35 @@ var (
 	Two  = &FieldElement{2, 0, 0, 0, 0}
 )
 
-func (v *FieldElement) Zero() {
+func (v *FieldElement) Zero() *FieldElement {
 	v[0] = 0
 	v[1] = 0
 	v[2] = 0
 	v[3] = 0
 	v[4] = 0
+	return v
 }
 
-func (v *FieldElement) One() {
+func (v *FieldElement) One() *FieldElement {
 	v[0] = 1
 	v[1] = 0
 	v[2] = 0
 	v[3] = 0
 	v[4] = 0
+	return v
 }
 
 // SetInt sets the receiving FieldElement to the specified small integer.
-func (v *FieldElement) SetInt(x uint64) {
+func (v *FieldElement) SetInt(x uint64) *FieldElement {
 	v[0] = x
 	v[1] = 0
 	v[2] = 0
 	v[3] = 0
 	v[4] = 0
+	return v
 }
 
-func (v *FieldElement) Reduce(u *FieldElement) {
+func (v *FieldElement) Reduce(u *FieldElement) *FieldElement {
 	v.Set(u)
 
 	// Lev v = v[0] + v[1]*2^51 + v[2]*2^102 + v[3]*2^153 + v[4]*2^204
@@ -92,21 +95,24 @@ func (v *FieldElement) Reduce(u *FieldElement) {
 	v[3] = v[3] & maskLow51Bits
 	// no additional carry
 	v[4] = v[4] & maskLow51Bits
+
+	return v
 }
 
 // Add sets v = a + b. Long sequences of additions without reduction that
 // let coefficients grow larger than 54 bits would be a problem. Paper
 // cautions: "do not have such sequences of additions".
-func (v *FieldElement) Add(a, b *FieldElement) {
+func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	v[0] = a[0] + b[0]
 	v[1] = a[1] + b[1]
 	v[2] = a[2] + b[2]
 	v[3] = a[3] + b[3]
 	v[4] = a[4] + b[4]
+	return v
 }
 
 // Sub sets v = a - b.
-func (v *FieldElement) Sub(a, b *FieldElement) {
+func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	t := *b
 
 	// Reduce each limb below 2^51, propagating carries. Ensures that results
@@ -129,15 +135,17 @@ func (v *FieldElement) Sub(a, b *FieldElement) {
 	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - t[2]
 	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - t[3]
 	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - t[4]
+
+	return v
 }
 
 // Neg sets v = -a.
-func (v *FieldElement) Neg(a *FieldElement) {
-	v.Sub(&FieldElement{}, a)
+func (v *FieldElement) Neg(a *FieldElement) *FieldElement {
+	return v.Sub(Zero, a)
 }
 
 // Invert sets v = 1/z mod p by calculating z^(p-2), p-2 = 2^255 - 21.
-func (v *FieldElement) Invert(z *FieldElement) {
+func (v *FieldElement) Invert(z *FieldElement) *FieldElement {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
 	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
 	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t FieldElement
@@ -198,14 +206,15 @@ func (v *FieldElement) Invert(z *FieldElement) {
 	t.Square(&t) // 2^254 - 2^4
 	t.Square(&t) // 2^255 - 2^5
 
-	v.Mul(&t, &z11) // 2^255 - 21
+	return v.Mul(&t, &z11) // 2^255 - 21
 }
 
-func (v *FieldElement) Set(a *FieldElement) {
+func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 	*v = *a
+	return v
 }
 
-func (v *FieldElement) FromBytes(x *[32]byte) {
+func (v *FieldElement) FromBytes(x *[32]byte) *FieldElement {
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8
 	v[0] |= uint64(x[2]) << 16
@@ -246,11 +255,12 @@ func (v *FieldElement) FromBytes(x *[32]byte) {
 	v[4] |= uint64(x[29]) << 28
 	v[4] |= uint64(x[30]) << 36
 	v[4] |= uint64(x[31]&127) << 44
+
+	return v
 }
 
 func (v *FieldElement) ToBytes(r *[32]byte) {
-	var t FieldElement
-	t.Reduce(v)
+	t := new(FieldElement).Reduce(v)
 
 	r[0] = byte(t[0] & 0xff)
 	r[1] = byte((t[0] >> 8) & 0xff)
@@ -294,7 +304,7 @@ func (v *FieldElement) ToBytes(r *[32]byte) {
 	r[31] = byte((t[4] >> 44))
 }
 
-func (v *FieldElement) FromBig(num *big.Int) {
+func (v *FieldElement) FromBig(num *big.Int) *FieldElement {
 	var buf [32]byte
 
 	offset := 0
@@ -312,7 +322,7 @@ func (v *FieldElement) FromBig(num *big.Int) {
 		}
 	}
 
-	v.FromBytes(&buf)
+	return v.FromBytes(&buf)
 }
 
 func (v *FieldElement) ToBig() *big.Int {
@@ -350,19 +360,19 @@ func (v *FieldElement) Equal(u *FieldElement) int {
 
 // Select sets v to a if cond == 1, and to b if cond == 0.
 // v, a and b are allowed to overlap.
-func (v *FieldElement) Select(a, b *FieldElement, cond int) {
+func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 	m := uint64(cond) * 0xffffffffffffffff
 	v[0] = (m & a[0]) | (^m & b[0])
 	v[1] = (m & a[1]) | (^m & b[1])
 	v[2] = (m & a[2]) | (^m & b[2])
 	v[3] = (m & a[3]) | (^m & b[3])
 	v[4] = (m & a[4]) | (^m & b[4])
+	return v
 }
 
 // CondNeg sets v to -u if cond == 1, and to u if cond == 0.
-func (v *FieldElement) CondNeg(u *FieldElement, cond int) {
-	v.Neg(u)
-	v.Select(v, u, cond)
+func (v *FieldElement) CondNeg(u *FieldElement, cond int) *FieldElement {
+	return v.Select(v.Neg(u), u, cond)
 }
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
@@ -373,6 +383,6 @@ func (v *FieldElement) IsNegative() int {
 }
 
 // Abs sets v to |u|. v and u are allowed to overlap.
-func (v *FieldElement) Abs(u *FieldElement) {
-	v.CondNeg(u, u.IsNegative())
+func (v *FieldElement) Abs(u *FieldElement) *FieldElement {
+	return v.CondNeg(u, u.IsNegative())
 }

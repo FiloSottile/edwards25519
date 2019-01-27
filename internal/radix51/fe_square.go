@@ -7,7 +7,7 @@
 package radix51
 
 // Square sets v = x * x.
-func (v *FieldElement) Square(x *FieldElement) {
+func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
@@ -95,4 +95,5 @@ func (v *FieldElement) Square(x *FieldElement) {
 	v[2] = r20
 	v[3] = r30
 	v[4] = r40
+	return v
 }

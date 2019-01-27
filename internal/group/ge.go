@@ -38,11 +38,12 @@ type ExtendedGroupElement struct {
 // described in "Twisted Edwards Curves Revisited", Hisil-Wong-Carter-Dawson
 // 2008, Section 3.1 (https://eprint.iacr.org/2008/522.pdf)
 // See also https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-3
-func (v *ExtendedGroupElement) FromAffine(x, y *big.Int) {
+func (v *ExtendedGroupElement) FromAffine(x, y *big.Int) *ExtendedGroupElement {
 	v.X.FromBig(x)
 	v.Y.FromBig(y)
 	v.T.Mul(&v.X, &v.Y)
 	v.Z.One()
+	return v
 }
 
 // Extended coordinates are XYZT with x = X/Z, y = Y/Z, or the "P3"
@@ -130,20 +131,17 @@ func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupE
 // instead of another point in extended coordinates. I have implemented it
 // this way to see if more straightforward code is worth the (hopefully small)
 // performance tradeoff.
-func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
+func (v *ExtendedGroupElement) Double(u *ExtendedGroupElement) *ExtendedGroupElement {
 	// TODO: Convert to projective coordinates? Section 4.3 mixed doubling?
-	// TODO: make a decision about how these APIs work wrt chaining/smashing
-	// *v = *(v.ToProjective().Double().ToExtended())
-	// return v
 
 	var A, B, C, D, E, F, G, H radix51.FieldElement
 
 	// A ← X1^2, B ← Y1^2
-	A.Square(&v.X)
-	B.Square(&v.Y)
+	A.Square(&u.X)
+	B.Square(&u.Y)
 
 	// C ← 2*Z1^2
-	C.Square(&v.Z)
+	C.Square(&u.Z)
 	C.Add(&C, &C) // TODO should probably implement FeSquare2
 
 	// D ← -1*A
@@ -151,7 +149,7 @@ func (v *ExtendedGroupElement) Double() *ExtendedGroupElement {
 
 	// E ← (X1+Y1)^2 − A − B
 	var t0 radix51.FieldElement
-	t0.Add(&v.X, &v.Y)
+	t0.Add(&u.X, &u.Y)
 	t0.Square(&t0)
 	E.Sub(&t0, &A)
 	E.Sub(&E, &B)
@@ -174,10 +172,11 @@ type ProjectiveGroupElement struct {
 	X, Y, Z radix51.FieldElement
 }
 
-func (v *ProjectiveGroupElement) FromAffine(x, y *big.Int) {
+func (v *ProjectiveGroupElement) FromAffine(x, y *big.Int) *ProjectiveGroupElement {
 	v.X.FromBig(x)
 	v.Y.FromBig(y)
 	v.Z.Zero()
+	return v
 }
 
 func (v *ProjectiveGroupElement) ToAffine() (*big.Int, *big.Int) {

@@ -7,7 +7,7 @@
 package radix51
 
 // Mul sets out = x * y.
-func (v *FieldElement) Mul(x, y *FieldElement) {
+func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	var x0, x1, x2, x3, x4 uint64
 	var y0, y1, y2, y3, y4 uint64
 
@@ -123,4 +123,5 @@ func (v *FieldElement) Mul(x, y *FieldElement) {
 	v[2] = r20
 	v[3] = r30
 	v[4] = r40
+	return v
 }
