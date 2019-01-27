@@ -6,8 +6,8 @@
 
 package radix51
 
-// FeMul sets out = a * b
-func FeMul(out, x, y *FieldElement) {
+// Mul sets out = x * y.
+func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	var x0, x1, x2, x3, x4 uint64
 	var y0, y1, y2, y3, y4 uint64
 
@@ -118,9 +118,10 @@ func FeMul(out, x, y *FieldElement) {
 	r00 += (r40 >> 51) * 19
 	r40 &= maskLow51Bits
 
-	out[0] = r00
-	out[1] = r10
-	out[2] = r20
-	out[3] = r30
-	out[4] = r40
+	v[0] = r00
+	v[1] = r10
+	v[2] = r20
+	v[3] = r30
+	v[4] = r40
+	return v
 }

@@ -73,8 +73,8 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 	in = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 		18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
-	FeFromBytes(&fe, &in)
-	FeToBytes(&out, &fe)
+	fe.FromBytes(&in)
+	fe.ToBytes(&out)
 
 	if !bytes.Equal(in[:], out[:]) {
 		t.Error("Bytes<>FE doesn't roundtrip")
@@ -87,8 +87,8 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 	fe[3] = 0x5e8fca9e0881c
 	fe[4] = 0x5c490f087d796
 
-	FeToBytes(&out, &fe)
-	FeFromBytes(&r, &out)
+	fe.ToBytes(&out)
+	r.FromBytes(&out)
 
 	for i := 0; i < len(fe); i++ {
 		if r[i] != fe[i] {
@@ -104,9 +104,9 @@ func TestSanity(t *testing.T) {
 	// var x2Go, x2sqGo FieldElement
 
 	x = [5]uint64{1, 1, 1, 1, 1}
-	FeMul(&x2, &x, &x)
+	x2.Mul(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
-	FeSquare(&x2sq, &x)
+	x2sq.Square(&x)
 	// FeSquareGo(&x2sqGo, &x)
 
 	// if !vartimeEqual(x2, x2Go) || !vartimeEqual(x2sq, x2sqGo) || !vartimeEqual(x2, x2sq) {
@@ -123,11 +123,11 @@ func TestSanity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	FeFromBytes(&x, &bytes)
+	x.FromBytes(&bytes)
 
-	FeMul(&x2, &x, &x)
+	x2.Mul(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
-	FeSquare(&x2sq, &x)
+	x2sq.Square(&x)
 	// FeSquareGo(&x2sqGo, &x)
 
 	// if !vartimeEqual(x2, x2Go) || !vartimeEqual(x2sq, x2sqGo) || !vartimeEqual(x2, x2sq) {
@@ -152,13 +152,13 @@ func TestFeEqual(t *testing.T) {
 	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
 	var y FieldElement = [5]uint64{5, 4, 3, 2, 1}
 
-	eq := FeEqual(&x, &x)
-	if !eq {
+	eq := x.Equal(&x)
+	if eq != 1 {
 		t.Errorf("wrong about equality")
 	}
 
-	eq = FeEqual(&x, &y)
-	if eq {
+	eq = x.Equal(&y)
+	if eq != 0 {
 		t.Errorf("wrong about inequality")
 	}
 }
@@ -168,9 +168,9 @@ func TestFeInvert(t *testing.T) {
 	var one FieldElement = [5]uint64{1, 0, 0, 0, 0}
 	var xinv, r FieldElement
 
-	FeInvert(&xinv, &x)
-	FeMul(&r, &x, &xinv)
-	FeReduce(&r, &r)
+	xinv.Invert(&x)
+	r.Mul(&x, &xinv)
+	r.Reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("inversion identity failed, got: %x", r)
@@ -182,11 +182,11 @@ func TestFeInvert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	FeFromBytes(&x, &bytes)
+	x.FromBytes(&bytes)
 
-	FeInvert(&xinv, &x)
-	FeMul(&r, &x, &xinv)
-	FeReduce(&r, &r)
+	xinv.Invert(&x)
+	r.Mul(&x, &xinv)
+	r.Reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)

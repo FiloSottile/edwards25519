@@ -4,8 +4,8 @@
 
 // +build amd64,!noasm
 
-// func FeSquare(outp *uint64, xp *uint64)
-TEXT ·FeSquare(SB),4,$0-16
+// func feSquare(outp *uint64, xp *uint64)
+TEXT ·feSquare(SB),4,$0-16
     MOVQ outp+0(FP), DI
     MOVQ xp+8(FP), SI
 

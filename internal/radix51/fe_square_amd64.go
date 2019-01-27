@@ -6,5 +6,11 @@
 
 package radix51
 
+// Square sets v = x * x.
+func (v *FieldElement) Square(x *FieldElement) *FieldElement {
+	feSquare(v, x)
+	return v
+}
+
 // go:noescape
-func FeSquare(out, x *FieldElement)
+func feSquare(out, x *FieldElement)
