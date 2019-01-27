@@ -24,9 +24,10 @@ const (
 )
 
 var (
-	Zero = &FieldElement{0, 0, 0, 0, 0}
-	One  = &FieldElement{1, 0, 0, 0, 0}
-	Two  = &FieldElement{2, 0, 0, 0, 0}
+	Zero     = &FieldElement{0, 0, 0, 0, 0}
+	One      = &FieldElement{1, 0, 0, 0, 0}
+	Two      = &FieldElement{2, 0, 0, 0, 0}
+	MinusOne = new(FieldElement).Neg(One)
 )
 
 func (v *FieldElement) Zero() *FieldElement {
