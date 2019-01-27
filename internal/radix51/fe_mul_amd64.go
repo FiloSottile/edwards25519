@@ -6,7 +6,7 @@
 
 package radix51
 
-// Mul sets out = a * b.
+// Mul sets out = x * y.
 func (v *FieldElement) Mul(x, y *FieldElement) {
 	feMul(v, x, y)
 }

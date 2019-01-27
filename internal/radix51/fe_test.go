@@ -170,7 +170,7 @@ func TestFeInvert(t *testing.T) {
 
 	xinv.Invert(&x)
 	r.Mul(&x, &xinv)
-	r.Reduce()
+	r.Reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("inversion identity failed, got: %x", r)
@@ -186,7 +186,7 @@ func TestFeInvert(t *testing.T) {
 
 	xinv.Invert(&x)
 	r.Mul(&x, &xinv)
-	r.Reduce()
+	r.Reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)

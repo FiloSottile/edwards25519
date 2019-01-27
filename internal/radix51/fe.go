@@ -54,7 +54,9 @@ func (v *FieldElement) SetInt(x uint64) {
 	v[4] = 0
 }
 
-func (v *FieldElement) Reduce() {
+func (v *FieldElement) Reduce(u *FieldElement) {
+	v.Set(u)
+
 	// Lev v = v[0] + v[1]*2^51 + v[2]*2^102 + v[3]*2^153 + v[4]*2^204
 	// Reduce each limb below 2^51, propagating carries.
 	v[1] += v[0] >> 51
@@ -247,8 +249,8 @@ func (v *FieldElement) FromBytes(x *[32]byte) {
 }
 
 func (v *FieldElement) ToBytes(r *[32]byte) {
-	t := *v
-	t.Reduce()
+	var t FieldElement
+	t.Reduce(v)
 
 	r[0] = byte(t[0] & 0xff)
 	r[1] = byte((t[0] >> 8) & 0xff)
@@ -357,17 +359,10 @@ func (v *FieldElement) Select(a, b *FieldElement, cond int) {
 	v[4] = (m & a[4]) | (^m & b[4])
 }
 
-// CondNeg sets v to -v if cond == 1, and to v if cond == 0.
-func (v *FieldElement) CondNeg(cond int) {
-	var t FieldElement
-	t.Neg(v)
-
-	b := uint64(cond) * 0xffffffffffffffff
-	v[0] ^= b & (v[0] ^ t[0])
-	v[1] ^= b & (v[1] ^ t[1])
-	v[2] ^= b & (v[2] ^ t[2])
-	v[3] ^= b & (v[3] ^ t[3])
-	v[4] ^= b & (v[4] ^ t[4])
+// CondNeg sets v to -u if cond == 1, and to u if cond == 0.
+func (v *FieldElement) CondNeg(u *FieldElement, cond int) {
+	v.Neg(u)
+	v.Select(v, u, cond)
 }
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
@@ -379,7 +374,5 @@ func (v *FieldElement) IsNegative() int {
 
 // Abs sets v to |u|. v and u are allowed to overlap.
 func (v *FieldElement) Abs(u *FieldElement) {
-	var t FieldElement
-	t.Neg(u)
-	v.Select(&t, u, u.IsNegative())
+	v.CondNeg(u, u.IsNegative())
 }
