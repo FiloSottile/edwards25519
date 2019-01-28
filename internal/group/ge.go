@@ -171,7 +171,7 @@ type ProjectiveGroupElement struct {
 func (v *ProjectiveGroupElement) FromAffine(x, y *big.Int) *ProjectiveGroupElement {
 	v.X.FromBig(x)
 	v.Y.FromBig(y)
-	v.Z.Zero()
+	v.Z.One()
 	return v
 }
 
@@ -226,7 +226,7 @@ func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
 func (v *ProjectiveGroupElement) DoubleZ1(u *ProjectiveGroupElement) *ProjectiveGroupElement {
 	var B, C, D, E, F radix51.FieldElement
 
-	if u.Z.Equal(radix51.Zero) != 1 {
+	if u.Z.Equal(radix51.One) != 1 {
 		panic("ed25519: DoubleZ1 called with Z != 1")
 	}
 
