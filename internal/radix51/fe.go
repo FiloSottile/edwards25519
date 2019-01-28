@@ -359,10 +359,12 @@ func (v *FieldElement) Equal(u *FieldElement) int {
 	return subtle.ConstantTimeCompare(sa[:], sv[:])
 }
 
+const mask64Bits uint64 = (1 << 64) - 1
+
 // Select sets v to a if cond == 1, and to b if cond == 0.
 // v, a and b are allowed to overlap.
 func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
-	m := uint64(cond) * 0xffffffffffffffff
+	m := uint64(cond) * mask64Bits
 	v[0] = (m & a[0]) | (^m & b[0])
 	v[1] = (m & a[1]) | (^m & b[1])
 	v[2] = (m & a[2]) | (^m & b[2])
