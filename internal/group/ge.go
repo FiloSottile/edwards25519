@@ -141,7 +141,7 @@ func (v *ExtendedGroupElement) Double(u *ExtendedGroupElement) *ExtendedGroupEle
 	C.Add(&C, &C) // TODO should probably implement FeSquare2
 
 	// D ← -1*A
-	D.Neg(&A) // implemented as substraction
+	D.Neg(&A) // implemented as subtraction
 
 	// E ← (X1+Y1)^2 − A − B
 	var t0 radix51.FieldElement
