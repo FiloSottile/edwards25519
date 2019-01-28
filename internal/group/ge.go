@@ -76,8 +76,7 @@ func (v *ExtendedGroupElement) Zero() *ExtendedGroupElement {
 	return v
 }
 
-var twoD = &radix51.FieldElement{1859910466990425, 932731440258426,
-	1072319116312658, 1815898335770999, 633789495995903}
+var twoD = new(radix51.FieldElement).Add(D, D)
 
 // This is the same addition formula everyone uses, "add-2008-hwcd-3".
 // https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-3
