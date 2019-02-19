@@ -31,29 +31,29 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	x4_19 := x4 * 19
 
 	// r0 = x0*x0 + x1*38*x4 + x2*38*x3
-	r00, r01 := mul64x64(0, 0, x0, x0)
-	r00, r01 = mul64x64(r00, r01, x1_38, x4)
-	r00, r01 = mul64x64(r00, r01, x2_38, x3)
+	r00, r01 := madd64(0, 0, x0, x0)
+	r00, r01 = madd64(r00, r01, x1_38, x4)
+	r00, r01 = madd64(r00, r01, x2_38, x3)
 
 	// r1 = x0*2*x1 + x2*38*x4 + x3*19*x3
-	r10, r11 := mul64x64(0, 0, x0_2, x1)
-	r10, r11 = mul64x64(r10, r11, x2_38, x4)
-	r10, r11 = mul64x64(r10, r11, x3_19, x3)
+	r10, r11 := madd64(0, 0, x0_2, x1)
+	r10, r11 = madd64(r10, r11, x2_38, x4)
+	r10, r11 = madd64(r10, r11, x3_19, x3)
 
 	// r2 = x0*2*x2 + x1*x1 + x3*38*x4
-	r20, r21 := mul64x64(0, 0, x0_2, x2)
-	r20, r21 = mul64x64(r20, r21, x1, x1)
-	r20, r21 = mul64x64(r20, r21, x3_38, x4)
+	r20, r21 := madd64(0, 0, x0_2, x2)
+	r20, r21 = madd64(r20, r21, x1, x1)
+	r20, r21 = madd64(r20, r21, x3_38, x4)
 
 	// r3 = x0*2*x3 + x1*2*x2 + x4*19*x4
-	r30, r31 := mul64x64(0, 0, x0_2, x3)
-	r30, r31 = mul64x64(r30, r31, x1_2, x2)
-	r30, r31 = mul64x64(r30, r31, x4_19, x4)
+	r30, r31 := madd64(0, 0, x0_2, x3)
+	r30, r31 = madd64(r30, r31, x1_2, x2)
+	r30, r31 = madd64(r30, r31, x4_19, x4)
 
 	// r4 = x0*2*x4 + x1*2*x3 + x2*x2
-	r40, r41 := mul64x64(0, 0, x0_2, x4)
-	r40, r41 = mul64x64(r40, r41, x1_2, x3)
-	r40, r41 = mul64x64(r40, r41, x2, x2)
+	r40, r41 := madd64(0, 0, x0_2, x4)
+	r40, r41 = madd64(r40, r41, x1_2, x3)
+	r40, r41 = madd64(r40, r41, x2, x2)
 
 	// Same reduction
 
