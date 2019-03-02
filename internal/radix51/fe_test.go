@@ -14,8 +14,9 @@ import (
 	"testing/quick"
 )
 
-var quickCheckScaleFactor = uint8(3)
-var quickCheckConfig = &quick.Config{MaxCount: (1 << (12 + quickCheckScaleFactor))}
+// quickCheckConfig will make each quickcheck test run (256 * -quickchecks)
+// times. The default value of -quickchecks is 100.
+var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 8}
 
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values bounded by
