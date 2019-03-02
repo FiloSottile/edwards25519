@@ -8,8 +8,75 @@ import (
 	"bytes"
 	"crypto/rand"
 	"io"
+	mathrand "math/rand"
+	"reflect"
 	"testing"
+	"testing/quick"
 )
+
+var quickCheckScaleFactor = uint8(3)
+var quickCheckConfig = &quick.Config{MaxCount: (1 << (12 + quickCheckScaleFactor))}
+
+func generateFieldElement(rand *mathrand.Rand) FieldElement {
+	// Generation strategy: generate random limb values bounded by
+	// 2**(51+b), where b is a parameter controlling the bit-excess.
+	b := uint64(0)
+	mask := (uint64(1) << (51 + b)) - 1
+	return FieldElement{
+		rand.Uint64() & mask,
+		rand.Uint64() & mask,
+		rand.Uint64() & mask,
+		rand.Uint64() & mask,
+		rand.Uint64() & mask,
+	}
+}
+
+func (x FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(generateFieldElement(rand))
+}
+
+func TestFieldElementMulDistributesOverAdd(t *testing.T) {
+	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
+		// Compute t1 = (x+y)*z
+		t1 := new(FieldElement)
+		t1.Add(&x, &y)
+		t1.Mul(t1, &z)
+
+		// Compute t2 = x*z + y*z
+		t2 := new(FieldElement)
+		t3 := new(FieldElement)
+		t2.Mul(&x, &z)
+		t3.Mul(&y, &z)
+		t2.Add(t2, t3)
+
+		return t1.Equal(t2) == 1
+	}
+
+	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMulDistributionFailure1(t *testing.T) {
+	x := FieldElement{0x592101fd8643a, 0x25a08467381e1, 0x48cb4dcd5dcf5, 0x1074d52744164, 0x91902aac541b}
+	y := FieldElement{0x165bb67340a7f, 0x52cf7781f4ad6, 0x32534ba21fde4, 0x5b4ba9cbb1736, 0x2e90748c54289}
+	z := FieldElement{0x25a575665ad1e, 0x124e496e3eeaa, 0x433d2180e2561, 0x221c8be3aa11a, 0x7adc8d0adf806}
+
+	t1 := new(FieldElement)
+	t1.Add(&x, &y)
+	t1.Mul(t1, &z)
+
+	// Compute t2 = x*z + y*z
+	t2 := new(FieldElement)
+	t3 := new(FieldElement)
+	t2.Mul(&x, &z)
+	t3.Mul(&y, &z)
+	t2.Add(t2, t3)
+
+	if t1.Equal(t2) != 1 {
+		t.Errorf("t1 = %x should equal t2 = %x", t1, t2)
+	}
+}
 
 func TestMul64to128(t *testing.T) {
 	a := uint64(5)
