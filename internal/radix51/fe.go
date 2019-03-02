@@ -48,16 +48,6 @@ func (v *FieldElement) One() *FieldElement {
 	return v
 }
 
-// SetInt sets the receiving FieldElement to the specified small integer.
-func (v *FieldElement) SetInt(x uint64) *FieldElement {
-	v[0] = x
-	v[1] = 0
-	v[2] = 0
-	v[3] = 0
-	v[4] = 0
-	return v
-}
-
 func (v *FieldElement) Reduce(u *FieldElement) *FieldElement {
 	v.Set(u)
 
