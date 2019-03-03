@@ -327,49 +327,42 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 	return
 }
 
-func (v *FieldElement) FromBig(num *big.Int) *FieldElement {
-	var buf [32]byte
+// FromBig sets v = n and returns v. The bit length of n must not exceed 256.
+func (v *FieldElement) FromBig(n *big.Int) *FieldElement {
+	if n.BitLen() > 32*8 {
+		panic("ed25519: invalid field element input size")
+	}
 
-	offset := 0
-	words := num.Bits()
-	numWords := len(words)
-
-	for n := 0; n < numWords; n++ {
-		word := words[n]
-		for i := 0; i < bits.UintSize/8; i++ {
-			if offset >= len(buf) {
+	buf := make([]byte, 0, 32)
+	for _, word := range n.Bits() {
+		for i := 0; i < bits.UintSize; i += 8 {
+			if len(buf) >= cap(buf) {
 				break
 			}
-			buf[offset] = byte(word >> uint((i << 3)))
-			offset++
+			buf = append(buf, byte(word))
+			word >>= 8
 		}
 	}
 
-	return v.FromBytes(buf[:])
+	return v.FromBytes(buf[:32])
 }
 
+// ToBig returns v as a big.Int.
 func (v *FieldElement) ToBig() *big.Int {
 	buf := v.AppendBytes(nil)
 
-	numWords := 256 / bits.UintSize
-	words := make([]big.Word, numWords)
-
-	offset := 0
-	byteSize := uint(bits.UintSize >> 3)
-	for n := 0; n < numWords; n++ {
-		word := uint(0)
-		for i := uint(0); i < byteSize; i++ {
-			if offset >= len(buf) {
+	words := make([]big.Word, 32*8/bits.UintSize)
+	for n := range words {
+		for i := 0; i < bits.UintSize; i += 8 {
+			if len(buf) == 0 {
 				break
 			}
-			word |= uint(buf[offset]) << (i << 3)
-			offset++
+			words[n] |= big.Word(buf[0]) << big.Word(i)
+			buf = buf[1:]
 		}
-		words[n] = big.Word(word)
 	}
 
-	out := new(big.Int)
-	return out.SetBits(words)
+	return new(big.Int).SetBits(words)
 }
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
