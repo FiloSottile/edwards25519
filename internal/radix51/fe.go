@@ -215,7 +215,10 @@ func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 	return v
 }
 
-func (v *FieldElement) FromBytes(x *[32]byte) *FieldElement {
+func (v *FieldElement) FromBytes(x []byte) *FieldElement {
+	if len(x) != 32 {
+		panic("invalid input size")
+	}
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8
 	v[0] |= uint64(x[2]) << 16
@@ -260,7 +263,10 @@ func (v *FieldElement) FromBytes(x *[32]byte) *FieldElement {
 	return v
 }
 
-func (v *FieldElement) ToBytes(r *[32]byte) {
+func (v *FieldElement) ToBytes(r []byte) {
+	if len(r) != 32 {
+		panic("invalid input size")
+	}
 	t := new(FieldElement).Reduce(v)
 
 	r[0] = byte(t[0] & 0xff)
@@ -323,12 +329,12 @@ func (v *FieldElement) FromBig(num *big.Int) *FieldElement {
 		}
 	}
 
-	return v.FromBytes(&buf)
+	return v.FromBytes(buf[:])
 }
 
 func (v *FieldElement) ToBig() *big.Int {
 	var buf [32]byte
-	v.ToBytes(&buf) // does a reduction
+	v.ToBytes(buf[:]) // does a reduction
 
 	numWords := 256 / bits.UintSize
 	words := make([]big.Word, numWords)
@@ -354,8 +360,8 @@ func (v *FieldElement) ToBig() *big.Int {
 // Equal returns 1 if v and u are equal, and 0 otherwise.
 func (v *FieldElement) Equal(u *FieldElement) int {
 	var sa, sv [32]byte
-	u.ToBytes(&sa)
-	v.ToBytes(&sv)
+	u.ToBytes(sa[:])
+	v.ToBytes(sv[:])
 	return subtle.ConstantTimeCompare(sa[:], sv[:])
 }
 
@@ -381,7 +387,7 @@ func (v *FieldElement) CondNeg(u *FieldElement, cond int) *FieldElement {
 // IsNegative returns 1 if v is negative, and 0 otherwise.
 func (v *FieldElement) IsNegative() int {
 	var b [32]byte
-	v.ToBytes(&b)
+	v.ToBytes(b[:])
 	return int(b[0] & 1)
 }
 

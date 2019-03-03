@@ -123,8 +123,8 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 	in = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
 		18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
-	fe.FromBytes(&in)
-	fe.ToBytes(&out)
+	fe.FromBytes(in[:])
+	fe.ToBytes(out[:])
 
 	if !bytes.Equal(in[:], out[:]) {
 		t.Error("Bytes<>FE doesn't roundtrip")
@@ -137,8 +137,8 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 	fe[3] = 0x5e8fca9e0881c
 	fe[4] = 0x5c490f087d796
 
-	fe.ToBytes(&out)
-	r.FromBytes(&out)
+	fe.ToBytes(out[:])
+	r.FromBytes(out[:])
 
 	for i := 0; i < len(fe); i++ {
 		if r[i] != fe[i] {
@@ -173,7 +173,7 @@ func TestSanity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x.FromBytes(&bytes)
+	x.FromBytes(bytes[:])
 
 	x2.Mul(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
@@ -232,7 +232,7 @@ func TestFeInvert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x.FromBytes(&bytes)
+	x.FromBytes(bytes[:])
 
 	xinv.Invert(&x)
 	r.Mul(&x, &xinv)
