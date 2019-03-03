@@ -6,7 +6,7 @@
 
 package radix51
 
-// Square sets v = x * x.
+// Square sets v = x * x and returns v.
 func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	feSquare(v, x)
 	return v

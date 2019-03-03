@@ -3,8 +3,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Field arithmetic in radix 2^51 representation. This code is a port of the
-// public domain amd64-51-30k version of ed25519 from SUPERCOP.
+// GF(2^255-19) field arithmetic in radix 2^51 representation. This code is a
+// port of the public domain amd64-51-30k version of ed25519 from SUPERCOP.
+//
+// The interface works similarly to math/big.Int, and all arguments and
+// receivers are allowed to alias.
 package radix51
 
 import (
@@ -15,13 +18,12 @@ import (
 
 // FieldElement represents an element of the field GF(2^255-19). An element t
 // represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
-// t[4]*2^204. The zero value is a valid zero element.
+// t[4]*2^204. Each limb must not exceed 2^54 - 1 to be valid.
+//
+// The zero value is a valid zero element.
 type FieldElement [5]uint64
 
-const (
-	// The vaule 2^51-1, used in carry propagation
-	maskLow51Bits = uint64(1)<<51 - 1
-)
+const maskLow51Bits uint64 = (1 << 51) - 1
 
 var (
 	Zero     = &FieldElement{0, 0, 0, 0, 0}
@@ -30,6 +32,7 @@ var (
 	MinusOne = new(FieldElement).Neg(One)
 )
 
+// Zero sets v = 0 and returns v.
 func (v *FieldElement) Zero() *FieldElement {
 	v[0] = 0
 	v[1] = 0
@@ -39,6 +42,7 @@ func (v *FieldElement) Zero() *FieldElement {
 	return v
 }
 
+// One sets v = 1 and returns v.
 func (v *FieldElement) One() *FieldElement {
 	v[0] = 1
 	v[1] = 0
@@ -48,6 +52,7 @@ func (v *FieldElement) One() *FieldElement {
 	return v
 }
 
+// Reduce reduces v modulo 2^255 - 19 and returns it.
 func (v *FieldElement) Reduce(u *FieldElement) *FieldElement {
 	v.Set(u)
 
@@ -90,9 +95,11 @@ func (v *FieldElement) Reduce(u *FieldElement) *FieldElement {
 	return v
 }
 
-// Add sets v = a + b. Long sequences of additions without reduction that
-// let coefficients grow larger than 54 bits would be a problem. Paper
-// cautions: "do not have such sequences of additions".
+// Add sets v = a + b and returns v.
+//
+// Long sequences of additions without reduction that let coefficients grow
+// larger than 54 bits would be a problem. Paper cautions: "do not have such
+// sequences of additions".
 func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	v[0] = a[0] + b[0]
 	v[1] = a[1] + b[1]
@@ -102,7 +109,7 @@ func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	return v
 }
 
-// Sub sets v = a - b.
+// Sub sets v = a - b and returns v.
 func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	t := *b
 
@@ -130,12 +137,12 @@ func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	return v
 }
 
-// Neg sets v = -a.
+// Neg sets v = -a and returns v.
 func (v *FieldElement) Neg(a *FieldElement) *FieldElement {
 	return v.Sub(Zero, a)
 }
 
-// Invert sets v = 1/z mod p by calculating z^(p-2), p-2 = 2^255 - 21.
+// Invert sets v = 1/z mod p and returns v.
 func (v *FieldElement) Invert(z *FieldElement) *FieldElement {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
 	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
@@ -200,15 +207,18 @@ func (v *FieldElement) Invert(z *FieldElement) *FieldElement {
 	return v.Mul(&t, &z11) // 2^255 - 21
 }
 
+// Set sets v = a and returns v.
 func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 	*v = *a
 	return v
 }
 
+// FromBytes sets v to x, which must be a 32 bytes little-endian encoding.
 func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 	if len(x) != 32 {
-		panic("invalid input size")
+		panic("ed25519: invalid field element input size")
 	}
+
 	v[0] = uint64(x[0])
 	v[0] |= uint64(x[1]) << 8
 	v[0] |= uint64(x[2]) << 16
@@ -366,7 +376,6 @@ func (v *FieldElement) Equal(u *FieldElement) int {
 const mask64Bits uint64 = (1 << 64) - 1
 
 // Select sets v to a if cond == 1, and to b if cond == 0.
-// v, a and b are allowed to overlap.
 func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 	m := uint64(cond) * mask64Bits
 	v[0] = (m & a[0]) | (^m & b[0])
@@ -390,7 +399,7 @@ func (v *FieldElement) IsNegative() int {
 	return int(b[0] & 1)
 }
 
-// Abs sets v to |u|. v and u are allowed to overlap.
+// Abs sets v to |u| and returns v.
 func (v *FieldElement) Abs(u *FieldElement) *FieldElement {
 	return v.CondNeg(u, u.IsNegative())
 }
