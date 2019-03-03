@@ -124,7 +124,7 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 		18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 	fe.FromBytes(in[:])
-	fe.ToBytes(out[:])
+	fe.AppendBytes(out[:0])
 
 	if !bytes.Equal(in[:], out[:]) {
 		t.Error("Bytes<>FE doesn't roundtrip")
@@ -137,7 +137,7 @@ func TestFeFromBytesRoundTrip(t *testing.T) {
 	fe[3] = 0x5e8fca9e0881c
 	fe[4] = 0x5c490f087d796
 
-	fe.ToBytes(out[:])
+	fe.AppendBytes(out[:0])
 	r.FromBytes(out[:])
 
 	for i := 0; i < len(fe); i++ {
