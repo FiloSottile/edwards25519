@@ -1,4 +1,5 @@
 // Copyright (c) 2017 George Tankersley. All rights reserved.
+// Copyright (c) 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +9,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"io"
+	"math/big"
 	mathrand "math/rand"
 	"reflect"
 	"testing"
@@ -21,7 +23,8 @@ var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 8}
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values bounded by
 	// 2**(51+b), where b is a parameter controlling the bit-excess.
-	b := uint64(0)
+	// TODO: randomly decide to set the limbs to "weird" values.
+	b := uint64(0) // TODO: set this higher once we know the bounds.
 	mask := (uint64(1) << (51 + b)) - 1
 	return FieldElement{
 		rand.Uint64() & mask,
@@ -116,35 +119,77 @@ func BenchmarkWideMultCall(t *testing.B) {
 	}
 }
 
-func TestFeFromBytesRoundTrip(t *testing.T) {
-	var in, out [32]byte
-	var fe, r FieldElement
+func TestFromBytesRoundTrip(t *testing.T) {
+	f1 := func(in, out [32]byte, fe FieldElement) bool {
+		fe.FromBytes(in[:])
+		fe.AppendBytes(out[:0])
 
-	in = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-		18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+		// Mask the most significant bit as it's ignored by FromBytes. (Now
+		// instead of earlier so we check the masking in FromBytes is working.)
+		in[len(in)-1] &= (1 << 7) - 1
 
-	fe.FromBytes(in[:])
-	fe.AppendBytes(out[:0])
+		// TODO: values in the range [2^255-19, 2^255-1] will still fail the
+		// comparison as they will have been reduced in the round-trip, but the
+		// current quickcheck generation strategy will never hit them, which is
+		// not good. We should have a weird generator that aims for edge cases,
+		// and we'll know it works when this test breaks.
 
-	if !bytes.Equal(in[:], out[:]) {
-		t.Error("Bytes<>FE doesn't roundtrip")
+		return bytes.Equal(in[:], out[:])
+	}
+	if err := quick.Check(f1, nil); err != nil {
+		t.Errorf("failed bytes->FE->bytes round-trip: %v", err)
 	}
 
-	// Random field element
-	fe[0] = 0x4e645be9215a2
-	fe[1] = 0x4e9654922df12
-	fe[2] = 0x5829e468b0205
-	fe[3] = 0x5e8fca9e0881c
-	fe[4] = 0x5c490f087d796
+	f2 := func(fe, r FieldElement, out [32]byte) bool {
+		fe.AppendBytes(out[:0])
+		r.FromBytes(out[:])
 
-	fe.AppendBytes(out[:0])
-	r.FromBytes(out[:])
+		// Intentionally not using Equal not to go through AppendBytes again.
+		// Calling Reduce because both Generate and FromBytes can produce
+		// non-canonical representations.
+		fe.Reduce(&fe)
+		r.Reduce(&r)
+		return fe == r
+	}
+	if err := quick.Check(f2, nil); err != nil {
+		t.Errorf("failed FE->bytes->FE round-trip: %v", err)
+	}
+}
 
-	for i := 0; i < len(fe); i++ {
-		if r[i] != fe[i] {
-			t.Error("FE<>Bytes doesn't roundtrip")
+func swapEndianness(buf []byte) []byte {
+	for i := 0; i < len(buf)/2; i++ {
+		buf[i], buf[len(buf)-i-1] = buf[len(buf)-i-1], buf[i]
+	}
+	return buf
+}
+
+func TestBytesBigEquivalence(t *testing.T) {
+	f1 := func(in, out [32]byte, fe, fe1 FieldElement) bool {
+		fe.FromBytes(in[:])
+
+		in[len(in)-1] &= (1 << 7) - 1 // mask the most significant bit
+		b := new(big.Int).SetBytes(swapEndianness(in[:]))
+		fe1.FromBig(b)
+
+		if fe != fe1 {
+			return false
 		}
+
+		fe.AppendBytes(out[:0])
+		buf := make([]byte, 32) // pad with zeroes
+		copy(buf, swapEndianness(fe1.ToBig().Bytes()))
+
+		return bytes.Equal(out[:], buf)
 	}
+	if err := quick.Check(f1, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFromBytesRoundTripEdgeCases(t *testing.T) {
+	// TODO: values close to 0, close to 2^255-19, between 2^255-19 and 2^255-1,
+	// and between 2^255 and 2^256-1. Test both the documented FromBytes
+	// behavior, and that AppendBytes reduces them.
 }
 
 // Tests self-consistency between FeMul and FeSquare.

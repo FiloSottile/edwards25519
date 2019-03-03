@@ -12,6 +12,7 @@ package radix51
 
 import (
 	"crypto/subtle"
+	"encoding/binary"
 	"math/big"
 	"math/bits"
 )
@@ -214,101 +215,51 @@ func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 }
 
 // FromBytes sets v to x, which must be a 32 bytes little-endian encoding.
+//
+// Consistently with RFC 7748, the most significant bit (the high bit of the
+// last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
+// are accepted.
 func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 	if len(x) != 32 {
 		panic("ed25519: invalid field element input size")
 	}
 
-	v[0] = uint64(x[0])
-	v[0] |= uint64(x[1]) << 8
-	v[0] |= uint64(x[2]) << 16
-	v[0] |= uint64(x[3]) << 24
-	v[0] |= uint64(x[4]) << 32
-	v[0] |= uint64(x[5]) << 40
-	v[0] |= uint64(x[6]&7) << 48
+	// Provide headroom for the slight binary.LittleEndian.Uint64 overread. (We
+	// read 64 bits at an offset of 200, but then take only 4+51 into account.)
+	var buf [33]byte
+	copy(buf[:], x)
 
-	v[1] = uint64(x[6]) >> 3
-	v[1] |= uint64(x[7]) << 5
-	v[1] |= uint64(x[8]) << 13
-	v[1] |= uint64(x[9]) << 21
-	v[1] |= uint64(x[10]) << 29
-	v[1] |= uint64(x[11]) << 37
-	v[1] |= uint64(x[12]&63) << 45
-
-	v[2] = uint64(x[12]) >> 6
-	v[2] |= uint64(x[13]) << 2
-	v[2] |= uint64(x[14]) << 10
-	v[2] |= uint64(x[15]) << 18
-	v[2] |= uint64(x[16]) << 26
-	v[2] |= uint64(x[17]) << 34
-	v[2] |= uint64(x[18]) << 42
-	v[2] |= uint64(x[19]&1) << 50
-
-	v[3] = uint64(x[19]) >> 1
-	v[3] |= uint64(x[20]) << 7
-	v[3] |= uint64(x[21]) << 15
-	v[3] |= uint64(x[22]) << 23
-	v[3] |= uint64(x[23]) << 31
-	v[3] |= uint64(x[24]) << 39
-	v[3] |= uint64(x[25]&15) << 47
-
-	v[4] = uint64(x[25]) >> 4
-	v[4] |= uint64(x[26]) << 4
-	v[4] |= uint64(x[27]) << 12
-	v[4] |= uint64(x[28]) << 20
-	v[4] |= uint64(x[29]) << 28
-	v[4] |= uint64(x[30]) << 36
-	v[4] |= uint64(x[31]&127) << 44
+	for i := range v {
+		bitsOffset := i * 51
+		v[i] = binary.LittleEndian.Uint64(buf[bitsOffset/8:])
+		v[i] >>= uint(bitsOffset % 8)
+		v[i] &= maskLow51Bits
+	}
 
 	return v
 }
 
 // AppendBytes appends a 32 bytes little-endian encoding of v to b.
 func (v *FieldElement) AppendBytes(b []byte) []byte {
-	res, r := sliceForAppend(b, 32)
-
 	t := new(FieldElement).Reduce(v)
 
-	r[0] = byte(t[0] & 0xff)
-	r[1] = byte((t[0] >> 8) & 0xff)
-	r[2] = byte((t[0] >> 16) & 0xff)
-	r[3] = byte((t[0] >> 24) & 0xff)
-	r[4] = byte((t[0] >> 32) & 0xff)
-	r[5] = byte((t[0] >> 40) & 0xff)
-	r[6] = byte((t[0] >> 48))
+	res, out := sliceForAppend(b, 32)
+	for i := range out {
+		out[i] = 0
+	}
 
-	r[6] ^= byte((t[1] << 3) & 0xf8)
-	r[7] = byte((t[1] >> 5) & 0xff)
-	r[8] = byte((t[1] >> 13) & 0xff)
-	r[9] = byte((t[1] >> 21) & 0xff)
-	r[10] = byte((t[1] >> 29) & 0xff)
-	r[11] = byte((t[1] >> 37) & 0xff)
-	r[12] = byte((t[1] >> 45))
-
-	r[12] ^= byte((t[2] << 6) & 0xc0)
-	r[13] = byte((t[2] >> 2) & 0xff)
-	r[14] = byte((t[2] >> 10) & 0xff)
-	r[15] = byte((t[2] >> 18) & 0xff)
-	r[16] = byte((t[2] >> 26) & 0xff)
-	r[17] = byte((t[2] >> 34) & 0xff)
-	r[18] = byte((t[2] >> 42) & 0xff)
-	r[19] = byte((t[2] >> 50))
-
-	r[19] ^= byte((t[3] << 1) & 0xfe)
-	r[20] = byte((t[3] >> 7) & 0xff)
-	r[21] = byte((t[3] >> 15) & 0xff)
-	r[22] = byte((t[3] >> 23) & 0xff)
-	r[23] = byte((t[3] >> 31) & 0xff)
-	r[24] = byte((t[3] >> 39) & 0xff)
-	r[25] = byte((t[3] >> 47))
-
-	r[25] ^= byte((t[4] << 4) & 0xf0)
-	r[26] = byte((t[4] >> 4) & 0xff)
-	r[27] = byte((t[4] >> 12) & 0xff)
-	r[28] = byte((t[4] >> 20) & 0xff)
-	r[29] = byte((t[4] >> 28) & 0xff)
-	r[30] = byte((t[4] >> 36) & 0xff)
-	r[31] = byte((t[4] >> 44))
+	var buf [8]byte
+	for i := range t {
+		bitsOffset := i * 51
+		binary.LittleEndian.PutUint64(buf[:], t[i]<<uint(bitsOffset%8))
+		for i, b := range buf {
+			off := bitsOffset/8 + i
+			if off >= len(out) {
+				break
+			}
+			out[off] |= b
+		}
+	}
 
 	return res
 }
