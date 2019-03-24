@@ -381,7 +381,8 @@ func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 
 // CondNeg sets v to -u if cond == 1, and to u if cond == 0.
 func (v *FieldElement) CondNeg(u *FieldElement, cond int) *FieldElement {
-	return v.Select(v.Neg(u), u, cond)
+	tmp := new(FieldElement).Neg(u)
+	return v.Select(tmp, u, cond)
 }
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
