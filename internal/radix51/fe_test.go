@@ -122,7 +122,7 @@ func BenchmarkWideMultCall(t *testing.B) {
 func TestFromBytesRoundTrip(t *testing.T) {
 	f1 := func(in, out [32]byte, fe FieldElement) bool {
 		fe.FromBytes(in[:])
-		fe.AppendBytes(out[:0])
+		fe.Bytes(out[:0])
 
 		// Mask the most significant bit as it's ignored by FromBytes. (Now
 		// instead of earlier so we check the masking in FromBytes is working.)
@@ -141,10 +141,10 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	}
 
 	f2 := func(fe, r FieldElement, out [32]byte) bool {
-		fe.AppendBytes(out[:0])
+		fe.Bytes(out[:0])
 		r.FromBytes(out[:])
 
-		// Intentionally not using Equal not to go through AppendBytes again.
+		// Intentionally not using Equal not to go through Bytes again.
 		// Calling Reduce because both Generate and FromBytes can produce
 		// non-canonical representations.
 		fe.Reduce(&fe)
@@ -175,7 +175,7 @@ func TestBytesBigEquivalence(t *testing.T) {
 			return false
 		}
 
-		fe.AppendBytes(out[:0])
+		fe.Bytes(out[:0])
 		buf := make([]byte, 32) // pad with zeroes
 		copy(buf, swapEndianness(fe1.ToBig().Bytes()))
 
@@ -189,7 +189,7 @@ func TestBytesBigEquivalence(t *testing.T) {
 func TestFromBytesRoundTripEdgeCases(t *testing.T) {
 	// TODO: values close to 0, close to 2^255-19, between 2^255-19 and 2^255-1,
 	// and between 2^255 and 2^256-1. Test both the documented FromBytes
-	// behavior, and that AppendBytes reduces them.
+	// behavior, and that Bytes reduces them.
 }
 
 // Tests self-consistency between FeMul and FeSquare.

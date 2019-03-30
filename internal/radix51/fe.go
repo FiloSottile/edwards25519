@@ -239,8 +239,8 @@ func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 	return v
 }
 
-// AppendBytes appends a 32 bytes little-endian encoding of v to b.
-func (v *FieldElement) AppendBytes(b []byte) []byte {
+// Bytes appends a 32 bytes little-endian encoding of v to b.
+func (v *FieldElement) Bytes(b []byte) []byte {
 	t := new(FieldElement).Reduce(v)
 
 	res, out := sliceForAppend(b, 32)
@@ -300,7 +300,7 @@ func (v *FieldElement) FromBig(n *big.Int) *FieldElement {
 
 // ToBig returns v as a big.Int.
 func (v *FieldElement) ToBig() *big.Int {
-	buf := v.AppendBytes(nil)
+	buf := v.Bytes(nil)
 
 	words := make([]big.Word, 32*8/bits.UintSize)
 	for n := range words {
@@ -319,8 +319,8 @@ func (v *FieldElement) ToBig() *big.Int {
 // Equal returns 1 if v and u are equal, and 0 otherwise.
 func (v *FieldElement) Equal(u *FieldElement) int {
 	var sa, sv [32]byte
-	u.AppendBytes(sa[:0])
-	v.AppendBytes(sv[:0])
+	u.Bytes(sa[:0])
+	v.Bytes(sv[:0])
 	return subtle.ConstantTimeCompare(sa[:], sv[:])
 }
 
@@ -346,7 +346,7 @@ func (v *FieldElement) CondNeg(u *FieldElement, cond int) *FieldElement {
 // IsNegative returns 1 if v is negative, and 0 otherwise.
 func (v *FieldElement) IsNegative() int {
 	var b [32]byte
-	v.AppendBytes(b[:0])
+	v.Bytes(b[:0])
 	return int(b[0] & 1)
 }
 
