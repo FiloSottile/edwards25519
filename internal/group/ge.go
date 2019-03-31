@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package group mplements group logic for the Ed25519 curve.
+// Package group implements group logic for the Ed25519 curve.
 package group
 
 import (

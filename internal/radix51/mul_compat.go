@@ -8,7 +8,7 @@ package radix51
 
 import "unsafe"
 
-// madd64 multiples two 64-bit numbers and adds them to a split 128-bit accumulator.
+// madd64 multiplies two 64-bit numbers and adds them to a split 128-bit accumulator.
 func madd64(lo, hi, a, b uint64) (ol uint64, oh uint64) {
 	t1 := (a>>32)*(b&0xFFFFFFFF) + ((a & 0xFFFFFFFF) * (b & 0xFFFFFFFF) >> 32)
 	t2 := (a&0xFFFFFFFF)*(b>>32) + (t1 & 0xFFFFFFFF)
