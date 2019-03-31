@@ -12,5 +12,5 @@ func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	return v
 }
 
-// go:noescape
+//go:noescape
 func feMul(out, a, b *FieldElement)

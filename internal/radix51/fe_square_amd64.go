@@ -12,5 +12,5 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	return v
 }
 
-// go:noescape
+//go:noescape
 func feSquare(out, x *FieldElement)
