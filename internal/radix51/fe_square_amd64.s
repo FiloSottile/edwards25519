@@ -4,10 +4,10 @@
 
 // +build amd64,!noasm
 
-// func feSquare(outp *uint64, xp *uint64)
+// func feSquare(out, x *FieldElement)
 TEXT ·feSquare(SB),4,$0-16
-    MOVQ outp+0(FP), DI
-    MOVQ xp+8(FP), SI
+    MOVQ out+0(FP), DI
+    MOVQ x+8(FP), SI
 
     // r0 = x0*x0 + x1*38*x4 + x2*38*x3
     MOVQ 0(SI), AX

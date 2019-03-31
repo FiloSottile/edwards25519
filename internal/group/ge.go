@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package group mplements group logic for the Ed25519 curve.
+// Package group implements group logic for the Ed25519 curve.
 package group
 
 import (
@@ -76,8 +76,7 @@ func (v *ExtendedGroupElement) Zero() *ExtendedGroupElement {
 	return v
 }
 
-var twoD = &radix51.FieldElement{1859910466990425, 932731440258426,
-	1072319116312658, 1815898335770999, 633789495995903}
+var twoD = new(radix51.FieldElement).Add(D, D)
 
 // This is the same addition formula everyone uses, "add-2008-hwcd-3".
 // https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html#addition-add-2008-hwcd-3
@@ -142,7 +141,7 @@ func (v *ExtendedGroupElement) Double(u *ExtendedGroupElement) *ExtendedGroupEle
 	C.Add(&C, &C) // TODO should probably implement FeSquare2
 
 	// D ← -1*A
-	D.Neg(&A) // implemented as substraction
+	D.Neg(&A) // implemented as subtraction
 
 	// E ← (X1+Y1)^2 − A − B
 	var t0 radix51.FieldElement
@@ -172,7 +171,7 @@ type ProjectiveGroupElement struct {
 func (v *ProjectiveGroupElement) FromAffine(x, y *big.Int) *ProjectiveGroupElement {
 	v.X.FromBig(x)
 	v.Y.FromBig(y)
-	v.Z.Zero()
+	v.Z.One()
 	return v
 }
 
@@ -227,7 +226,7 @@ func (v *ProjectiveGroupElement) Zero() *ProjectiveGroupElement {
 func (v *ProjectiveGroupElement) DoubleZ1(u *ProjectiveGroupElement) *ProjectiveGroupElement {
 	var B, C, D, E, F radix51.FieldElement
 
-	if u.Z.Equal(radix51.Zero) != 1 {
+	if u.Z.Equal(radix51.One) != 1 {
 		panic("ed25519: DoubleZ1 called with Z != 1")
 	}
 

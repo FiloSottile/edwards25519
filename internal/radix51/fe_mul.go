@@ -6,22 +6,19 @@
 
 package radix51
 
-// Mul sets out = x * y.
+// Mul sets v = x * y and returns v.
 func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
-	var x0, x1, x2, x3, x4 uint64
-	var y0, y1, y2, y3, y4 uint64
+	x0 := x[0]
+	x1 := x[1]
+	x2 := x[2]
+	x3 := x[3]
+	x4 := x[4]
 
-	x0 = x[0]
-	x1 = x[1]
-	x2 = x[2]
-	x3 = x[3]
-	x4 = x[4]
-
-	y0 = y[0]
-	y1 = y[1]
-	y2 = y[2]
-	y3 = y[3]
-	y4 = y[4]
+	y0 := y[0]
+	y1 := y[1]
+	y2 := y[2]
+	y3 := y[3]
+	y4 := y[4]
 
 	// Reduction can be carried out simultaneously to multiplication. For
 	// example, we do not compute a coefficient r_5 . Whenever the result of a
@@ -34,39 +31,39 @@ func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	x4_19 := x4 * 19
 
 	// calculate r0 = x0*y0 + 19*(x1*y4 + x2*y3 + x3*y2 + x4*y1)
-	r00, r01 := mul64x64(0, 0, x0, y0)
-	r00, r01 = mul64x64(r00, r01, x1_19, y4)
-	r00, r01 = mul64x64(r00, r01, x2_19, y3)
-	r00, r01 = mul64x64(r00, r01, x3_19, y2)
-	r00, r01 = mul64x64(r00, r01, x4_19, y1)
+	r00, r01 := madd64(0, 0, x0, y0)
+	r00, r01 = madd64(r00, r01, x1_19, y4)
+	r00, r01 = madd64(r00, r01, x2_19, y3)
+	r00, r01 = madd64(r00, r01, x3_19, y2)
+	r00, r01 = madd64(r00, r01, x4_19, y1)
 
 	// calculate r1 = x0*y1 + x1*y0 + 19*(x2*y4 + x3*y3 + x4*y2)
-	r10, r11 := mul64x64(0, 0, x0, y1)
-	r10, r11 = mul64x64(r10, r11, x1, y0)
-	r10, r11 = mul64x64(r10, r11, x2_19, y4)
-	r10, r11 = mul64x64(r10, r11, x3_19, y3)
-	r10, r11 = mul64x64(r10, r11, x4_19, y2)
+	r10, r11 := madd64(0, 0, x0, y1)
+	r10, r11 = madd64(r10, r11, x1, y0)
+	r10, r11 = madd64(r10, r11, x2_19, y4)
+	r10, r11 = madd64(r10, r11, x3_19, y3)
+	r10, r11 = madd64(r10, r11, x4_19, y2)
 
 	// calculate r2 = x0*y2 + x1*y1 + x2*y0 + 19*(x3*y4 + x4*y3)
-	r20, r21 := mul64x64(0, 0, x0, y2)
-	r20, r21 = mul64x64(r20, r21, x1, y1)
-	r20, r21 = mul64x64(r20, r21, x2, y0)
-	r20, r21 = mul64x64(r20, r21, x3_19, y4)
-	r20, r21 = mul64x64(r20, r21, x4_19, y3)
+	r20, r21 := madd64(0, 0, x0, y2)
+	r20, r21 = madd64(r20, r21, x1, y1)
+	r20, r21 = madd64(r20, r21, x2, y0)
+	r20, r21 = madd64(r20, r21, x3_19, y4)
+	r20, r21 = madd64(r20, r21, x4_19, y3)
 
 	// calculate r3 = x0*y3 + x1*y2 + x2*y1 + x3*y0 + 19*x4*y4
-	r30, r31 := mul64x64(0, 0, x0, y3)
-	r30, r31 = mul64x64(r30, r31, x1, y2)
-	r30, r31 = mul64x64(r30, r31, x2, y1)
-	r30, r31 = mul64x64(r30, r31, x3, y0)
-	r30, r31 = mul64x64(r30, r31, x4_19, y4)
+	r30, r31 := madd64(0, 0, x0, y3)
+	r30, r31 = madd64(r30, r31, x1, y2)
+	r30, r31 = madd64(r30, r31, x2, y1)
+	r30, r31 = madd64(r30, r31, x3, y0)
+	r30, r31 = madd64(r30, r31, x4_19, y4)
 
 	// calculate r4 = x0*y4 + x1*y3 + x2*y2 + x3*y1 + x4*y0
-	r40, r41 := mul64x64(0, 0, x0, y4)
-	r40, r41 = mul64x64(r40, r41, x1, y3)
-	r40, r41 = mul64x64(r40, r41, x2, y2)
-	r40, r41 = mul64x64(r40, r41, x3, y1)
-	r40, r41 = mul64x64(r40, r41, x4, y0)
+	r40, r41 := madd64(0, 0, x0, y4)
+	r40, r41 = madd64(r40, r41, x1, y3)
+	r40, r41 = madd64(r40, r41, x2, y2)
+	r40, r41 = madd64(r40, r41, x3, y1)
+	r40, r41 = madd64(r40, r41, x4, y0)
 
 	// After the multiplication we need to reduce (carry) the 5 coefficients to
 	// obtain a result with coefficients that are at most slightly larger than
@@ -106,22 +103,6 @@ func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	// r_0 to r_1 , from r_1 to r_2 , from r_2 to r_3 , from r_3 to r_4 , and
 	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
 	// right shift by 51, one logical and with 2^51 − 1, and one addition.
-
-	r10 += r00 >> 51
-	r00 &= maskLow51Bits
-	r20 += r10 >> 51
-	r10 &= maskLow51Bits
-	r30 += r20 >> 51
-	r20 &= maskLow51Bits
-	r40 += r30 >> 51
-	r30 &= maskLow51Bits
-	r00 += (r40 >> 51) * 19
-	r40 &= maskLow51Bits
-
-	v[0] = r00
-	v[1] = r10
-	v[2] = r20
-	v[3] = r30
-	v[4] = r40
-	return v
+	*v = FieldElement{r00, r10, r20, r30, r40}
+	return v.lightReduce1().lightReduce2()
 }

@@ -6,19 +6,17 @@
 
 package radix51
 
-// Square sets v = x * x.
+// Square sets v = x * x and returns v.
 func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
 
-	var x0, x1, x2, x3, x4 uint64
-
-	x0 = x[0]
-	x1 = x[1]
-	x2 = x[2]
-	x3 = x[3]
-	x4 = x[4]
+	x0 := x[0]
+	x1 := x[1]
+	x2 := x[2]
+	x3 := x[3]
+	x4 := x[4]
 
 	x0_2 := x0 << 1
 	x1_2 := x1 << 1
@@ -31,29 +29,29 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	x4_19 := x4 * 19
 
 	// r0 = x0*x0 + x1*38*x4 + x2*38*x3
-	r00, r01 := mul64x64(0, 0, x0, x0)
-	r00, r01 = mul64x64(r00, r01, x1_38, x4)
-	r00, r01 = mul64x64(r00, r01, x2_38, x3)
+	r00, r01 := madd64(0, 0, x0, x0)
+	r00, r01 = madd64(r00, r01, x1_38, x4)
+	r00, r01 = madd64(r00, r01, x2_38, x3)
 
 	// r1 = x0*2*x1 + x2*38*x4 + x3*19*x3
-	r10, r11 := mul64x64(0, 0, x0_2, x1)
-	r10, r11 = mul64x64(r10, r11, x2_38, x4)
-	r10, r11 = mul64x64(r10, r11, x3_19, x3)
+	r10, r11 := madd64(0, 0, x0_2, x1)
+	r10, r11 = madd64(r10, r11, x2_38, x4)
+	r10, r11 = madd64(r10, r11, x3_19, x3)
 
 	// r2 = x0*2*x2 + x1*x1 + x3*38*x4
-	r20, r21 := mul64x64(0, 0, x0_2, x2)
-	r20, r21 = mul64x64(r20, r21, x1, x1)
-	r20, r21 = mul64x64(r20, r21, x3_38, x4)
+	r20, r21 := madd64(0, 0, x0_2, x2)
+	r20, r21 = madd64(r20, r21, x1, x1)
+	r20, r21 = madd64(r20, r21, x3_38, x4)
 
 	// r3 = x0*2*x3 + x1*2*x2 + x4*19*x4
-	r30, r31 := mul64x64(0, 0, x0_2, x3)
-	r30, r31 = mul64x64(r30, r31, x1_2, x2)
-	r30, r31 = mul64x64(r30, r31, x4_19, x4)
+	r30, r31 := madd64(0, 0, x0_2, x3)
+	r30, r31 = madd64(r30, r31, x1_2, x2)
+	r30, r31 = madd64(r30, r31, x4_19, x4)
 
 	// r4 = x0*2*x4 + x1*2*x3 + x2*x2
-	r40, r41 := mul64x64(0, 0, x0_2, x4)
-	r40, r41 = mul64x64(r40, r41, x1_2, x3)
-	r40, r41 = mul64x64(r40, r41, x2, x2)
+	r40, r41 := madd64(0, 0, x0_2, x4)
+	r40, r41 = madd64(r40, r41, x1_2, x3)
+	r40, r41 = madd64(r40, r41, x2, x2)
 
 	// Same reduction
 
@@ -79,21 +77,6 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	r41 *= 19
 	r00 += r41
 
-	r10 += r00 >> 51
-	r00 &= maskLow51Bits
-	r20 += r10 >> 51
-	r10 &= maskLow51Bits
-	r30 += r20 >> 51
-	r20 &= maskLow51Bits
-	r40 += r30 >> 51
-	r30 &= maskLow51Bits
-	r00 += (r40 >> 51) * 19
-	r40 &= maskLow51Bits
-
-	v[0] = r00
-	v[1] = r10
-	v[2] = r20
-	v[3] = r30
-	v[4] = r40
-	return v
+	*v = FieldElement{r00, r10, r20, r30, r40}
+	return v.lightReduce1().lightReduce2()
 }
