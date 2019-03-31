@@ -84,7 +84,6 @@ func TestAliasing(t *testing.T) {
 		{name: "Abs", oneArgF: (*FieldElement).Abs},
 		{name: "Invert", oneArgF: (*FieldElement).Invert},
 		{name: "Neg", oneArgF: (*FieldElement).Neg},
-		{name: "reduce", oneArgF: (*FieldElement).reduce},
 		{name: "Set", oneArgF: (*FieldElement).Set},
 		{name: "Square", oneArgF: (*FieldElement).Square},
 		{

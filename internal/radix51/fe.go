@@ -19,7 +19,10 @@ import (
 
 // FieldElement represents an element of the field GF(2^255-19). An element t
 // represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
-// t[4]*2^204. Each limb must not exceed 2^54 - 1 to be valid.
+// t[4]*2^204.
+//
+// Between operations, all limbs are expected to be lower than 2^51, except the
+// first one, which can be up to 2^255 + 2^13 * 19 due to carry propagation.
 //
 // The zero value is a valid zero element.
 type FieldElement [5]uint64
@@ -45,10 +48,10 @@ func (v *FieldElement) One() *FieldElement {
 	return v
 }
 
-// lightReduce brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
+// carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
 // two because of the inliner heuristics. The two functions MUST be called one
 // after the other.
-func (v *FieldElement) lightReduce1() *FieldElement {
+func (v *FieldElement) carryPropagate1() *FieldElement {
 	v[1] += v[0] >> 51
 	v[0] &= maskLow51Bits
 	v[2] += v[1] >> 51
@@ -57,7 +60,7 @@ func (v *FieldElement) lightReduce1() *FieldElement {
 	v[2] &= maskLow51Bits
 	return v
 }
-func (v *FieldElement) lightReduce2() *FieldElement {
+func (v *FieldElement) carryPropagate2() *FieldElement {
 	v[4] += v[3] >> 51
 	v[3] &= maskLow51Bits
 	v[0] += (v[4] >> 51) * 19
@@ -66,8 +69,8 @@ func (v *FieldElement) lightReduce2() *FieldElement {
 }
 
 // reduce reduces v modulo 2^255 - 19 and returns it.
-func (v *FieldElement) reduce(u *FieldElement) *FieldElement {
-	v.Set(u).lightReduce1().lightReduce2()
+func (v *FieldElement) reduce() *FieldElement {
+	v.carryPropagate1().carryPropagate2()
 
 	// After the light reduction we now have a field element representation
 	// v < 2^255 + 2^13 * 19, but need v < 2^255 - 19.
@@ -99,17 +102,13 @@ func (v *FieldElement) reduce(u *FieldElement) *FieldElement {
 }
 
 // Add sets v = a + b and returns v.
-//
-// Long sequences of additions without reduction that let coefficients grow
-// larger than 54 bits would be a problem. Paper cautions: "do not have such
-// sequences of additions".
 func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	v[0] = a[0] + b[0]
 	v[1] = a[1] + b[1]
 	v[2] = a[2] + b[2]
 	v[3] = a[3] + b[3]
 	v[4] = a[4] + b[4]
-	return v.lightReduce1().lightReduce2()
+	return v.carryPropagate1().carryPropagate2()
 }
 
 // Sub sets v = a - b and returns v.
@@ -121,7 +120,7 @@ func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - b[2]
 	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - b[3]
 	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - b[4]
-	return v.lightReduce1().lightReduce2()
+	return v.carryPropagate1().carryPropagate2()
 }
 
 // Neg sets v = -a and returns v.
@@ -227,7 +226,8 @@ func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 
 // Bytes appends a 32 bytes little-endian encoding of v to b.
 func (v *FieldElement) Bytes(b []byte) []byte {
-	t := new(FieldElement).reduce(v)
+	t := *v
+	t.reduce()
 
 	res, out := sliceForAppend(b, 32)
 	for i := range out {
