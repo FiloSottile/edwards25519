@@ -8,20 +8,17 @@ package radix51
 
 // Mul sets v = x * y and returns v.
 func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
-	var x0, x1, x2, x3, x4 uint64
-	var y0, y1, y2, y3, y4 uint64
+	x0 := x[0]
+	x1 := x[1]
+	x2 := x[2]
+	x3 := x[3]
+	x4 := x[4]
 
-	x0 = x[0]
-	x1 = x[1]
-	x2 = x[2]
-	x3 = x[3]
-	x4 = x[4]
-
-	y0 = y[0]
-	y1 = y[1]
-	y2 = y[2]
-	y3 = y[3]
-	y4 = y[4]
+	y0 := y[0]
+	y1 := y[1]
+	y2 := y[2]
+	y3 := y[3]
+	y4 := y[4]
 
 	// Reduction can be carried out simultaneously to multiplication. For
 	// example, we do not compute a coefficient r_5 . Whenever the result of a
@@ -106,22 +103,6 @@ func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	// r_0 to r_1 , from r_1 to r_2 , from r_2 to r_3 , from r_3 to r_4 , and
 	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
 	// right shift by 51, one logical and with 2^51 − 1, and one addition.
-
-	r10 += r00 >> 51
-	r00 &= maskLow51Bits
-	r20 += r10 >> 51
-	r10 &= maskLow51Bits
-	r30 += r20 >> 51
-	r20 &= maskLow51Bits
-	r40 += r30 >> 51
-	r30 &= maskLow51Bits
-	r00 += (r40 >> 51) * 19
-	r40 &= maskLow51Bits
-
-	v[0] = r00
-	v[1] = r10
-	v[2] = r20
-	v[3] = r30
-	v[4] = r40
-	return v
+	*v = FieldElement{r00, r10, r20, r30, r40}
+	return v.lightReduce1().lightReduce2()
 }

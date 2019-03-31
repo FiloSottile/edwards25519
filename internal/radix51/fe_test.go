@@ -145,10 +145,10 @@ func TestFromBytesRoundTrip(t *testing.T) {
 		r.FromBytes(out[:])
 
 		// Intentionally not using Equal not to go through Bytes again.
-		// Calling Reduce because both Generate and FromBytes can produce
+		// Calling reduce because both Generate and FromBytes can produce
 		// non-canonical representations.
-		fe.Reduce(&fe)
-		r.Reduce(&r)
+		fe.reduce(&fe)
+		r.reduce(&r)
 		return fe == r
 	}
 	if err := quick.Check(f2, nil); err != nil {
@@ -287,7 +287,7 @@ func TestFeInvert(t *testing.T) {
 
 	xinv.Invert(&x)
 	r.Mul(&x, &xinv)
-	r.Reduce(&r)
+	r.reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("inversion identity failed, got: %x", r)
@@ -303,7 +303,7 @@ func TestFeInvert(t *testing.T) {
 
 	xinv.Invert(&x)
 	r.Mul(&x, &xinv)
-	r.Reduce(&r)
+	r.reduce(&r)
 
 	if !vartimeEqual(one, r) {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)

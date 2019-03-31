@@ -12,13 +12,11 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
 
-	var x0, x1, x2, x3, x4 uint64
-
-	x0 = x[0]
-	x1 = x[1]
-	x2 = x[2]
-	x3 = x[3]
-	x4 = x[4]
+	x0 := x[0]
+	x1 := x[1]
+	x2 := x[2]
+	x3 := x[3]
+	x4 := x[4]
 
 	x0_2 := x0 << 1
 	x1_2 := x1 << 1
@@ -79,21 +77,6 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	r41 *= 19
 	r00 += r41
 
-	r10 += r00 >> 51
-	r00 &= maskLow51Bits
-	r20 += r10 >> 51
-	r10 &= maskLow51Bits
-	r30 += r20 >> 51
-	r20 &= maskLow51Bits
-	r40 += r30 >> 51
-	r30 &= maskLow51Bits
-	r00 += (r40 >> 51) * 19
-	r40 &= maskLow51Bits
-
-	v[0] = r00
-	v[1] = r10
-	v[2] = r20
-	v[3] = r30
-	v[4] = r40
-	return v
+	*v = FieldElement{r00, r10, r20, r30, r40}
+	return v.lightReduce1().lightReduce2()
 }

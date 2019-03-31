@@ -35,51 +35,53 @@ var (
 
 // Zero sets v = 0 and returns v.
 func (v *FieldElement) Zero() *FieldElement {
-	v[0] = 0
-	v[1] = 0
-	v[2] = 0
-	v[3] = 0
-	v[4] = 0
+	*v = *Zero
 	return v
 }
 
 // One sets v = 1 and returns v.
 func (v *FieldElement) One() *FieldElement {
-	v[0] = 1
-	v[1] = 0
-	v[2] = 0
-	v[3] = 0
-	v[4] = 0
+	*v = *One
 	return v
 }
 
-// Reduce reduces v modulo 2^255 - 19 and returns it.
-func (v *FieldElement) Reduce(u *FieldElement) *FieldElement {
-	v.Set(u)
-
-	// Lev v = v[0] + v[1]*2^51 + v[2]*2^102 + v[3]*2^153 + v[4]*2^204
-	// Reduce each limb below 2^51, propagating carries.
+// lightReduce brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
+// two because the inliner works actively against us. The two functions MUST be
+// called one after the other.
+func (v *FieldElement) lightReduce1() *FieldElement {
 	v[1] += v[0] >> 51
 	v[0] = v[0] & maskLow51Bits
 	v[2] += v[1] >> 51
 	v[1] = v[1] & maskLow51Bits
 	v[3] += v[2] >> 51
+	return v
+}
+func (v *FieldElement) lightReduce2() *FieldElement {
 	v[2] = v[2] & maskLow51Bits
 	v[4] += v[3] >> 51
 	v[3] = v[3] & maskLow51Bits
 	v[0] += (v[4] >> 51) * 19
 	v[4] = v[4] & maskLow51Bits
+	return v
+}
 
-	// We now hate a field element v < 2^255, but need v <= 2^255-19
-	// TODO Document why this works. It's the elaborate comment about r = h-pq etc etc.
+// reduce reduces v modulo 2^255 - 19 and returns it.
+func (v *FieldElement) reduce(u *FieldElement) *FieldElement {
+	v.Set(u).lightReduce1().lightReduce2()
 
-	// Get the carry bit
+	// After the light reduction we now have a field element representation
+	// v < 2^255 + 2^13 * 19, but need v < 2^255 - 19.
+
+	// If v >= 2^255 - 19, then v + 19 >= 2^255, which would overflow 2^255 - 1,
+	// generating a carry. That is, c will be 0 if v < 2^255 - 19, and 1 otherwise.
 	c := (v[0] + 19) >> 51
 	c = (v[1] + c) >> 51
 	c = (v[2] + c) >> 51
 	c = (v[3] + c) >> 51
 	c = (v[4] + c) >> 51
 
+	// If v < 2^255 - 19 and c = 0, this will be a no-op. Otherwise, it's
+	// effectively applying the reduction identity to the carry.
 	v[0] += 19 * c
 
 	v[1] += v[0] >> 51
@@ -107,35 +109,19 @@ func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	v[2] = a[2] + b[2]
 	v[3] = a[3] + b[3]
 	v[4] = a[4] + b[4]
-	return v
+	return v.lightReduce1().lightReduce2()
 }
 
 // Sub sets v = a - b and returns v.
 func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
-	t := *b
-
-	// Reduce each limb below 2^51, propagating carries. Ensures that results
-	// fit within the limbs. This would not be required for reduced input.
-	t[1] += t[0] >> 51
-	t[0] = t[0] & maskLow51Bits
-	t[2] += t[1] >> 51
-	t[1] = t[1] & maskLow51Bits
-	t[3] += t[2] >> 51
-	t[2] = t[2] & maskLow51Bits
-	t[4] += t[3] >> 51
-	t[3] = t[3] & maskLow51Bits
-	t[0] += (t[4] >> 51) * 19
-	t[4] = t[4] & maskLow51Bits
-
-	// This is slightly more complicated. Because we use unsigned coefficients, we
-	// first add a multiple of p and then subtract.
-	v[0] = (a[0] + 0xFFFFFFFFFFFDA) - t[0]
-	v[1] = (a[1] + 0xFFFFFFFFFFFFE) - t[1]
-	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - t[2]
-	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - t[3]
-	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - t[4]
-
-	return v
+	// We first add 2 * p, to guarantee the subtraction won't underflow, and
+	// then subtract b (which can be up to 2^255 + 2^13 * 19).
+	v[0] = (a[0] + 0xFFFFFFFFFFFDA) - b[0]
+	v[1] = (a[1] + 0xFFFFFFFFFFFFE) - b[1]
+	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - b[2]
+	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - b[3]
+	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - b[4]
+	return v.lightReduce1().lightReduce2()
 }
 
 // Neg sets v = -a and returns v.
@@ -241,7 +227,7 @@ func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 
 // Bytes appends a 32 bytes little-endian encoding of v to b.
 func (v *FieldElement) Bytes(b []byte) []byte {
-	t := new(FieldElement).Reduce(v)
+	t := new(FieldElement).reduce(v)
 
 	res, out := sliceForAppend(b, 32)
 	for i := range out {
