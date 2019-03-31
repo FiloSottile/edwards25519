@@ -154,6 +154,28 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	if err := quick.Check(f2, nil); err != nil {
 		t.Errorf("failed FE->bytes->FE round-trip: %v", err)
 	}
+
+	// Check some fixed vectors from dalek
+	type feRTTest struct {
+		fe FieldElement
+		b  []byte
+	}
+	var tests = []feRTTest{
+		{
+			fe: FieldElement([5]uint64{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676}),
+			b:  []byte{74, 209, 69, 197, 70, 70, 161, 222, 56, 226, 229, 19, 112, 60, 25, 92, 187, 74, 222, 56, 50, 153, 51, 233, 40, 74, 57, 6, 160, 185, 213, 31},
+		},
+		{
+			fe: FieldElement([5]uint64{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972}),
+			b:  []byte{199, 23, 106, 112, 61, 77, 216, 79, 186, 60, 11, 118, 13, 16, 103, 15, 42, 32, 83, 250, 44, 57, 204, 198, 78, 199, 253, 119, 146, 172, 3, 122},
+		},
+	}
+
+	for _, tt := range tests {
+		if !bytes.Equal(tt.fe.Bytes(nil), tt.b) || new(FieldElement).FromBytes(tt.b).Equal(&tt.fe) != 1 {
+			t.Errorf("Failed fixed roundtrip: %v", tt)
+		}
+	}
 }
 
 func swapEndianness(buf []byte) []byte {
