@@ -118,9 +118,9 @@ func TestAliasing(t *testing.T) {
 		var err error
 		switch {
 		case tt.oneArgF != nil:
-			err = quick.Check(checkAliasingOneArg(tt.oneArgF), quickCheckConfig)
+			err = quick.Check(checkAliasingOneArg(tt.oneArgF), &quick.Config{MaxCountScale: 1 << 8})
 		case tt.twoArgsF != nil:
-			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), quickCheckConfig)
+			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), &quick.Config{MaxCountScale: 1 << 8})
 		}
 		if err != nil {
 			t.Errorf("%v: %v", tt.name, err)

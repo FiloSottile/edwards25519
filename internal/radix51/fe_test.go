@@ -16,9 +16,9 @@ import (
 	"testing/quick"
 )
 
-// quickCheckConfig will make each quickcheck test run (256 * -quickchecks)
+// quickCheckConfig will make each quickcheck test run (1024 * -quickchecks)
 // times. The default value of -quickchecks is 100.
-var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 8}
+var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
 
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values bounded by
@@ -39,7 +39,7 @@ func (x FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(generateFieldElement(rand))
 }
 
-func TestFieldElementMulDistributesOverAdd(t *testing.T) {
+func TestMulDistributesOverAdd(t *testing.T) {
 	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
 		// Compute t1 = (x+y)*z
 		t1 := new(FieldElement)
@@ -58,27 +58,6 @@ func TestFieldElementMulDistributesOverAdd(t *testing.T) {
 
 	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig); err != nil {
 		t.Error(err)
-	}
-}
-
-func TestMulDistributionFailure1(t *testing.T) {
-	x := FieldElement{0x592101fd8643a, 0x25a08467381e1, 0x48cb4dcd5dcf5, 0x1074d52744164, 0x91902aac541b}
-	y := FieldElement{0x165bb67340a7f, 0x52cf7781f4ad6, 0x32534ba21fde4, 0x5b4ba9cbb1736, 0x2e90748c54289}
-	z := FieldElement{0x25a575665ad1e, 0x124e496e3eeaa, 0x433d2180e2561, 0x221c8be3aa11a, 0x7adc8d0adf806}
-
-	t1 := new(FieldElement)
-	t1.Add(&x, &y)
-	t1.Mul(t1, &z)
-
-	// Compute t2 = x*z + y*z
-	t2 := new(FieldElement)
-	t3 := new(FieldElement)
-	t2.Mul(&x, &z)
-	t3.Mul(&y, &z)
-	t2.Add(t2, t3)
-
-	if t1.Equal(t2) != 1 {
-		t.Errorf("t1 = %x should equal t2 = %x", t1, t2)
 	}
 }
 
@@ -230,7 +209,7 @@ func TestSanity(t *testing.T) {
 	// 	t.Fatalf("all ones failed\nmul.s: %d\nmul.g: %d\nsqr.s: %d\nsqr.g: %d\n", x2, x2Go, x2sq, x2sqGo)
 	// }
 
-	if !vartimeEqual(x2, x2sq) {
+	if x2 != x2sq {
 		t.Fatalf("all ones failed\nmul: %x\nsqr: %x\n", x2, x2sq)
 	}
 
@@ -251,21 +230,12 @@ func TestSanity(t *testing.T) {
 	// 	t.Fatalf("random field element failed\nfe: %x\n\nmul.s: %x\nmul.g: %x\nsqr.s: %x\nsqr.g: %x\n", x, x2, x2Go, x2sq, x2sqGo)
 	// }
 
-	if !vartimeEqual(x2, x2sq) {
+	if x2 != x2sq {
 		t.Fatalf("all ones failed\nmul: %x\nsqr: %x\n", x2, x2sq)
 	}
 }
 
-func vartimeEqual(x, y FieldElement) bool {
-	for i := 0; i < 5; i++ {
-		if x[i] != y[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func TestFeEqual(t *testing.T) {
+func TestEqual(t *testing.T) {
 	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
 	var y FieldElement = [5]uint64{5, 4, 3, 2, 1}
 
@@ -280,7 +250,7 @@ func TestFeEqual(t *testing.T) {
 	}
 }
 
-func TestFeInvert(t *testing.T) {
+func TestInvert(t *testing.T) {
 	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
 	var one FieldElement = [5]uint64{1, 0, 0, 0, 0}
 	var xinv, r FieldElement
@@ -289,7 +259,7 @@ func TestFeInvert(t *testing.T) {
 	r.Mul(&x, &xinv)
 	r.reduce(&r)
 
-	if !vartimeEqual(one, r) {
+	if one != r {
 		t.Errorf("inversion identity failed, got: %x", r)
 	}
 
@@ -305,7 +275,7 @@ func TestFeInvert(t *testing.T) {
 	r.Mul(&x, &xinv)
 	r.reduce(&r)
 
-	if !vartimeEqual(one, r) {
+	if one != r {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)
 	}
 }
