@@ -46,22 +46,22 @@ func (v *FieldElement) One() *FieldElement {
 }
 
 // lightReduce brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
-// two because the inliner works actively against us. The two functions MUST be
-// called one after the other.
+// two because of the inliner heuristics. The two functions MUST be called one
+// after the other.
 func (v *FieldElement) lightReduce1() *FieldElement {
 	v[1] += v[0] >> 51
-	v[0] = v[0] & maskLow51Bits
+	v[0] &= maskLow51Bits
 	v[2] += v[1] >> 51
-	v[1] = v[1] & maskLow51Bits
+	v[1] &= maskLow51Bits
 	v[3] += v[2] >> 51
+	v[2] &= maskLow51Bits
 	return v
 }
 func (v *FieldElement) lightReduce2() *FieldElement {
-	v[2] = v[2] & maskLow51Bits
 	v[4] += v[3] >> 51
-	v[3] = v[3] & maskLow51Bits
+	v[3] &= maskLow51Bits
 	v[0] += (v[4] >> 51) * 19
-	v[4] = v[4] & maskLow51Bits
+	v[4] &= maskLow51Bits
 	return v
 }
 
