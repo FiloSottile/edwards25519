@@ -14,7 +14,7 @@ func checkAliasingOneArg(f func(v, x *FieldElement) *FieldElement) func(v, x Fie
 		x1, v1 := x, x
 
 		// Calculate a reference f(x) without aliasing.
-		if out := f(&v, &x); out != &v {
+		if out := f(&v, &x); out != &v && isInBounds(out) {
 			return false
 		}
 
@@ -33,7 +33,7 @@ func checkAliasingTwoArgs(f func(v, x, y *FieldElement) *FieldElement) func(v, x
 		x1, y1, v1 := x, y, FieldElement{}
 
 		// Calculate a reference f(x, y) without aliasing.
-		if out := f(&v, &x, &y); out != &v {
+		if out := f(&v, &x, &y); out != &v && isInBounds(out) {
 			return false
 		}
 
