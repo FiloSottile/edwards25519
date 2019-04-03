@@ -21,17 +21,16 @@ import (
 var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
 
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
-	// Generation strategy: generate random limb values bounded by
-	// 2**(51+b), where b is a parameter controlling the bit-excess.
+	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
+	// bits, like the ones returned by lightReduce.
 	// TODO: randomly decide to set the limbs to "weird" values.
-	b := uint64(0) // TODO: set this higher once we know the bounds.
-	mask := (uint64(1) << (51 + b)) - 1
+	const maskLow52Bits = (1 << 52) - 1
 	return FieldElement{
-		rand.Uint64() & mask,
-		rand.Uint64() & mask,
-		rand.Uint64() & mask,
-		rand.Uint64() & mask,
-		rand.Uint64() & mask,
+		rand.Uint64() & maskLow52Bits,
+		rand.Uint64() & maskLow51Bits,
+		rand.Uint64() & maskLow51Bits,
+		rand.Uint64() & maskLow51Bits,
+		rand.Uint64() & maskLow51Bits,
 	}
 }
 
