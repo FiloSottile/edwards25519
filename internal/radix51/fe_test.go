@@ -24,7 +24,6 @@ var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
 	// bits, like the ones returned by lightReduce.
-	// TODO: randomly decide to set the limbs to "weird" values.
 	const maskLow52Bits = (1 << 52) - 1
 	return FieldElement{
 		rand.Uint64() & maskLow52Bits,
@@ -35,7 +34,54 @@ func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	}
 }
 
+// weirdLimbs can be combined to generate a range of edge-case field elements.
+// 0 and -1 are intentionally more weighted, as they combine well.
+var (
+	weirdLimbs51 = []uint64{
+		0, 0, 0, 0,
+		1,
+		19 - 1,
+		19,
+		0x2aaaaaaaaaaaa,
+		0x5555555555555,
+		(1 << 51) - 20,
+		(1 << 51) - 19,
+		(1 << 51) - 1, (1 << 51) - 1,
+		(1 << 51) - 1, (1 << 51) - 1,
+	}
+	weirdLimbs52 = []uint64{
+		0, 0, 0, 0, 0, 0,
+		1,
+		19 - 1,
+		19,
+		0x2aaaaaaaaaaaa,
+		0x5555555555555,
+		(1 << 51) - 20,
+		(1 << 51) - 19,
+		(1 << 51) - 1, (1 << 51) - 1,
+		(1 << 51) - 1, (1 << 51) - 1,
+		(1 << 51) - 1, (1 << 51) - 1,
+		1 << 51,
+		(1 << 51) + 1,
+		(1 << 52) - 19,
+		(1 << 52) - 1,
+	}
+)
+
+func generateWeirdFieldElement(rand *mathrand.Rand) FieldElement {
+	return FieldElement{
+		weirdLimbs52[rand.Intn(len(weirdLimbs52))],
+		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
+		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
+		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
+		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
+	}
+}
+
 func (x FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
+	if rand.Intn(2) == 0 {
+		return reflect.ValueOf(generateWeirdFieldElement(rand))
+	}
 	return reflect.ValueOf(generateFieldElement(rand))
 }
 
