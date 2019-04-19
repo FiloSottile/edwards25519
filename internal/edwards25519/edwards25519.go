@@ -114,6 +114,50 @@ func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupE
 	return v
 }
 
+func (v *ExtendedGroupElement) Sub(p1, p2 *ExtendedGroupElement) *ExtendedGroupElement {
+	// This is the same function as above, but with X2, T2 negated to X2'=-X2, T2'=-T2
+	var tmp1, tmp2, A, B, C, D, E, F, G, H radix51.FieldElement
+	tmp1.Sub(&p1.Y, &p1.X) // tmp1 <-- Y1-X1
+	tmp2.Add(&p2.Y, &p2.X) // tmp2 <-- Y2+X2 = Y2-X2'
+	A.Mul(&tmp1, &tmp2)    // A <-- tmp1*tmp2 = (Y1-X1)*(Y2-X2')
+	tmp1.Add(&p1.Y, &p1.X) // tmp1 <-- Y1+X1
+	tmp2.Sub(&p2.Y, &p2.X) // tmp2 <-- Y2-X2 = Y2+X2'
+	B.Mul(&tmp1, &tmp2)    // B <-- tmp1*tmp2 = (Y1+X1)*(Y2+X2)
+	tmp1.Mul(&p1.T, &p2.T) // tmp1 <-- -T1*T2' = T1*T2
+	C.Mul(&tmp1, twoD)     // C' <-- tmp1*2d = -T1*2*d*T2' = T1*2*d*T2
+	tmp1.Mul(&p1.Z, &p2.Z) // tmp1 <-- Z1*Z2
+	D.Add(&tmp1, &tmp1)    // D <-- tmp1 + tmp1 = 2*Z1*Z2
+	E.Sub(&B, &A)          // E <-- B-A
+	F.Add(&D, &C)          // F <-- D+C' = D-C
+	G.Sub(&D, &C)          // G <-- D-C' = D+C
+	H.Add(&B, &A)          // H <-- B+A
+	v.X.Mul(&E, &F)        // X3 <-- E*F
+	v.Y.Mul(&G, &H)        // Y3 <-- G*H
+	v.T.Mul(&E, &H)        // T3 <-- E*H
+	v.Z.Mul(&F, &G)        // Z3 <-- F*G
+	return v
+}
+
+func (v *ExtendedGroupElement) Neg(p *ExtendedGroupElement) *ExtendedGroupElement {
+	v.X.Neg(&p.X)
+	v.Y.Set(&p.Y)
+	v.Z.Set(&p.Z)
+	v.T.Neg(&p.T)
+	return v
+}
+
+// by @ebfull
+// https://github.com/dalek-cryptography/curve25519-dalek/pull/226/files
+func (v *ExtendedGroupElement) Equal(u *ExtendedGroupElement) int {
+	var t1, t2, t3, t4 radix51.FieldElement
+	t1.Mul(&v.X, &u.Z)
+	t2.Mul(&u.X, &v.Z)
+	t3.Mul(&v.Y, &u.Z)
+	t4.Mul(&u.Y, &v.Z)
+
+	return t1.Equal(&t2) & t3.Equal(&t4)
+}
+
 // This implements the explicit formulas from HWCD Section 3.3, "Dedicated
 // Doubling in [extended coordinates]".
 //
