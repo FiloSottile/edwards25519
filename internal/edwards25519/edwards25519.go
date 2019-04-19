@@ -3,13 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package group implements group logic for the twisted Edwards curve
+// Package edwards25519 implements group logic for the twisted Edwards curve
 //
 //     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
 //
 // This is better known as the Edwards curve equivalent to curve25519, and is
 // the curve used by the Ed25519 signature scheme.
-package group
+package edwards25519
 
 import (
 	"math/big"
