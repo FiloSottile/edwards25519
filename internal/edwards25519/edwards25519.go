@@ -114,8 +114,8 @@ func (v *ExtendedGroupElement) Add(p1, p2 *ExtendedGroupElement) *ExtendedGroupE
 	return v
 }
 
-// This is the same function as above, but with X2, T2 negated to X2'=-X2, T2'=-T2
 func (v *ExtendedGroupElement) Sub(p1, p2 *ExtendedGroupElement) *ExtendedGroupElement {
+	// This is the same function as above, but with X2, T2 negated to X2'=-X2, T2'=-T2
 	var tmp1, tmp2, A, B, C, D, E, F, G, H radix51.FieldElement
 	tmp1.Sub(&p1.Y, &p1.X) // tmp1 <-- Y1-X1
 	tmp2.Add(&p2.Y, &p2.X) // tmp2 <-- Y2+X2 = Y2-X2'
