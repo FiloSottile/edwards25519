@@ -71,9 +71,6 @@ func (s *Scalar) Bytes(b []byte) []byte {
 	t.reduce()
 
 	res, out := sliceForAppend(b, 32)
-	for i := range out {
-		out[i] = 0
-	}
 	copy(out, t[:])
 
 	return res
