@@ -3,7 +3,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package group implements group logic for the Ed25519 curve.
+// Package group implements group logic for the twisted Edwards curve
+//
+//     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
+//
+// This is better known as the Edwards curve equivalent to curve25519, and is
+// the curve used by the Ed25519 signature scheme.
 package group
 
 import (
@@ -33,6 +38,11 @@ var D = &radix51.FieldElement{929955233495203, 466365720129213,
 // Edwards curves revisited" (Asiacrypt 2008).
 type ExtendedGroupElement struct {
 	X, Y, Z, T radix51.FieldElement
+}
+
+func (v *ExtendedGroupElement) Set(u *ExtendedGroupElement) *ExtendedGroupElement {
+	*v = *u
+	return v
 }
 
 // Converts (x,y) to (X:Y:T:Z) extended coordinates, or "P3" in ref10. As
@@ -161,6 +171,31 @@ func (v *ExtendedGroupElement) Double(u *ExtendedGroupElement) *ExtendedGroupEle
 	return v
 }
 
+// ScalarMult sets v = k*u where k is a reduced scalar field element in
+// little-endian form. Note: this function is not constant-time.
+func (v *ExtendedGroupElement) ScalarMult(u *ExtendedGroupElement, k *[32]byte) *ExtendedGroupElement {
+	// Montgomery ladder init:
+	// R_0 = O, R_1 = P
+	r1 := new(ExtendedGroupElement).Set(u)
+	r0 := v.Zero()
+
+	// Montgomery ladder step:
+	// R_{1-b} = R_{1-b} + R_{b}
+	// R_{b} = 2*R_{b}
+	for i := 255; i >= 0; i-- {
+		var b = int32((k[i/8] >> uint(i&7)) & 1)
+		if b == 0 {
+			r1.Add(r0, r1)
+			r0.Double(r0)
+		} else {
+			r0.Add(r0, r1)
+			r1.Double(r1)
+		}
+	}
+
+	return r0
+}
+
 // Projective coordinates are XYZ with x = X/Z, y = Y/Z, or the "P2"
 // representation in ref10. This representation has a cheaper doubling formula
 // than extended coordinates.
@@ -249,4 +284,20 @@ func (v *ProjectiveGroupElement) DoubleZ1(u *ProjectiveGroupElement) *Projective
 	v.Z.Sub(&v.Z, &F)
 
 	return v
+}
+
+// IsOnCurve reports whether the given affine coordinate (x,y) lies on the curve
+// by checking that -x^2 + y^2 - 1 - dx^2y^2 = 0 (mod p).
+func IsOnCurve(x, y *radix51.FieldElement) bool {
+	var lh, y2, rh radix51.FieldElement
+	lh.Square(x)             // x^2
+	y2.Square(y)             // y^2
+	rh.Mul(&lh, &y2)         // x^2*y^2
+	rh.Mul(&rh, D)           // d*x^2*y^2
+	rh.Add(&rh, radix51.One) // 1 + d*x^2*y^2
+	lh.Neg(&lh)              // -x^2
+	lh.Add(&lh, &y2)         // -x^2 + y^2
+	lh.Sub(&lh, &rh)         // -x^2 + y^2 - 1 - dx^2y^2
+
+	return lh.Equal(radix51.Zero) == 1
 }
