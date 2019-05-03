@@ -21,6 +21,217 @@ import (
 var D = &radix51.FieldElement{929955233495203, 466365720129213,
 	1662059464998953, 2033849074728123, 1442794654840575}
 
+// Point types.
+
+type ProjP1xP1 struct {
+	X, Y, Z, T radix51.FieldElement
+}
+
+type ProjP2 struct {
+	X, Y, Z radix51.FieldElement
+}
+
+type ProjP3 struct {
+	X, Y, Z, T radix51.FieldElement
+}
+
+type ProjCached struct {
+	YplusX, YminusX, Z, T2d radix51.FieldElement
+}
+
+type AffineCached struct {
+	YplusX, YminusX, T2d radix51.FieldElement
+}
+
+// Constructors.
+
+func (v *ProjP1xP1) Zero() *ProjP1xP1 {
+	v.X.Zero()
+	v.Y.One()
+	v.Z.One()
+	v.T.One()
+	return v
+}
+
+func (v *ProjP2) Zero() *ProjP2 {
+	v.X.Zero()
+	v.Y.One()
+	v.Z.One()
+	return v
+}
+
+func (v *ProjP3) Zero() *ProjP3 {
+	v.X.Zero()
+	v.Y.One()
+	v.Z.One()
+	v.T.Zero()
+	return v
+}
+
+func (v *ProjCached) Zero() *ProjCached {
+	v.YplusX.One()
+	v.YminusX.One()
+	v.Z.One()
+	v.T2d.Zero()
+	return v
+}
+
+func (v *AffineCached) Zero() *AffineCached {
+	v.YplusX.One()
+	v.YminusX.One()
+	v.T2d.Zero()
+	return v
+}
+
+// Conversions.
+
+func (v *ProjP2) FromP1xP1(p *ProjP1xP1) *ProjP2 {
+	v.X.Mul(&p.X, &p.T)
+	v.Y.Mul(&p.Y, &p.Z)
+	v.Z.Mul(&p.Z, &p.T)
+	return v
+}
+
+func (v *ProjP2) FromP3(p *ProjP3) *ProjP2 {
+	v.X.Set(&p.X)
+	v.Y.Set(&p.Y)
+	v.Z.Set(&p.Z)
+	return v
+}
+
+func (v *ProjP3) FromP1xP1(p *ProjP1xP1) *ProjP3 {
+	v.X.Mul(&p.X, &p.T)
+	v.Y.Mul(&p.Y, &p.Z)
+	v.Z.Mul(&p.Z, &p.T)
+	v.T.Mul(&p.X, &p.Y)
+	return v
+}
+
+func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
+	v.YplusX.Add(&p.Y, &p.X)
+	v.YminusX.Sub(&p.Y, &p.X)
+	v.Z.Set(&p.Z)
+	// TODO replace with D2
+	v.T2d.Mul(&p.T, D)
+	v.T2d.Add(&v.T2d, &v.T2d)
+	return v
+}
+
+func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
+	v.YplusX.Add(&p.Y, &p.X)
+	v.YminusX.Sub(&p.Y, &p.X)
+	// TODO replace with D2
+	v.T2d.Mul(&p.T, D)
+	v.T2d.Add(&v.T2d, &v.T2d)
+
+	var invZ radix51.FieldElement
+	invZ.Invert(&p.Z)
+	v.YplusX.Mul(&v.YplusX, &invZ)
+	v.YminusX.Mul(&v.YminusX, &invZ)
+	v.T2d.Mul(&v.T2d, &invZ)
+	return v
+}
+
+// (Re)addition and subtraction.
+
+func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 radix51.FieldElement
+
+	YplusX.Add(&p.Y, &p.X)
+	YminusX.Sub(&p.Y, &p.X)
+
+	PP.Mul(&YplusX, &q.YplusX)
+	MM.Mul(&YminusX, &q.YminusX)
+	TT2d.Mul(&p.T, &q.T2d)
+	ZZ2.Mul(&p.Z, &q.Z)
+
+	ZZ2.Add(&ZZ2, &ZZ2)
+
+	v.X.Sub(&PP, &MM)
+	v.Y.Add(&PP, &MM)
+	v.Z.Add(&ZZ2, &TT2d)
+	v.T.Sub(&ZZ2, &TT2d)
+	return v
+}
+
+func (v *ProjP1xP1) Sub(p *ProjP3, q *ProjCached) *ProjP1xP1 {
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 radix51.FieldElement
+
+	YplusX.Add(&p.Y, &p.X)
+	YminusX.Sub(&p.Y, &p.X)
+
+	PP.Mul(&YplusX, &q.YminusX) // flipped sign
+	MM.Mul(&YminusX, &q.YplusX) // flipped sign
+	TT2d.Mul(&p.T, &q.T2d)
+	ZZ2.Mul(&p.Z, &q.Z)
+
+	ZZ2.Add(&ZZ2, &ZZ2)
+
+	v.X.Sub(&PP, &MM)
+	v.Y.Add(&PP, &MM)
+	v.Z.Sub(&ZZ2, &TT2d) // flipped sign
+	v.T.Add(&ZZ2, &TT2d) // flipped sign
+	return v
+}
+
+func (v *ProjP1xP1) AddAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
+	var YplusX, YminusX, PP, MM, TT2d, Z2 radix51.FieldElement
+
+	YplusX.Add(&p.Y, &p.X)
+	YminusX.Sub(&p.Y, &p.X)
+
+	PP.Mul(&YplusX, &q.YplusX)
+	MM.Mul(&YminusX, &q.YminusX)
+	TT2d.Mul(&p.T, &q.T2d)
+
+	Z2.Add(&p.Z, &p.Z)
+
+	v.X.Sub(&PP, &MM)
+	v.Y.Add(&PP, &MM)
+	v.Z.Add(&Z2, &TT2d)
+	v.T.Sub(&Z2, &TT2d)
+	return v
+}
+
+func (v *ProjP1xP1) SubAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
+	var YplusX, YminusX, PP, MM, TT2d, Z2 radix51.FieldElement
+
+	YplusX.Add(&p.Y, &p.X)
+	YminusX.Sub(&p.Y, &p.X)
+
+	PP.Mul(&YplusX, &q.YminusX) // flipped sign
+	MM.Mul(&YminusX, &q.YplusX) // flipped sign
+	TT2d.Mul(&p.T, &q.T2d)
+
+	Z2.Add(&p.Z, &p.Z)
+
+	v.X.Sub(&PP, &MM)
+	v.Y.Add(&PP, &MM)
+	v.Z.Sub(&Z2, &TT2d) // flipped sign
+	v.T.Add(&Z2, &TT2d) // flipped sign
+	return v
+}
+
+// Doubling.
+
+func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
+	var XX, YY, ZZ2, XplusYsq radix51.FieldElement
+
+	XX.Square(&p.X)
+	YY.Square(&p.Y)
+	ZZ2.Square(&p.Z)
+	ZZ2.Add(&ZZ2, &ZZ2)
+	XplusYsq.Add(&p.X, &p.Y)
+	XplusYsq.Square(&XplusYsq)
+
+	v.Y.Add(&YY, &XX)
+	v.Z.Sub(&YY, &XX)
+
+	v.X.Sub(&XplusYsq, &v.Y)
+	v.T.Sub(&ZZ2, &v.Z)
+	return v
+}
+
 // From EFD https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
 // An elliptic curve in twisted Edwards form has parameters a, d and coordinates
 // x, y satisfying the following equations:
