@@ -119,18 +119,14 @@ func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
 	v.Z.Set(&p.Z)
-	// TODO replace with D2
-	v.T2d.Mul(&p.T, D)
-	v.T2d.Add(&v.T2d, &v.T2d)
+	v.T2d.Mul(&p.T, twoD)
 	return v
 }
 
 func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
-	// TODO replace with D2
-	v.T2d.Mul(&p.T, D)
-	v.T2d.Add(&v.T2d, &v.T2d)
+	v.T2d.Mul(&p.T, twoD)
 
 	var invZ radix51.FieldElement
 	invZ.Invert(&p.Z)
