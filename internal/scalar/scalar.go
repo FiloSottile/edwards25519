@@ -958,3 +958,22 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	}
 	return naf
 }
+
+func (s *Scalar) SignedRadix16() [64]int8 {
+	var digits [64]int8
+
+	// Compute unsigned radix-16 digits:
+	for i := 0; i < 32; i++ {
+		digits[2*i] = i8(s[i]) & 15
+		digits[2*i+1] = i8(s[i]>>4) & 15
+	}
+
+	// Recenter coefficients:
+	for i := 0; i < 63; i++ {
+		carry := (digits[i] + 8) >> 4
+		digits[i] -= carry << 4
+		digits[i+1] += carry
+	}
+
+	return digits
+}
