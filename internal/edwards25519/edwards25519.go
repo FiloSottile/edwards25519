@@ -107,6 +107,14 @@ func (v *ProjP3) FromP1xP1(p *ProjP1xP1) *ProjP3 {
 	return v
 }
 
+func (v *ProjP3) FromP2(p *ProjP2) *ProjP3 {
+	v.X.Mul(&p.X, &p.Z)
+	v.Y.Mul(&p.Y, &p.Z)
+	v.Z.Square(&p.Z)
+	v.T.Mul(&p.X, &p.Y)
+	return v
+}
+
 func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
@@ -230,6 +238,26 @@ func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
 	v.X.Sub(&XplusYsq, &v.Y)
 	v.T.Sub(&ZZ2, &v.Z)
 	return v
+}
+
+func (v *ProjP3) Neg(p *ProjP3) *ProjP3 {
+	v.X.Neg(&p.X)
+	v.Y.Set(&p.Y)
+	v.Z.Set(&p.Z)
+	v.T.Neg(&p.T)
+	return v
+}
+
+// by @ebfull
+// https://github.com/dalek-cryptography/curve25519-dalek/pull/226/files
+func (v *ProjP3) Equal(u *ProjP3) int {
+	var t1, t2, t3, t4 radix51.FieldElement
+	t1.Mul(&v.X, &u.Z)
+	t2.Mul(&u.X, &v.Z)
+	t3.Mul(&v.Y, &u.Z)
+	t4.Mul(&u.Y, &v.Z)
+
+	return t1.Equal(&t2) & t3.Equal(&t4)
 }
 
 // From EFD https://hyperelliptic.org/EFD/g1p/auto-twisted-extended-1.html
