@@ -82,6 +82,13 @@ func (v *AffineCached) Zero() *AffineCached {
 	return v
 }
 
+// Assignments.
+
+func (v *ProjP3) Set(u *ProjP3) *ProjP3 {
+	*v = *u
+	return v
+}
+
 // Conversions.
 
 func (v *ProjP2) FromP1xP1(p *ProjP1xP1) *ProjP2 {
