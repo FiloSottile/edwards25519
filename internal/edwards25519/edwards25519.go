@@ -281,3 +281,36 @@ func (v *ProjP3) Equal(u *ProjP3) int {
 
 	return t1.Equal(&t2) & t3.Equal(&t4)
 }
+
+// Constant-time operations
+
+// Select sets v to a if cond == 1 and to b if cond == 0.
+func (v *ProjCached) Select(a, b *ProjCached, cond int) *ProjCached {
+	v.YplusX.Select(&a.YplusX, &b.YplusX, cond)
+	v.YminusX.Select(&a.YminusX, &b.YminusX, cond)
+	v.Z.Select(&a.Z, &b.Z, cond)
+	v.T2d.Select(&a.T2d, &b.T2d, cond)
+	return v
+}
+
+// Select sets v to a if cond == 1 and to b if cond == 0.
+func (v *AffineCached) Select(a, b *AffineCached, cond int) *AffineCached {
+	v.YplusX.Select(&a.YplusX, &b.YplusX, cond)
+	v.YminusX.Select(&a.YminusX, &b.YminusX, cond)
+	v.T2d.Select(&a.T2d, &b.T2d, cond)
+	return v
+}
+
+// CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
+func (v *ProjCached) CondNeg(cond int) *ProjCached {
+	radix51.CondSwap(&v.YplusX, &v.YminusX, cond)
+	v.T2d.CondNeg(&v.T2d, cond)
+	return v
+}
+
+// CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
+func (v *AffineCached) CondNeg(cond int) *AffineCached {
+	radix51.CondSwap(&v.YplusX, &v.YminusX, cond)
+	v.T2d.CondNeg(&v.T2d, cond)
+	return v
+}
