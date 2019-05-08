@@ -138,6 +138,24 @@ func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
 
 // (Re)addition and subtraction.
 
+func (v *ProjP3) Add(p, q *ProjP3) *ProjP3 {
+	result := ProjP1xP1{}
+	qCached := ProjCached{}
+	qCached.FromP3(q)
+	result.Add(p, &qCached)
+	v.FromP1xP1(&result)
+	return v
+}
+
+func (v *ProjP3) Sub(p, q *ProjP3) *ProjP3 {
+	result := ProjP1xP1{}
+	qCached := ProjCached{}
+	qCached.FromP3(q)
+	result.Sub(p, &qCached)
+	v.FromP1xP1(&result)
+	return v
+}
+
 func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 radix51.FieldElement
 
@@ -235,6 +253,8 @@ func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
 	v.T.Sub(&ZZ2, &v.Z)
 	return v
 }
+
+// Negation.
 
 func (v *ProjP3) Neg(p *ProjP3) *ProjP3 {
 	v.X.Neg(&p.X)
