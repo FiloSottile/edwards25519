@@ -345,7 +345,7 @@ func TestSelectSwap(t *testing.T) {
 	c.Select(&a, &b, 1)
 	d.Select(&a, &b, 0)
 
-	if (c.Equal(&a) != 1) || (d.Equal(&b) != 1) {
+	if c.Equal(&a) != 1 || d.Equal(&b) != 1 {
 		t.Errorf("Select failed")
 	}
 
