@@ -335,3 +335,29 @@ func TestInvert(t *testing.T) {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)
 	}
 }
+
+func TestSelectSwap(t *testing.T) {
+	a := FieldElement([5]uint64{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676})
+	b := FieldElement([5]uint64{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972})
+
+	var c, d FieldElement
+
+	c.Select(&a, &b, 1)
+	d.Select(&a, &b, 0)
+
+	if (c.Equal(&a) != 1) || (d.Equal(&b) != 1) {
+		t.Errorf("Select failed")
+	}
+
+	CondSwap(&c, &d, 0)
+
+	if (c.Equal(&a) != 1) || (d.Equal(&b) != 1) {
+		t.Errorf("Swap failed")
+	}
+
+	CondSwap(&c, &d, 1)
+
+	if (c.Equal(&b) != 1) || (d.Equal(&a) != 1) {
+		t.Errorf("Swap failed")
+	}
+}

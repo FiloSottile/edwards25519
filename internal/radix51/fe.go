@@ -323,6 +323,26 @@ func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 	return v
 }
 
+// CondSwap swaps a and b if cond == 1 or leaves them unchanged if cond == 0.
+func CondSwap(a, b *FieldElement, cond int) {
+	m := uint64(cond) * mask64Bits
+	t := m & (a[0] ^ b[0])
+	a[0] ^= t
+	b[0] ^= t
+	t = m & (a[1] ^ b[1])
+	a[1] ^= t
+	b[1] ^= t
+	t = m & (a[2] ^ b[2])
+	a[2] ^= t
+	b[2] ^= t
+	t = m & (a[3] ^ b[3])
+	a[3] ^= t
+	b[3] ^= t
+	t = m & (a[4] ^ b[4])
+	a[4] ^= t
+	b[4] ^= t
+}
+
 // CondNeg sets v to -u if cond == 1, and to u if cond == 0.
 func (v *FieldElement) CondNeg(u *FieldElement, cond int) *FieldElement {
 	tmp := new(FieldElement).Neg(u)
