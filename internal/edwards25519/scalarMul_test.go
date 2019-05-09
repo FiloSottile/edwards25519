@@ -189,3 +189,27 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
+	vartimeMultiScalarMulMatchesBasepointMul := func(x, y, z scalar.Scalar) bool {
+		// FIXME opaque scalars
+		x[31] &= 127
+		y[31] &= 127
+		z[31] &= 127
+		var p, q1, q2, q3, check ProjP3
+
+		p.VartimeMultiscalarMul([]scalar.Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+
+		q1.BasepointMul(&x)
+		q2.BasepointMul(&y)
+		q3.BasepointMul(&z)
+		check.Zero()
+		check.Add(&q1, &q2).Add(&check, &q3)
+
+		return p.Equal(&check) == 1
+	}
+
+	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+		t.Error(err)
+	}
+}

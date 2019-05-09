@@ -234,6 +234,55 @@ func (v *ProjP3) VartimeDoubleBaseMul(a, b *scalar.Scalar, A *ProjP3) *ProjP3 {
 //
 // The multiscalar multiplication is performed in variable time.
 func (v *ProjP3) VartimeMultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *ProjP3 {
-	panic("unimplemented")
+	if len(scalars) != len(points) {
+		panic("called MultiscalarMul with different size inputs")
+	}
+
+	// Generalize double-base NAF computation to arbitrary sizes.
+	// Here all the points are dynamic, so we only use the smaller
+	// tables.
+
+	// Build lookup tables for each point
+	tables := make([]NafLookupTable5, len(points))
+	for i := range tables {
+		tables[i].FromP3(points[i])
+	}
+	// Compute a NAF for each scalar
+	nafs := make([][256]int8, len(scalars))
+	for i := range nafs {
+		nafs[i] = scalars[i].NonAdjacentForm(5)
+	}
+
+	multiple := &ProjCached{}
+	tmp1 := &ProjP1xP1{}
+	tmp2 := &ProjP2{}
+	tmp2.Zero()
+	v.Zero()
+
+	// Move from high to low bits, doubling the accumulator
+	// at each iteration and checking whether there is a nonzero
+	// coefficient to look up a multiple of.
+	//
+	// Skip trying to find the first nonzero coefficent, because
+	// searching might be more work than a few extra doublings.
+	for i := 255; i >= 0; i-- {
+		tmp1.Double(tmp2)
+
+		for j := range nafs {
+			if nafs[j][i] > 0 {
+				v.FromP1xP1(tmp1)
+				tables[j].SelectInto(multiple, nafs[j][i])
+				tmp1.Add(v, multiple)
+			} else if nafs[j][i] < 0 {
+				v.FromP1xP1(tmp1)
+				tables[j].SelectInto(multiple, -nafs[j][i])
+				tmp1.Sub(v, multiple)
+			}
+		}
+
+		tmp2.FromP1xP1(tmp1)
+	}
+
+	v.FromP2(tmp2)
 	return v
 }
