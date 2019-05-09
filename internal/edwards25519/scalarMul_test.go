@@ -59,11 +59,11 @@ func TestBasepointMulVsDalek(t *testing.T) {
 func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
 	var p ProjP3
 	var z scalar.Scalar
-	p.VartimeDoubleBaseMul(&dalekScalar, &z, &B)
+	p.VartimeDoubleBaseMul(&dalekScalar, &B, &z)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with b=0")
 	}
-	p.VartimeDoubleBaseMul(&z, &dalekScalar, &B)
+	p.VartimeDoubleBaseMul(&z, &B, &dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with a=0")
 	}
@@ -175,7 +175,7 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		y[31] &= 127
 		var p, q1, q2, check ProjP3
 
-		p.VartimeDoubleBaseMul(&x, &y, &B)
+		p.VartimeDoubleBaseMul(&x, &B, &y)
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -236,7 +236,7 @@ func BenchmarkVartimeDoubleBaseMul(t *testing.B) {
 	var p ProjP3
 
 	for i := 0; i < t.N; i++ {
-		p.VartimeDoubleBaseMul(&dalekScalar, &dalekScalar, &B)
+		p.VartimeDoubleBaseMul(&dalekScalar, &B, &dalekScalar)
 	}
 }
 

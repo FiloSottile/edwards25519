@@ -157,7 +157,7 @@ func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *Proj
 // Set v to a*A + b*B, where B is the Ed25519 basepoint, and return v.
 //
 // The scalar multiplication is done in variable time.
-func (v *ProjP3) VartimeDoubleBaseMul(a, b *scalar.Scalar, A *ProjP3) *ProjP3 {
+func (v *ProjP3) VartimeDoubleBaseMul(a *scalar.Scalar, A *ProjP3, b *scalar.Scalar) *ProjP3 {
 	// Similarly to the single variable-base approach, we compute
 	// digits and use them with a lookup table.  However, because
 	// we are allowed to do variable-time operations, we don't
