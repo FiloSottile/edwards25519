@@ -28,12 +28,8 @@ func (s *Scalar) Add(x, y *Scalar) *Scalar {
 
 // Sub sets s = x - y mod l and returns s.
 func (s *Scalar) Sub(x, y *Scalar) *Scalar {
-	// tmp = -1 * y + 0
-	var tmp Scalar
-	scMulAdd(&tmp, &scMinusOne, y, &scZero)
-
-	// s = 1 * x - y
-	scMulAdd(s, &scOne, x, &tmp)
+	// s = -1 * y + x
+	scMulAdd(s, &scMinusOne, y, x)
 	return s
 }
 
