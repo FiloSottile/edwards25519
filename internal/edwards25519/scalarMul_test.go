@@ -7,10 +7,10 @@ import (
 	"testing/quick"
 )
 
-// quickCheckConfig will make each quickcheck test run (1024 * -quickchecks)
+// quickCheckConfig will make each quickcheck test run (2^6 * -quickchecks)
 // times. The default value of -quickchecks is 100.
 var (
-	quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
+	quickCheckConfig = &quick.Config{MaxCountScale: 1 << 6}
 
 	// a random scalar generated using dalek.
 	dalekScalar = scalar.Scalar([32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
