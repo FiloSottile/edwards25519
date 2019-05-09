@@ -213,3 +213,41 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Benchmarks.
+
+func BenchmarkBasepointMul(t *testing.B) {
+	var p ProjP3
+
+	for i := 0; i < t.N; i++ {
+		p.BasepointMul(&dalekScalar)
+	}
+}
+
+func BenchmarkScalarMul(t *testing.B) {
+	var p ProjP3
+
+	for i := 0; i < t.N; i++ {
+		p.ScalarMul(&dalekScalar, &B)
+	}
+}
+
+func BenchmarkVartimeDoubleBaseMul(t *testing.B) {
+	var p ProjP3
+
+	for i := 0; i < t.N; i++ {
+		p.VartimeDoubleBaseMul(&dalekScalar, &dalekScalar, &B)
+	}
+}
+
+func BenchmarkMultiscalarMulSize8(t *testing.B) {
+	var p ProjP3
+	x := dalekScalar
+
+	for i := 0; i < t.N; i++ {
+		p.MultiscalarMul([]scalar.Scalar{x, x, x, x, x, x, x, x}, []*ProjP3{&B, &B, &B, &B, &B, &B, &B, &B})
+	}
+}
+
+// TODO: add BenchmarkVartimeMultiscalarMulSize8 (need to have
+// different scalars & points to measure cache effects).
