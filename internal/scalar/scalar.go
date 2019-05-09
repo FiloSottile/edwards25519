@@ -967,8 +967,8 @@ func (s *Scalar) SignedRadix16() [64]int8 {
 
 	// Compute unsigned radix-16 digits:
 	for i := 0; i < 32; i++ {
-		digits[2*i] = int8(s[i]) & 15
-		digits[2*i+1] = int8(s[i]>>4) & 15
+		digits[2*i] = int8(s[i] & 15)
+		digits[2*i+1] = int8((s[i]>>4) & 15)
 	}
 
 	// Recenter coefficients:
