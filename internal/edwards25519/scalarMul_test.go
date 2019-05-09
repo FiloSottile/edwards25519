@@ -68,3 +68,32 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestBasepointTableGeneration(t *testing.T) {
+	// The basepoint table is 32 AffineLookupTables,
+	// corresponding to (16^2i)*B for table i.
+
+	tmp1 := &ProjP1xP1{}
+	tmp2 := &ProjP2{}
+	tmp3 := &ProjP3{}
+	tmp3.Set(&B)
+	table := make([]AffineLookupTable, 32)
+	for i := 0; i < 32; i++ {
+		// Build the table
+		table[i].FromP3(tmp3)
+		// Assert equality with the hardcoded one
+		if table[i] != basepointTable[i] {
+			t.Errorf("Basepoint table %d does not match", i)
+		}
+
+		// Set p = (16^2)*p = 256*p = 2^8*p
+		tmp2.FromP3(tmp3)
+		for j := 0; j < 7; j++ {
+			tmp1.Double(tmp2)
+			tmp2.FromP1xP1(tmp1)
+		}
+		tmp1.Double(tmp2)
+		tmp3.FromP1xP1(tmp1)
+	}
+
+}
