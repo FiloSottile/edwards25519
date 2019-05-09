@@ -113,7 +113,52 @@ func (v *ProjP3) VartimeDoubleBaseMul(a, b *scalar.Scalar, A *ProjP3) *ProjP3 {
 //
 // The multiscalar multiplication is performed in constant time.
 func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *ProjP3 {
-	panic("unimplemented")
+	if len(scalars) != len(points) {
+		panic("called MultiscalarMul with different size inputs")
+	}
+
+	// Proceed as in the single-base case, but share doublings
+	// between each point in the multiscalar equation.
+
+	// Build lookup tables for each point
+	tables := make([]ProjLookupTable, len(points))
+	for i := range tables {
+		tables[i].FromP3(points[i])
+	}
+	// Compute signed radix-16 digits for each scalar
+	digits := make([][64]int8, len(scalars))
+	for i := range digits {
+		digits[i] = scalars[i].SignedRadix16()
+	}
+
+	// Unwrap first loop iteration to save computing 16*identity
+	multiple := &ProjCached{}
+	tmp1 := &ProjP1xP1{}
+	tmp2 := &ProjP2{}
+	// Lookup-and-add the appropriate multiple of each input point
+	for j := range tables {
+		tables[j].SelectInto(multiple, digits[j][63])
+		tmp1.Add(v, multiple) // tmp1 = v + x_(j,63)*Q in P1xP1 coords
+		v.FromP1xP1(tmp1)     // update v
+	}
+	tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
+	for i := 62; i >= 0; i-- {
+		tmp1.Double(tmp2)    // tmp1 =  2*(prev) in P1xP1 coords
+		tmp2.FromP1xP1(tmp1) // tmp2 =  2*(prev) in P2 coords
+		tmp1.Double(tmp2)    // tmp1 =  4*(prev) in P1xP1 coords
+		tmp2.FromP1xP1(tmp1) // tmp2 =  4*(prev) in P2 coords
+		tmp1.Double(tmp2)    // tmp1 =  8*(prev) in P1xP1 coords
+		tmp2.FromP1xP1(tmp1) // tmp2 =  8*(prev) in P2 coords
+		tmp1.Double(tmp2)    // tmp1 = 16*(prev) in P1xP1 coords
+		v.FromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
+		// Lookup-and-add the appropriate multiple of each input point
+		for j := range tables {
+			tables[j].SelectInto(multiple, digits[j][i])
+			tmp1.Add(v, multiple) // tmp1 = v + x_(j,i)*Q in P1xP1 coords
+			v.FromP1xP1(tmp1)     // update v
+		}
+		tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
+	}
 	return v
 }
 

@@ -122,3 +122,27 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
+	multiScalarMulMatchesBasepointMul := func(x, y, z scalar.Scalar) bool {
+		// FIXME opaque scalars
+		x[31] &= 127
+		y[31] &= 127
+		z[31] &= 127
+		var p, q1, q2, q3, check ProjP3
+
+		p.MultiscalarMul([]scalar.Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+
+		q1.BasepointMul(&x)
+		q2.BasepointMul(&y)
+		q3.BasepointMul(&z)
+		check.Zero()
+		check.Add(&q1, &q2).Add(&check, &q3)
+
+		return p.Equal(&check) == 1
+	}
+
+	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+		t.Error(err)
+	}
+}
