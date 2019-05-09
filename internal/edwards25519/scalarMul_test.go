@@ -48,6 +48,14 @@ func TestScalarMulVsDalek(t *testing.T) {
 	}
 }
 
+func TestBasepointMulVsDalek(t *testing.T) {
+	var p ProjP3
+	p.BasepointMul(&dalekScalar)
+	if dalekScalarBasepoint.Equal(&p) != 1 {
+		t.Error("Scalar mul does not match dalek")
+	}
+}
+
 func TestScalarMulDistributesOverAdd(t *testing.T) {
 	scalarMulDistributesOverAdd := func(x, y scalar.Scalar) bool {
 		// The quickcheck generation strategy chooses a random
@@ -98,4 +106,19 @@ func TestBasepointTableGeneration(t *testing.T) {
 		tmp3.FromP1xP1(tmp1)
 	}
 
+}
+
+func TestScalarMulMatchesBasepointMul(t *testing.T) {
+	scalarMulMatchesBasepointMul := func(x scalar.Scalar) bool {
+		// FIXME opaque scalars
+		x[31] &= 127
+		var p, q ProjP3
+		p.ScalarMul(&x, &B)
+		q.BasepointMul(&x)
+		return p.Equal(&q) == 1
+	}
+
+	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+		t.Error(err)
+	}
 }
