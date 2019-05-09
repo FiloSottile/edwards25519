@@ -56,6 +56,19 @@ func TestBasepointMulVsDalek(t *testing.T) {
 	}
 }
 
+func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
+	var p ProjP3
+	var z scalar.Scalar
+	p.VartimeDoubleBaseMul(&dalekScalar, &z, &B)
+	if dalekScalarBasepoint.Equal(&p) != 1 {
+		t.Error("VartimeDoubleBaseMul fails with b=0")
+	}
+	p.VartimeDoubleBaseMul(&z, &dalekScalar, &B)
+	if dalekScalarBasepoint.Equal(&p) != 1 {
+		t.Error("VartimeDoubleBaseMul fails with a=0")
+	}
+}
+
 func TestScalarMulDistributesOverAdd(t *testing.T) {
 	scalarMulDistributesOverAdd := func(x, y scalar.Scalar) bool {
 		// The quickcheck generation strategy chooses a random
@@ -152,5 +165,27 @@ func TestBasepointNafTableGeneration(t *testing.T) {
 
 	if table != basepointNafTable {
 		t.Error("BasepointNafTable does not match")
+	}
+}
+
+func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
+	vartimeDoubleBaseMulMatchesBasepointMul := func(x, y scalar.Scalar) bool {
+		// FIXME opaque scalars
+		x[31] &= 127
+		y[31] &= 127
+		var p, q1, q2, check ProjP3
+
+		p.VartimeDoubleBaseMul(&x, &y, &B)
+
+		q1.BasepointMul(&x)
+		q2.BasepointMul(&y)
+		check.Zero()
+		check.Add(&q1, &q2)
+
+		return p.Equal(&check) == 1
+	}
+
+	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig); err != nil {
+		t.Error(err)
 	}
 }

@@ -99,14 +99,6 @@ func (v *ProjP3) ScalarMul(x *scalar.Scalar, q *ProjP3) *ProjP3 {
 	return v
 }
 
-// Set v to a*A + b*B, where B is the Ed25519 basepoint, and return v.
-//
-// The scalar multiplication is done in variable time.
-func (v *ProjP3) VartimeDoubleBaseMul(a, b *scalar.Scalar, A *ProjP3) *ProjP3 {
-	panic("unimplemented")
-	return v
-}
-
 // Set v to the result of a multiscalar multiplication and return v.
 //
 // The multiscalar multiplication is sum(scalars[i]*points[i]).
@@ -159,6 +151,80 @@ func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *Proj
 		}
 		tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
 	}
+	return v
+}
+
+// Set v to a*A + b*B, where B is the Ed25519 basepoint, and return v.
+//
+// The scalar multiplication is done in variable time.
+func (v *ProjP3) VartimeDoubleBaseMul(a, b *scalar.Scalar, A *ProjP3) *ProjP3 {
+	// Similarly to the single variable-base approach, we compute
+	// digits and use them with a lookup table.  However, because
+	// we are allowed to do variable-time operations, we don't
+	// need constant-time lookups or constant-time digit
+	// computations.
+	//
+	// So we use a non-adjacent form of some width w instead of
+	// radix 16.  This is like a binary representation (one digit
+	// for each binary place) but we allow the digits to grow in
+	// magnitude up to 2^{w-1} so that the nonzero digits are as
+	// sparse as possible.  Intuitively, this "condenses" the
+	// "mass" of the scalar onto sparse coefficients (meaning
+	// fewer additions).
+
+	var aTable NafLookupTable5
+	aTable.FromP3(A)
+	// Because the basepoint is fixed, we can use a wider NAF
+	// corresponding to a bigger table.
+	aNaf := a.NonAdjacentForm(5)
+	bNaf := b.NonAdjacentForm(8)
+
+	// Find the first nonzero coefficient.
+	i := 255
+	for j := i; j >= 0; j-- {
+		if aNaf[j] != 0 || bNaf[j] != 0 {
+			break
+		}
+	}
+
+	multA := &ProjCached{}
+	multB := &AffineCached{}
+	tmp1 := &ProjP1xP1{}
+	tmp2 := &ProjP2{}
+	tmp2.Zero()
+	v.Zero()
+
+	// Move from high to low bits, doubling the accumulator
+	// at each iteration and checking whether there is a nonzero
+	// coefficient to look up a multiple of.
+	for ; i >= 0; i-- {
+		tmp1.Double(tmp2)
+
+		// Only update v if we have a nonzero coeff to add in.
+		if aNaf[i] > 0 {
+			v.FromP1xP1(tmp1)
+			aTable.SelectInto(multA, aNaf[i])
+			tmp1.Add(v, multA)
+		} else if aNaf[i] < 0 {
+			v.FromP1xP1(tmp1)
+			aTable.SelectInto(multA, -aNaf[i])
+			tmp1.Sub(v, multA)
+		}
+
+		if bNaf[i] > 0 {
+			v.FromP1xP1(tmp1)
+			basepointNafTable.SelectInto(multB, bNaf[i])
+			tmp1.AddAffine(v, multB)
+		} else if bNaf[i] < 0 {
+			v.FromP1xP1(tmp1)
+			basepointNafTable.SelectInto(multB, -bNaf[i])
+			tmp1.SubAffine(v, multB)
+		}
+
+		tmp2.FromP1xP1(tmp1)
+	}
+
+	v.FromP2(tmp2)
 	return v
 }
 
