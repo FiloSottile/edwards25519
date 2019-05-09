@@ -105,7 +105,6 @@ func TestBasepointTableGeneration(t *testing.T) {
 		tmp1.Double(tmp2)
 		tmp3.FromP1xP1(tmp1)
 	}
-
 }
 
 func TestScalarMulMatchesBasepointMul(t *testing.T) {
@@ -144,5 +143,14 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 
 	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBasepointNafTableGeneration(t *testing.T) {
+	var table NafLookupTable8
+	table.FromP3(&B)
+
+	if table != basepointNafTable {
+		t.Error("BasepointNafTable does not match")
 	}
 }
