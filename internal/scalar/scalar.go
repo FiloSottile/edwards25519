@@ -898,7 +898,7 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	// This implementation is adapted from the one
 	// in curve25519-dalek and is documented there:
 	// https://github.com/dalek-cryptography/curve25519-dalek/blob/f630041af28e9a405255f98a8a93adca18e4315b/src/scalar.rs#L800-L871
-	if s[31] >= 127 {
+	if s[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 	if w < 2 {
@@ -959,7 +959,7 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 }
 
 func (s *Scalar) SignedRadix16() [64]int8 {
-	if s[31] >= 127 {
+	if s[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 
