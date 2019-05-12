@@ -52,13 +52,23 @@ func (s *Scalar) Mul(x, y *Scalar) *Scalar {
 	return s
 }
 
-// FromBytes sets s = x mod l, where x should be 64 bytes of uniform randomness
-// interpreted in little-endian.
-func (s *Scalar) FromBytes(x []byte) *Scalar {
+// FromUniformBytes sets s = x mod l, where x should be 64 bytes of uniform
+// randomness interpreted in little-endian.
+func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
 	scReduce(s, &wideBytes)
 	return s
+}
+
+// FromCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding
+// of s, and returns whether x is a canonical encoding of s.
+func (s *Scalar) FromCanonicalBytes(x []byte) bool {
+	if len(x) != 32 {
+		panic("invalid scalar length")
+	}
+	copy(s[:], x)
+	return scMinimal(s)
 }
 
 // reduce reduces s mod l returns it.
@@ -78,11 +88,6 @@ func (s *Scalar) Bytes(b []byte) []byte {
 	copy(out, t[:])
 
 	return res
-}
-
-// IsCanonical returns true if s < l, false otherwise.
-func (s *Scalar) IsCanonical() bool {
-	return scMinimal(s)
 }
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
