@@ -1,3 +1,7 @@
+// Copyright 2019 Henry de Valence. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package edwards25519
 
 import (
@@ -5,7 +9,7 @@ import (
 )
 
 func TestProjLookupTable(t *testing.T) {
-	var table ProjLookupTable
+	var table projLookupTable
 	table.FromP3(&B)
 
 	var tmp1, tmp2, tmp3 ProjCached
@@ -32,7 +36,7 @@ func TestProjLookupTable(t *testing.T) {
 }
 
 func TestAffineLookupTable(t *testing.T) {
-	var table AffineLookupTable
+	var table affineLookupTable
 	table.FromP3(&B)
 
 	var tmp1, tmp2, tmp3 AffineCached
@@ -59,7 +63,7 @@ func TestAffineLookupTable(t *testing.T) {
 }
 
 func TestNafLookupTable5(t *testing.T) {
-	var table NafLookupTable5
+	var table nafLookupTable5
 	table.FromP3(&B)
 
 	var tmp1, tmp2, tmp3, tmp4 ProjCached
@@ -85,12 +89,12 @@ func TestNafLookupTable5(t *testing.T) {
 	rhs.FromP1xP1(&accP1xP1)
 
 	if lhs.Equal(&rhs) != 1 {
-		t.Errorf("Sanity check on NafLookupTable5 failed")
+		t.Errorf("Sanity check on nafLookupTable5 failed")
 	}
 }
 
 func TestNafLookupTable8(t *testing.T) {
-	var table NafLookupTable8
+	var table nafLookupTable8
 	table.FromP3(&B)
 
 	var tmp1, tmp2, tmp3, tmp4 AffineCached
@@ -116,6 +120,6 @@ func TestNafLookupTable8(t *testing.T) {
 	rhs.FromP1xP1(&accP1xP1)
 
 	if lhs.Equal(&rhs) != 1 {
-		t.Errorf("Sanity check on NafLookupTable8 failed")
+		t.Errorf("Sanity check on nafLookupTable8 failed")
 	}
 }

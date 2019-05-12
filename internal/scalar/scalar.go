@@ -1,4 +1,9 @@
-// A ristretto255 scalar is an element of the group of order l = 2^252 + 27742317777372353535851937790883648493.
+// Copyright 2016 The Go Authors. All rights reserved.
+// Copyright 2019 Henry de Valence. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package scalar implements the ristretto255 scalar group.
 package scalar
 
 import (
@@ -6,7 +11,9 @@ import (
 	"encoding/binary"
 )
 
-// A ristretto255 scalar is an element of the group of order l = 2^252 + 27742317777372353535851937790883648493, here represented as an opaque little-endian byte string.
+// A Scalar is an element of the group of order
+// l = 2^252 + 27742317777372353535851937790883648493,
+// here represented as an opaque little-endian byte string.
 type Scalar [32]byte
 
 var (
@@ -45,10 +52,11 @@ func (s *Scalar) Mul(x, y *Scalar) *Scalar {
 	return s
 }
 
-// FromBytes sets s = x mod l, where x should be should be 64 bytes of uniform randomness.
-func (s *Scalar) FromBytes(in []byte) *Scalar {
+// FromBytes sets s = x mod l, where x should be 64 bytes of uniform randomness
+// interpreted in little-endian.
+func (s *Scalar) FromBytes(x []byte) *Scalar {
 	var wideBytes [64]byte
-	copy(wideBytes[:], in[:])
+	copy(wideBytes[:], x[:])
 	scReduce(s, &wideBytes)
 	return s
 }
@@ -78,11 +86,11 @@ func (s *Scalar) IsCanonical() bool {
 }
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
-func (v *Scalar) Equal(u *Scalar) int {
-	var sa, sv [32]byte
-	u.Bytes(sa[:0])
-	v.Bytes(sv[:0])
-	return subtle.ConstantTimeCompare(sa[:], sv[:])
+func (s *Scalar) Equal(u *Scalar) int {
+	var su, ss [32]byte
+	u.Bytes(su[:0])
+	s.Bytes(ss[:0])
+	return subtle.ConstantTimeCompare(su[:], ss[:])
 }
 
 // sliceForAppend extends the input slice by n bytes. head is the full extended
@@ -100,16 +108,14 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 }
 
 func load3(in []byte) int64 {
-	var r int64
-	r = int64(in[0])
+	r := int64(in[0])
 	r |= int64(in[1]) << 8
 	r |= int64(in[2]) << 16
 	return r
 }
 
 func load4(in []byte) int64 {
-	var r int64
-	r = int64(in[0])
+	r := int64(in[0])
 	r |= int64(in[1]) << 8
 	r |= int64(in[2]) << 16
 	r |= int64(in[3]) << 24
@@ -876,7 +882,7 @@ func scReduce(out *Scalar, s *[64]byte) {
 // order is the order of Curve25519 in little-endian form.
 var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
 
-// ScMinimal returns true if the given scalar is less than the order of the
+// scMinimal returns true if the given scalar is less than the order of the
 // curve.
 func scMinimal(sc *Scalar) bool {
 	for i := 3; ; i-- {
@@ -893,7 +899,7 @@ func scMinimal(sc *Scalar) bool {
 	return true
 }
 
-// Computes a width-w non-adjacent form for this scalar.
+// NonAdjacentForm computes a width-w non-adjacent form for this scalar.
 func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	// This implementation is adapted from the one
 	// in curve25519-dalek and is documented there:

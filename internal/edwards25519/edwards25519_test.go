@@ -1,8 +1,13 @@
+// Copyright 2019 Henry de Valence. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package edwards25519
 
 import (
-	"github.com/gtank/ristretto255/internal/radix51"
 	"testing"
+
+	"github.com/gtank/ristretto255/internal/radix51"
 )
 
 var (

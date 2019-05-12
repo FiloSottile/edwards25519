@@ -62,7 +62,7 @@ func (v *ProjP3) BasepointMul(x *scalar.Scalar) *ProjP3 {
 //
 // The scalar multiplication is done in constant time.
 func (v *ProjP3) ScalarMul(x *scalar.Scalar, q *ProjP3) *ProjP3 {
-	var table ProjLookupTable
+	var table projLookupTable
 	table.FromP3(q)
 	// v and q could alias, but once the table is built we can clobber v.
 	v.Zero()
@@ -113,7 +113,7 @@ func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *Proj
 	// between each point in the multiscalar equation.
 
 	// Build lookup tables for each point
-	tables := make([]ProjLookupTable, len(points))
+	tables := make([]projLookupTable, len(points))
 	for i := range tables {
 		tables[i].FromP3(points[i])
 	}
@@ -172,7 +172,7 @@ func (v *ProjP3) VartimeDoubleBaseMul(a *scalar.Scalar, A *ProjP3, b *scalar.Sca
 	// "mass" of the scalar onto sparse coefficients (meaning
 	// fewer additions).
 
-	var aTable NafLookupTable5
+	var aTable nafLookupTable5
 	aTable.FromP3(A)
 	// Because the basepoint is fixed, we can use a wider NAF
 	// corresponding to a bigger table.
@@ -243,7 +243,7 @@ func (v *ProjP3) VartimeMultiscalarMul(scalars []scalar.Scalar, points []*ProjP3
 	// tables.
 
 	// Build lookup tables for each point
-	tables := make([]NafLookupTable5, len(points))
+	tables := make([]nafLookupTable5, len(points))
 	for i := range tables {
 		tables[i].FromP3(points[i])
 	}

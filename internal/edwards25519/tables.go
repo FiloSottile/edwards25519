@@ -9,29 +9,29 @@ import (
 )
 
 // A dynamic lookup table for variable-base, constant-time scalar muls.
-type ProjLookupTable struct {
+type projLookupTable struct {
 	points [8]ProjCached
 }
 
 // A precomputed lookup table for fixed-base, constant-time scalar muls.
-type AffineLookupTable struct {
+type affineLookupTable struct {
 	points [8]AffineCached
 }
 
 // A dynamic lookup table for variable-base, variable-time scalar muls.
-type NafLookupTable5 struct {
+type nafLookupTable5 struct {
 	points [8]ProjCached
 }
 
 // A precomputed lookup table for fixed-base, variable-time scalar muls.
-type NafLookupTable8 struct {
+type nafLookupTable8 struct {
 	points [64]AffineCached
 }
 
 // Constructors.
 
 // Builds a lookup table at runtime. Fast.
-func (v *ProjLookupTable) FromP3(q *ProjP3) {
+func (v *projLookupTable) FromP3(q *ProjP3) {
 	// Goal: v.points[i] = (i+1)*Q, i.e., Q, 2Q, ..., 8Q
 	// This allows lookup of -8Q, ..., -Q, 0, Q, ..., 8Q
 	v.points[0].FromP3(q)
@@ -46,7 +46,7 @@ func (v *ProjLookupTable) FromP3(q *ProjP3) {
 }
 
 // This is not optimised for speed; affine tables should be precomputed.
-func (v *AffineLookupTable) FromP3(q *ProjP3) {
+func (v *affineLookupTable) FromP3(q *ProjP3) {
 	// Goal: v.points[i] = (i+1)*Q, i.e., Q, 2Q, ..., 8Q
 	// This allows lookup of -8Q, ..., -Q, 0, Q, ..., 8Q
 	v.points[0].FromP3(q)
@@ -59,7 +59,7 @@ func (v *AffineLookupTable) FromP3(q *ProjP3) {
 }
 
 // Builds a lookup table at runtime. Fast.
-func (v *NafLookupTable5) FromP3(q *ProjP3) {
+func (v *nafLookupTable5) FromP3(q *ProjP3) {
 	// Goal: v.points[i] = (2*i+1)*Q, i.e., Q, 3Q, 5Q, ..., 15Q
 	// This allows lookup of -15Q, ..., -3Q, -Q, 0, Q, 3Q, ..., 15Q
 	v.points[0].FromP3(q)
@@ -73,7 +73,7 @@ func (v *NafLookupTable5) FromP3(q *ProjP3) {
 }
 
 // This is not optimised for speed; affine tables should be precomputed.
-func (v *NafLookupTable8) FromP3(q *ProjP3) {
+func (v *nafLookupTable8) FromP3(q *ProjP3) {
 	v.points[0].FromP3(q)
 	q2 := ProjP3{}
 	q2.Add(q, q)
@@ -87,7 +87,7 @@ func (v *NafLookupTable8) FromP3(q *ProjP3) {
 // Selectors.
 
 // Set dest to x*Q, where -8 <= x <= 8, in constant time.
-func (v *ProjLookupTable) SelectInto(dest *ProjCached, x int8) {
+func (v *projLookupTable) SelectInto(dest *ProjCached, x int8) {
 	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
@@ -103,7 +103,7 @@ func (v *ProjLookupTable) SelectInto(dest *ProjCached, x int8) {
 }
 
 // Set dest to x*Q, where -8 <= x <= 8, in constant time.
-func (v *AffineLookupTable) SelectInto(dest *AffineCached, x int8) {
+func (v *affineLookupTable) SelectInto(dest *AffineCached, x int8) {
 	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
@@ -119,11 +119,11 @@ func (v *AffineLookupTable) SelectInto(dest *AffineCached, x int8) {
 }
 
 // Given odd x with 0 < x < 2^4, return x*Q (in variable time).
-func (v *NafLookupTable5) SelectInto(dest *ProjCached, x int8) {
+func (v *nafLookupTable5) SelectInto(dest *ProjCached, x int8) {
 	*dest = v.points[x/2]
 }
 
 // Given odd x with 0 < x < 2^7, return x*Q (in variable time).
-func (v *NafLookupTable8) SelectInto(dest *AffineCached, x int8) {
+func (v *nafLookupTable8) SelectInto(dest *AffineCached, x int8) {
 	*dest = v.points[x/2]
 }

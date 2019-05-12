@@ -1,10 +1,15 @@
+// Copyright 2019 Henry de Valence. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package edwards25519
 
 import (
-	"github.com/gtank/ristretto255/internal/radix51"
-	"github.com/gtank/ristretto255/internal/scalar"
 	"testing"
 	"testing/quick"
+
+	"github.com/gtank/ristretto255/internal/radix51"
+	"github.com/gtank/ristretto255/internal/scalar"
 )
 
 // quickCheckConfig will make each quickcheck test run (2^6 * -quickchecks)
@@ -93,14 +98,14 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 }
 
 func TestBasepointTableGeneration(t *testing.T) {
-	// The basepoint table is 32 AffineLookupTables,
+	// The basepoint table is 32 affineLookupTables,
 	// corresponding to (16^2i)*B for table i.
 
 	tmp1 := &ProjP1xP1{}
 	tmp2 := &ProjP2{}
 	tmp3 := &ProjP3{}
 	tmp3.Set(&B)
-	table := make([]AffineLookupTable, 32)
+	table := make([]affineLookupTable, 32)
 	for i := 0; i < 32; i++ {
 		// Build the table
 		table[i].FromP3(tmp3)
@@ -160,7 +165,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 }
 
 func TestBasepointNafTableGeneration(t *testing.T) {
-	var table NafLookupTable8
+	var table nafLookupTable8
 	table.FromP3(&B)
 
 	if table != basepointNafTable {

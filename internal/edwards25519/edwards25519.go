@@ -18,7 +18,7 @@ import (
 // D is a constant in the curve equation.
 var D = &radix51.FieldElement{929955233495203, 466365720129213,
 	1662059464998953, 2033849074728123, 1442794654840575}
-var D2 = new(radix51.FieldElement).Add(D, D)
+var d2 = new(radix51.FieldElement).Add(D, D)
 
 // Point types.
 
@@ -129,14 +129,14 @@ func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
 	v.Z.Set(&p.Z)
-	v.T2d.Mul(&p.T, D2)
+	v.T2d.Mul(&p.T, d2)
 	return v
 }
 
 func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
-	v.T2d.Mul(&p.T, D2)
+	v.T2d.Mul(&p.T, d2)
 
 	var invZ radix51.FieldElement
 	invZ.Invert(&p.Z)
