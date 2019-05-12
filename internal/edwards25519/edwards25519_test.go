@@ -21,7 +21,7 @@ var (
 )
 
 func TestAddSubNegOnBasePoint(t *testing.T) {
-	var B, Bneg ProjP3
+	var Bneg ProjP3
 	var tmpP2 ProjP2
 	var tmpP1xP1 ProjP1xP1
 	var tmpCached ProjCached
