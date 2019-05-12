@@ -6,18 +6,6 @@ package edwards25519
 
 import (
 	"testing"
-
-	"github.com/gtank/ristretto255/internal/radix51"
-)
-
-var (
-	// The Ed25519 basepoint.
-	B = ProjP3{
-		X: radix51.FieldElement([5]uint64{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613}),
-		Y: radix51.FieldElement([5]uint64{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198}),
-		Z: radix51.FieldElement([5]uint64{1, 0, 0, 0, 0}),
-		T: radix51.FieldElement([5]uint64{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039}),
-	}
 )
 
 func TestAddSubNegOnBasePoint(t *testing.T) {
