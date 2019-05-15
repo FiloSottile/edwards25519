@@ -82,3 +82,17 @@ func TestNonAdjacentForm(t *testing.T) {
 		}
 	}
 }
+
+func TestInvert(t *testing.T) {
+	invertWorks := func(x Scalar) bool {
+		var xInv, check Scalar
+		xInv.Inv(&x)
+		check.Mul(&x, &xInv)
+
+		return check.Equal(&scOne) == 1
+	}
+
+	if err := quick.Check(invertWorks, quickCheckConfig); err != nil {
+		t.Error(err)
+	}
+}
