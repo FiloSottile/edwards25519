@@ -9,6 +9,7 @@ package scalar
 import (
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 )
 
 // A Scalar is an integer modulo
@@ -52,9 +53,12 @@ func (s *Scalar) Mul(x, y *Scalar) *Scalar {
 	return s
 }
 
-// FromUniformBytes sets s = x mod l, where x should be 64 bytes of uniform
-// randomness interpreted in little-endian.
+// FromUniformBytes sets s to an uniformly distributed value given 64 uniformly
+// distributed random bytes.
 func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
+	if len(x) != 32 {
+		panic("scalar: invalid uniform input length")
+	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
 	scReduce(s, &wideBytes)
@@ -62,13 +66,17 @@ func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 }
 
 // FromCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding
-// of s, and returns whether x is a canonical encoding of s.
-func (s *Scalar) FromCanonicalBytes(x []byte) bool {
+// of s. If x is not a canonical encoding of s, FromCanonicalBytes returns an
+// error and the receiver is unchanged.
+func (s *Scalar) FromCanonicalBytes(x []byte) error {
 	if len(x) != 32 {
-		panic("invalid scalar length")
+		panic("scalar: invalid scalar length")
+	}
+	if !scMinimal(x) {
+		return errors.New("invalid scalar encoding")
 	}
 	copy(s[:], x)
-	return scMinimal(s)
+	return nil
 }
 
 // reduce reduces s mod l returns it.
@@ -889,7 +897,7 @@ var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000
 
 // scMinimal returns true if the given scalar is less than the order of the
 // curve.
-func scMinimal(sc *Scalar) bool {
+func scMinimal(sc []byte) bool {
 	for i := 3; ; i-- {
 		v := binary.LittleEndian.Uint64(sc[i*8:])
 		if v > order[i] {
