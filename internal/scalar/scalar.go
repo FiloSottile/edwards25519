@@ -11,7 +11,7 @@ import (
 	"encoding/binary"
 )
 
-// A Scalar is an element of the group of order
+// A Scalar is an integer modulo
 // l = 2^252 + 27742317777372353535851937790883648493,
 // here represented as an opaque little-endian byte string.
 type Scalar [32]byte
@@ -90,12 +90,12 @@ func (s *Scalar) Bytes(b []byte) []byte {
 	return res
 }
 
-// Equal returns 1 if v and u are equal, and 0 otherwise.
-func (s *Scalar) Equal(u *Scalar) int {
-	var su, ss [32]byte
-	u.Bytes(su[:0])
+// Equal returns 1 if s and t are equal, and 0 otherwise.
+func (s *Scalar) Equal(t *Scalar) int {
+	var ss, st [32]byte
+	t.Bytes(st[:0])
 	s.Bytes(ss[:0])
-	return subtle.ConstantTimeCompare(su[:], ss[:])
+	return subtle.ConstantTimeCompare(ss[:], st[:])
 }
 
 // sliceForAppend extends the input slice by n bytes. head is the full extended
