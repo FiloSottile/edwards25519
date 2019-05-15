@@ -56,7 +56,7 @@ func (s *Scalar) Mul(x, y *Scalar) *Scalar {
 // FromUniformBytes sets s to an uniformly distributed value given 64 uniformly
 // distributed random bytes.
 func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
-	if len(x) != 32 {
+	if len(x) != 64 {
 		panic("scalar: invalid uniform input length")
 	}
 	var wideBytes [64]byte
