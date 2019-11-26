@@ -104,5 +104,5 @@ func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
 	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
 	// right shift by 51, one logical and with 2^51 − 1, and one addition.
 	*v = FieldElement{r00, r10, r20, r30, r40}
-	return v.lightReduce1().lightReduce2()
+	return v.carryPropagate1().carryPropagate2()
 }

@@ -78,5 +78,5 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	r00 += r41
 
 	*v = FieldElement{r00, r10, r20, r30, r40}
-	return v.lightReduce1().lightReduce2()
+	return v.carryPropagate1().carryPropagate2()
 }
