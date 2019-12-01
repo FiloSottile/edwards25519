@@ -3,8 +3,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// GF(2^255-19) field arithmetic in radix 2^51 representation. This code is a
-// port of the public domain amd64-51-30k version of ed25519 from SUPERCOP.
+// Package radix51 implements GF(2^255-19) field arithmetic in radix 2^51
+// representation. This code is a port of the public domain amd64-51-30k version
+// of ed25519 from SUPERCOP.
 //
 // The interface works similarly to math/big.Int, and all arguments and
 // receivers are allowed to alias.
@@ -359,4 +360,16 @@ func (v *FieldElement) IsNegative() int {
 // Abs sets v to |u| and returns v.
 func (v *FieldElement) Abs(u *FieldElement) *FieldElement {
 	return v.CondNeg(u, u.IsNegative())
+}
+
+// Mul sets v = x * y and returns v.
+func (v *FieldElement) Mul(x, y *FieldElement) *FieldElement {
+	feMul(v, x, y)
+	return v
+}
+
+// Square sets v = x * x and returns v.
+func (v *FieldElement) Square(x *FieldElement) *FieldElement {
+	feSquare(v, x)
+	return v
 }
