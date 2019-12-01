@@ -144,8 +144,9 @@ func TestMul64to128(t *testing.T) {
 	}
 }
 
+var r0, r1 uint64
+
 func BenchmarkWideMultCall(t *testing.B) {
-	var r0, r1 uint64
 	a := uint64(18014398509481983)
 	b := uint64(18014398509481983)
 
@@ -359,5 +360,36 @@ func TestSelectSwap(t *testing.T) {
 
 	if c.Equal(&b) != 1 || d.Equal(&a) != 1 {
 		t.Errorf("Swap failed")
+	}
+}
+
+func TestMul32(t *testing.T) {
+	isAlmostInBounds := func(x *FieldElement) bool {
+		return bits.Len64(x[0]) <= 52 &&
+			bits.Len64(x[1]) <= 52 &&
+			bits.Len64(x[2]) <= 52 &&
+			bits.Len64(x[3]) <= 52 &&
+			bits.Len64(x[4]) <= 52
+	}
+
+	mul32EquivalentToMul := func(x FieldElement, y uint32) bool {
+		t1 := new(FieldElement)
+		for i := 0; i < 100; i++ {
+			t1.Mul32(&x, y)
+		}
+
+		ty := new(FieldElement)
+		ty[0] = uint64(y)
+
+		t2 := new(FieldElement)
+		for i := 0; i < 100; i++ {
+			t2.Mul(&x, ty)
+		}
+
+		return t1.Equal(t2) == 1 && isAlmostInBounds(t1) && isInBounds(t2)
+	}
+
+	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig); err != nil {
+		t.Error(err)
 	}
 }

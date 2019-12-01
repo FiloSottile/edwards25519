@@ -373,3 +373,20 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 	feSquare(v, x)
 	return v
 }
+
+// Mul32 sets v = x * y and returns v.
+func (v *FieldElement) Mul32(x *FieldElement, y uint32) *FieldElement {
+	x0lo, x0hi := mul51(x[0], y)
+	x1lo, x1hi := mul51(x[1], y)
+	x2lo, x2hi := mul51(x[2], y)
+	x3lo, x3hi := mul51(x[3], y)
+	x4lo, x4hi := mul51(x[4], y)
+	v[0] = x0lo + 19*x4hi // carried over per the reduction identity
+	v[1] = x1lo + x0hi
+	v[2] = x2lo + x1hi
+	v[3] = x3lo + x2hi
+	v[4] = x4lo + x3hi
+	// The hi portions are going to be only 32 bits, plus any previous excess,
+	// so we can skip the carry propagation.
+	return v
+}
