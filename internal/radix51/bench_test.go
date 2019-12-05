@@ -35,6 +35,6 @@ func BenchmarkMul32(b *testing.B) {
 	x.One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Mul32(&x, 0b10101010_10101010_10101010_10101010)
+		x.Mul32(&x, 0xaa42aa42)
 	}
 }
