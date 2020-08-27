@@ -4,7 +4,7 @@
 
 // +build amd64,!purego
 
-package radix51
+package base
 
 //go:noescape
 func feMul(out, a, b *FieldElement)

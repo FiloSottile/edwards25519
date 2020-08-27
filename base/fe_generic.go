@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package radix51
+package base
 
 func feMulGeneric(v, x, y *FieldElement) {
 	x0 := x[0]

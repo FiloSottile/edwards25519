@@ -4,7 +4,7 @@
 
 // +build !amd64 purego
 
-package radix51
+package base
 
 func feMul(v, x, y *FieldElement) { feMulGeneric(v, x, y) }
 

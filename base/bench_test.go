@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package radix51_test
+package base_test
 
 import (
 	"testing"
 
-	"github.com/gtank/ristretto255/internal/radix51"
+	"filippo.io/edwards25519/base"
 )
 
 func BenchmarkAdd(b *testing.B) {
-	var x, y radix51.FieldElement
+	var x, y base.FieldElement
 	x.One()
-	y.Add(radix51.One, radix51.One)
+	y.Add(base.One, base.One)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Add(&x, &y)
@@ -21,9 +21,9 @@ func BenchmarkAdd(b *testing.B) {
 }
 
 func BenchmarkMul(b *testing.B) {
-	var x, y radix51.FieldElement
+	var x, y base.FieldElement
 	x.One()
-	y.Add(radix51.One, radix51.One)
+	y.Add(base.One, base.One)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Mul(&x, &y)
@@ -31,7 +31,7 @@ func BenchmarkMul(b *testing.B) {
 }
 
 func BenchmarkMul32(b *testing.B) {
-	var x radix51.FieldElement
+	var x base.FieldElement
 	x.One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
