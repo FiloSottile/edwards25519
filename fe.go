@@ -1,15 +1,8 @@
-// Copyright (c) 2017 George Tankersley. All rights reserved.
-// Copyright (c) 2019 The Go Authors. All rights reserved.
+// Copyright (c) 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package base implements GF(2^255-19) field arithmetic in radix 2^51
-// representation. This code is a port of the public domain amd64-51-30k version
-// of ed25519 from SUPERCOP.
-//
-// The interface works similarly to math/big.Int, and all arguments and
-// receivers are allowed to alias.
-package base
+package edwards25519
 
 import (
 	"crypto/subtle"
@@ -18,15 +11,24 @@ import (
 	"math/bits"
 )
 
-// FieldElement represents an element of the field GF(2^255-19). An element t
-// represents the integer t[0] + t[1]*2^51 + t[2]*2^102 + t[3]*2^153 +
-// t[4]*2^204.
+// FieldElement represents an element of the field GF(2^255-19).
 //
-// Between operations, all limbs are expected to be lower than 2^51, except the
-// first one, which can be up to 2^255 + 2^13 * 19 due to carry propagation.
+// This type works similarly to math/big.Int, and all arguments and
+// receivers are allowed to alias.
 //
 // The zero value is a valid zero element.
-type FieldElement [5]uint64
+type FieldElement struct {
+	// An element t represents the integer
+	//     t.l0 + t.l1*2^51 + t.l2*2^102 + t.l3*2^153 + t.l4*2^204
+	//
+	// Between operations, all limbs are expected to be lower than 2^51, except
+	// l0, which can be up to 2^255 + 2^13 * 19 due to carry propagation.
+	l0 uint64
+	l1 uint64
+	l2 uint64
+	l3 uint64
+	l4 uint64
+}
 
 const maskLow51Bits uint64 = (1 << 51) - 1
 
@@ -53,19 +55,19 @@ func (v *FieldElement) One() *FieldElement {
 // two because of the inliner heuristics. The two functions MUST be called one
 // after the other.
 func (v *FieldElement) carryPropagate1() *FieldElement {
-	v[1] += v[0] >> 51
-	v[0] &= maskLow51Bits
-	v[2] += v[1] >> 51
-	v[1] &= maskLow51Bits
-	v[3] += v[2] >> 51
-	v[2] &= maskLow51Bits
+	v.l1 += v.l0 >> 51
+	v.l0 &= maskLow51Bits
+	v.l2 += v.l1 >> 51
+	v.l1 &= maskLow51Bits
+	v.l3 += v.l2 >> 51
+	v.l2 &= maskLow51Bits
 	return v
 }
 func (v *FieldElement) carryPropagate2() *FieldElement {
-	v[4] += v[3] >> 51
-	v[3] &= maskLow51Bits
-	v[0] += (v[4] >> 51) * 19
-	v[4] &= maskLow51Bits
+	v.l4 += v.l3 >> 51
+	v.l3 &= maskLow51Bits
+	v.l0 += (v.l4 >> 51) * 19
+	v.l4 &= maskLow51Bits
 	return v
 }
 
@@ -78,37 +80,37 @@ func (v *FieldElement) reduce() *FieldElement {
 
 	// If v >= 2^255 - 19, then v + 19 >= 2^255, which would overflow 2^255 - 1,
 	// generating a carry. That is, c will be 0 if v < 2^255 - 19, and 1 otherwise.
-	c := (v[0] + 19) >> 51
-	c = (v[1] + c) >> 51
-	c = (v[2] + c) >> 51
-	c = (v[3] + c) >> 51
-	c = (v[4] + c) >> 51
+	c := (v.l0 + 19) >> 51
+	c = (v.l1 + c) >> 51
+	c = (v.l2 + c) >> 51
+	c = (v.l3 + c) >> 51
+	c = (v.l4 + c) >> 51
 
 	// If v < 2^255 - 19 and c = 0, this will be a no-op. Otherwise, it's
 	// effectively applying the reduction identity to the carry.
-	v[0] += 19 * c
+	v.l0 += 19 * c
 
-	v[1] += v[0] >> 51
-	v[0] = v[0] & maskLow51Bits
-	v[2] += v[1] >> 51
-	v[1] = v[1] & maskLow51Bits
-	v[3] += v[2] >> 51
-	v[2] = v[2] & maskLow51Bits
-	v[4] += v[3] >> 51
-	v[3] = v[3] & maskLow51Bits
+	v.l1 += v.l0 >> 51
+	v.l0 = v.l0 & maskLow51Bits
+	v.l2 += v.l1 >> 51
+	v.l1 = v.l1 & maskLow51Bits
+	v.l3 += v.l2 >> 51
+	v.l2 = v.l2 & maskLow51Bits
+	v.l4 += v.l3 >> 51
+	v.l3 = v.l3 & maskLow51Bits
 	// no additional carry
-	v[4] = v[4] & maskLow51Bits
+	v.l4 = v.l4 & maskLow51Bits
 
 	return v
 }
 
 // Add sets v = a + b and returns v.
 func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
-	v[0] = a[0] + b[0]
-	v[1] = a[1] + b[1]
-	v[2] = a[2] + b[2]
-	v[3] = a[3] + b[3]
-	v[4] = a[4] + b[4]
+	v.l0 = a.l0 + b.l0
+	v.l1 = a.l1 + b.l1
+	v.l2 = a.l2 + b.l2
+	v.l3 = a.l3 + b.l3
+	v.l4 = a.l4 + b.l4
 	return v.carryPropagate1().carryPropagate2()
 }
 
@@ -116,11 +118,11 @@ func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	// We first add 2 * p, to guarantee the subtraction won't underflow, and
 	// then subtract b (which can be up to 2^255 + 2^13 * 19).
-	v[0] = (a[0] + 0xFFFFFFFFFFFDA) - b[0]
-	v[1] = (a[1] + 0xFFFFFFFFFFFFE) - b[1]
-	v[2] = (a[2] + 0xFFFFFFFFFFFFE) - b[2]
-	v[3] = (a[3] + 0xFFFFFFFFFFFFE) - b[3]
-	v[4] = (a[4] + 0xFFFFFFFFFFFFE) - b[4]
+	v.l0 = (a.l0 + 0xFFFFFFFFFFFDA) - b.l0
+	v.l1 = (a.l1 + 0xFFFFFFFFFFFFE) - b.l1
+	v.l2 = (a.l2 + 0xFFFFFFFFFFFFE) - b.l2
+	v.l3 = (a.l3 + 0xFFFFFFFFFFFFE) - b.l3
+	v.l4 = (a.l4 + 0xFFFFFFFFFFFFE) - b.l4
 	return v.carryPropagate1().carryPropagate2()
 }
 
@@ -210,17 +212,22 @@ func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 		panic("ed25519: invalid field element input size")
 	}
 
-	// Provide headroom for the slight binary.LittleEndian.Uint64 overread. (We
-	// read 64 bits at an offset of 200, but then take only 4+51 into account.)
-	var buf [33]byte
-	copy(buf[:], x)
-
-	for i := range v {
-		bitsOffset := i * 51
-		v[i] = binary.LittleEndian.Uint64(buf[bitsOffset/8:])
-		v[i] >>= uint(bitsOffset % 8)
-		v[i] &= maskLow51Bits
-	}
+	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
+	v.l0 = binary.LittleEndian.Uint64(x[0:8])
+	v.l0 &= maskLow51Bits
+	// Bits 51:102 (bytes 6:14, bits 48:112, shift 3, mask 51).
+	v.l1 = binary.LittleEndian.Uint64(x[6:14]) >> 3
+	v.l1 &= maskLow51Bits
+	// Bits 102:153 (bytes 12:20, bits 96:160, shift 6, mask 51).
+	v.l2 = binary.LittleEndian.Uint64(x[12:20]) >> 6
+	v.l2 &= maskLow51Bits
+	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
+	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
+	v.l3 &= maskLow51Bits
+	// Bits 204:251 (bytes 24:32, bits 192:256, shift 12, mask 51).
+	// Note: not bytes 25:33, shift 4, to avoid overread.
+	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
+	v.l4 &= maskLow51Bits
 
 	return v
 }
@@ -236,9 +243,9 @@ func (v *FieldElement) Bytes(b []byte) []byte {
 	}
 
 	var buf [8]byte
-	for i := range t {
+	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
 		bitsOffset := i * 51
-		binary.LittleEndian.PutUint64(buf[:], t[i]<<uint(bitsOffset%8))
+		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
 		for i, b := range buf {
 			off := bitsOffset/8 + i
 			if off >= len(out) {
@@ -316,32 +323,32 @@ const mask64Bits uint64 = (1 << 64) - 1
 // Select sets v to a if cond == 1, and to b if cond == 0.
 func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 	m := uint64(cond) * mask64Bits
-	v[0] = (m & a[0]) | (^m & b[0])
-	v[1] = (m & a[1]) | (^m & b[1])
-	v[2] = (m & a[2]) | (^m & b[2])
-	v[3] = (m & a[3]) | (^m & b[3])
-	v[4] = (m & a[4]) | (^m & b[4])
+	v.l0 = (m & a.l0) | (^m & b.l0)
+	v.l1 = (m & a.l1) | (^m & b.l1)
+	v.l2 = (m & a.l2) | (^m & b.l2)
+	v.l3 = (m & a.l3) | (^m & b.l3)
+	v.l4 = (m & a.l4) | (^m & b.l4)
 	return v
 }
 
 // CondSwap swaps a and b if cond == 1 or leaves them unchanged if cond == 0.
 func CondSwap(a, b *FieldElement, cond int) {
 	m := uint64(cond) * mask64Bits
-	t := m & (a[0] ^ b[0])
-	a[0] ^= t
-	b[0] ^= t
-	t = m & (a[1] ^ b[1])
-	a[1] ^= t
-	b[1] ^= t
-	t = m & (a[2] ^ b[2])
-	a[2] ^= t
-	b[2] ^= t
-	t = m & (a[3] ^ b[3])
-	a[3] ^= t
-	b[3] ^= t
-	t = m & (a[4] ^ b[4])
-	a[4] ^= t
-	b[4] ^= t
+	t := m & (a.l0 ^ b.l0)
+	a.l0 ^= t
+	b.l0 ^= t
+	t = m & (a.l1 ^ b.l1)
+	a.l1 ^= t
+	b.l1 ^= t
+	t = m & (a.l2 ^ b.l2)
+	a.l2 ^= t
+	b.l2 ^= t
+	t = m & (a.l3 ^ b.l3)
+	a.l3 ^= t
+	b.l3 ^= t
+	t = m & (a.l4 ^ b.l4)
+	a.l4 ^= t
+	b.l4 ^= t
 }
 
 // CondNeg sets v to -u if cond == 1, and to u if cond == 0.
@@ -376,16 +383,16 @@ func (v *FieldElement) Square(x *FieldElement) *FieldElement {
 
 // Mul32 sets v = x * y and returns v.
 func (v *FieldElement) Mul32(x *FieldElement, y uint32) *FieldElement {
-	x0lo, x0hi := mul51(x[0], y)
-	x1lo, x1hi := mul51(x[1], y)
-	x2lo, x2hi := mul51(x[2], y)
-	x3lo, x3hi := mul51(x[3], y)
-	x4lo, x4hi := mul51(x[4], y)
-	v[0] = x0lo + 19*x4hi // carried over per the reduction identity
-	v[1] = x1lo + x0hi
-	v[2] = x2lo + x1hi
-	v[3] = x3lo + x2hi
-	v[4] = x4lo + x3hi
+	x0lo, x0hi := mul51(x.l0, y)
+	x1lo, x1hi := mul51(x.l1, y)
+	x2lo, x2hi := mul51(x.l2, y)
+	x3lo, x3hi := mul51(x.l3, y)
+	x4lo, x4hi := mul51(x.l4, y)
+	v.l0 = x0lo + 19*x4hi // carried over per the reduction identity
+	v.l1 = x1lo + x0hi
+	v.l2 = x2lo + x1hi
+	v.l3 = x3lo + x2hi
+	v.l4 = x4lo + x3hi
 	// The hi portions are going to be only 32 bits, plus any previous excess,
 	// so we can skip the carry propagation.
 	return v

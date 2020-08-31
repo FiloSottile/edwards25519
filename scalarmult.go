@@ -1,15 +1,13 @@
-// Copyright (c) 2019 Henry de Valence.
+// Copyright (c) 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package edwards25519
 
-import "filippo.io/edwards25519/scalar"
-
 // Set v to x*B, where B is the Ed25519 basepoint, and return v.
 //
 // The scalar multiplication is done in constant time.
-func (v *ProjP3) BasepointMul(x *scalar.Scalar) *ProjP3 {
+func (v *ProjP3) BasepointMul(x *Scalar) *ProjP3 {
 	// Write x = sum(x_i * 16^i) so  x*B = sum( B*x_i*16^i )
 	// as described in the Ed25519 paper
 	//
@@ -59,7 +57,7 @@ func (v *ProjP3) BasepointMul(x *scalar.Scalar) *ProjP3 {
 // Set v to x*Q, and return v.  v and q may alias.
 //
 // The scalar multiplication is done in constant time.
-func (v *ProjP3) ScalarMul(x *scalar.Scalar, q *ProjP3) *ProjP3 {
+func (v *ProjP3) ScalarMul(x *Scalar, q *ProjP3) *ProjP3 {
 	var table projLookupTable
 	table.FromP3(q)
 	// v and q could alias, but once the table is built we can clobber v.
@@ -102,7 +100,7 @@ func (v *ProjP3) ScalarMul(x *scalar.Scalar, q *ProjP3) *ProjP3 {
 // The multiscalar multiplication is sum(scalars[i]*points[i]).
 //
 // The multiscalar multiplication is performed in constant time.
-func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *ProjP3 {
+func (v *ProjP3) MultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
 	if len(scalars) != len(points) {
 		panic("called MultiscalarMul with different size inputs")
 	}
@@ -155,7 +153,7 @@ func (v *ProjP3) MultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *Proj
 // Set v to a*A + b*B, where B is the Ed25519 basepoint, and return v.
 //
 // The scalar multiplication is done in variable time.
-func (v *ProjP3) VartimeDoubleBaseMul(a *scalar.Scalar, A *ProjP3, b *scalar.Scalar) *ProjP3 {
+func (v *ProjP3) VartimeDoubleBaseMul(a *Scalar, A *ProjP3, b *Scalar) *ProjP3 {
 	// Similarly to the single variable-base approach, we compute
 	// digits and use them with a lookup table.  However, because
 	// we are allowed to do variable-time operations, we don't
@@ -231,7 +229,7 @@ func (v *ProjP3) VartimeDoubleBaseMul(a *scalar.Scalar, A *ProjP3, b *scalar.Sca
 // The multiscalar multiplication is sum(scalars[i]*points[i]).
 //
 // The multiscalar multiplication is performed in variable time.
-func (v *ProjP3) VartimeMultiscalarMul(scalars []scalar.Scalar, points []*ProjP3) *ProjP3 {
+func (v *ProjP3) VartimeMultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
 	if len(scalars) != len(points) {
 		panic("called MultiscalarMul with different size inputs")
 	}

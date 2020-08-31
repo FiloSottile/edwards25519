@@ -1,9 +1,8 @@
-// Copyright (c) 2017 George Tankersley. All rights reserved.
-// Copyright (c) 2019 The Go Authors. All rights reserved.
+// Copyright (c) 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package base
+package edwards25519
 
 import (
 	"bytes"
@@ -17,9 +16,9 @@ import (
 	"testing/quick"
 )
 
-// quickCheckConfig will make each quickcheck test run (1024 * -quickchecks)
+// quickCheckConfig10 will make each quickcheck test run (1024 * -quickchecks)
 // times. The default value of -quickchecks is 100.
-var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
+var quickCheckConfig10 = &quick.Config{MaxCountScale: 1 << 10}
 
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
@@ -78,7 +77,7 @@ func generateWeirdFieldElement(rand *mathrand.Rand) FieldElement {
 	}
 }
 
-func (x FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
+func (v FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	if rand.Intn(2) == 0 {
 		return reflect.ValueOf(generateWeirdFieldElement(rand))
 	}
@@ -88,11 +87,11 @@ func (x FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 // isInBounds returns whether the element is within the expected bit size bounds
 // after a light reduction.
 func isInBounds(x *FieldElement) bool {
-	return bits.Len64(x[0]) <= 52 &&
-		bits.Len64(x[1]) <= 51 &&
-		bits.Len64(x[2]) <= 51 &&
-		bits.Len64(x[3]) <= 51 &&
-		bits.Len64(x[4]) <= 51
+	return bits.Len64(x.l0) <= 52 &&
+		bits.Len64(x.l1) <= 51 &&
+		bits.Len64(x.l2) <= 51 &&
+		bits.Len64(x.l3) <= 51 &&
+		bits.Len64(x.l4) <= 51
 }
 
 func TestMulDistributesOverAdd(t *testing.T) {
@@ -112,7 +111,7 @@ func TestMulDistributesOverAdd(t *testing.T) {
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig); err != nil {
+	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig10); err != nil {
 		t.Error(err)
 	}
 }
@@ -198,11 +197,11 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	}
 	var tests = []feRTTest{
 		{
-			fe: FieldElement([5]uint64{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676}),
+			fe: FieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676},
 			b:  []byte{74, 209, 69, 197, 70, 70, 161, 222, 56, 226, 229, 19, 112, 60, 25, 92, 187, 74, 222, 56, 50, 153, 51, 233, 40, 74, 57, 6, 160, 185, 213, 31},
 		},
 		{
-			fe: FieldElement([5]uint64{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972}),
+			fe: FieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972},
 			b:  []byte{199, 23, 106, 112, 61, 77, 216, 79, 186, 60, 11, 118, 13, 16, 103, 15, 42, 32, 83, 250, 44, 57, 204, 198, 78, 199, 253, 119, 146, 172, 3, 122},
 		},
 	}
@@ -256,7 +255,7 @@ func TestSanity(t *testing.T) {
 	var x2, x2sq FieldElement
 	// var x2Go, x2sqGo FieldElement
 
-	x = [5]uint64{1, 1, 1, 1, 1}
+	x = FieldElement{1, 1, 1, 1, 1}
 	x2.Mul(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
 	x2sq.Square(&x)
@@ -293,8 +292,8 @@ func TestSanity(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
-	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
-	var y FieldElement = [5]uint64{5, 4, 3, 2, 1}
+	x := FieldElement{1, 1, 1, 1, 1}
+	y := FieldElement{5, 4, 3, 2, 1}
 
 	eq := x.Equal(&x)
 	if eq != 1 {
@@ -308,8 +307,8 @@ func TestEqual(t *testing.T) {
 }
 
 func TestInvert(t *testing.T) {
-	var x FieldElement = [5]uint64{1, 1, 1, 1, 1}
-	var one FieldElement = [5]uint64{1, 0, 0, 0, 0}
+	x := FieldElement{1, 1, 1, 1, 1}
+	one := FieldElement{1, 0, 0, 0, 0}
 	var xinv, r FieldElement
 
 	xinv.Invert(&x)
@@ -338,8 +337,8 @@ func TestInvert(t *testing.T) {
 }
 
 func TestSelectSwap(t *testing.T) {
-	a := FieldElement([5]uint64{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676})
-	b := FieldElement([5]uint64{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972})
+	a := FieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676}
+	b := FieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972}
 
 	var c, d FieldElement
 
@@ -365,11 +364,11 @@ func TestSelectSwap(t *testing.T) {
 
 func TestMul32(t *testing.T) {
 	isAlmostInBounds := func(x *FieldElement) bool {
-		return bits.Len64(x[0]) <= 52 &&
-			bits.Len64(x[1]) <= 52 &&
-			bits.Len64(x[2]) <= 52 &&
-			bits.Len64(x[3]) <= 52 &&
-			bits.Len64(x[4]) <= 52
+		return bits.Len64(x.l0) <= 52 &&
+			bits.Len64(x.l1) <= 52 &&
+			bits.Len64(x.l2) <= 52 &&
+			bits.Len64(x.l3) <= 52 &&
+			bits.Len64(x.l4) <= 52
 	}
 
 	mul32EquivalentToMul := func(x FieldElement, y uint32) bool {
@@ -379,7 +378,7 @@ func TestMul32(t *testing.T) {
 		}
 
 		ty := new(FieldElement)
-		ty[0] = uint64(y)
+		ty.l0 = uint64(y)
 
 		t2 := new(FieldElement)
 		for i := 0; i < 100; i++ {
@@ -389,7 +388,7 @@ func TestMul32(t *testing.T) {
 		return t1.Equal(t2) == 1 && isAlmostInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig); err != nil {
+	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig10); err != nil {
 		t.Error(err)
 	}
 }

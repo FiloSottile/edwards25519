@@ -4,7 +4,7 @@
 
 // +build !amd64 purego
 
-package base
+package edwards25519
 
 func feMul(v, x, y *FieldElement) { feMulGeneric(v, x, y) }
 

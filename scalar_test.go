@@ -1,8 +1,8 @@
-// Copyright 2019 Henry de Valence. All rights reserved.
+// Copyright (c) 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package scalar
+package edwards25519
 
 import (
 	"bytes"
@@ -11,11 +11,7 @@ import (
 	"testing/quick"
 )
 
-// quickCheckConfig will make each quickcheck test run (1024 * -quickchecks)
-// times. The default value of -quickchecks is 100.
-var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
-
-func TestFromBytesRoundTrip(t *testing.T) {
+func TestScalarFromBytesRoundTrip(t *testing.T) {
 	f1 := func(in, out [32]byte, sc Scalar) bool {
 		in[len(in)-1] &= (1 << 4) - 1 // Mask out top 4 bits for 252-bit numbers
 		if err := sc.FromCanonicalBytes(in[:]); err != nil {
@@ -43,7 +39,7 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	}
 }
 
-func TestFromUniformBytes(t *testing.T) {
+func TestScalarFromUniformBytes(t *testing.T) {
 	mod, _ := new(big.Int).SetString("27742317777372353535851937790883648493", 10)
 	mod.Add(mod, new(big.Int).Lsh(big.NewInt(1), 252))
 	f := func(in [64]byte, sc Scalar) bool {
@@ -69,7 +65,7 @@ func byteSwap(b []byte) {
 	}
 }
 
-func TestMulDistributesOverAdd(t *testing.T) {
+func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 	mulDistributesOverAdd := func(x, y, z Scalar) bool {
 		// Compute t1 = (x+y)*z
 		var t1 Scalar
@@ -86,12 +82,12 @@ func TestMulDistributesOverAdd(t *testing.T) {
 		return t1.Equal(&t2) == 1 && scMinimal(t1[:]) && scMinimal(t2[:])
 	}
 
-	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig); err != nil {
+	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig10); err != nil {
 		t.Error(err)
 	}
 }
 
-func TestNonAdjacentForm(t *testing.T) {
+func TestScalarNonAdjacentForm(t *testing.T) {
 	s := Scalar([32]byte{
 		0x1a, 0x0e, 0x97, 0x8a, 0x90, 0xf6, 0x62, 0x2d,
 		0x37, 0x47, 0x02, 0x3f, 0x8a, 0xd8, 0x26, 0x4d,
@@ -118,7 +114,7 @@ func TestNonAdjacentForm(t *testing.T) {
 	}
 }
 
-func TestInvert(t *testing.T) {
+func TestScalarInvert(t *testing.T) {
 	invertWorks := func(x Scalar) bool {
 		var xInv, check Scalar
 		xInv.Inv(&x)
@@ -127,7 +123,7 @@ func TestInvert(t *testing.T) {
 		return check.Equal(&scOne) == 1
 	}
 
-	if err := quick.Check(invertWorks, quickCheckConfig); err != nil {
+	if err := quick.Check(invertWorks, quickCheckConfig10); err != nil {
 		t.Error(err)
 	}
 }

@@ -1,5 +1,4 @@
-// Copyright (c) 2017 George Tankersley. All rights reserved.
-// Copyright (c) 2019 The Go Authors. All rights reserved.
+// Copyright (c) 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,16 +6,23 @@
 //
 //     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
 //
-// This is better known as the Edwards curve equivalent to curve25519, and is
+// as well as GF(2^255-19) field arithmetic.
+//
+// This is better known as the Edwards curve equivalent to Curve25519, and is
 // the curve used by the Ed25519 signature scheme.
+//
+// Most users don't need this package, and should instead use crypto/ed25519 for
+// signatures, golang.org/x/crypto/curve25519 for Diffie-Hellman, or
+// github.com/gtank/ristretto255 for prime order group logic. However, for
+// anyone currently using a fork of crypto/ed25519/internal/edwards25519 or
+// github.com/agl/edwards25519, this package should be a safer, faster, and more
+// powerful alternative.
 package edwards25519
 
-import "filippo.io/edwards25519/base"
-
 // D is a constant in the curve equation.
-var D = &base.FieldElement{929955233495203, 466365720129213,
+var D = &FieldElement{929955233495203, 466365720129213,
 	1662059464998953, 2033849074728123, 1442794654840575}
-var d2 = new(base.FieldElement).Add(D, D)
+var d2 = new(FieldElement).Add(D, D)
 
 // Point types.
 
@@ -25,31 +31,31 @@ var d2 = new(base.FieldElement).Add(D, D)
 // https://doc-internal.dalek.rs/curve25519_dalek/backend/serial/curve_models/index.html
 
 type ProjP1xP1 struct {
-	X, Y, Z, T base.FieldElement
+	X, Y, Z, T FieldElement
 }
 
 type ProjP2 struct {
-	X, Y, Z base.FieldElement
+	X, Y, Z FieldElement
 }
 
 type ProjP3 struct {
-	X, Y, Z, T base.FieldElement
+	X, Y, Z, T FieldElement
 }
 
 type ProjCached struct {
-	YplusX, YminusX, Z, T2d base.FieldElement
+	YplusX, YminusX, Z, T2d FieldElement
 }
 
 type AffineCached struct {
-	YplusX, YminusX, T2d base.FieldElement
+	YplusX, YminusX, T2d FieldElement
 }
 
 // B is the Ed25519 basepoint.
 var B = ProjP3{
-	X: base.FieldElement([5]uint64{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613}),
-	Y: base.FieldElement([5]uint64{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198}),
-	Z: base.FieldElement([5]uint64{1, 0, 0, 0, 0}),
-	T: base.FieldElement([5]uint64{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039}),
+	X: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
+	Y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
+	Z: FieldElement{1, 0, 0, 0, 0},
+	T: FieldElement{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039},
 }
 
 // Constructors.
@@ -144,7 +150,7 @@ func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
 	v.YminusX.Sub(&p.Y, &p.X)
 	v.T2d.Mul(&p.T, d2)
 
-	var invZ base.FieldElement
+	var invZ FieldElement
 	invZ.Invert(&p.Z)
 	v.YplusX.Mul(&v.YplusX, &invZ)
 	v.YminusX.Mul(&v.YminusX, &invZ)
@@ -173,7 +179,7 @@ func (v *ProjP3) Sub(p, q *ProjP3) *ProjP3 {
 }
 
 func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 base.FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
 	YminusX.Sub(&p.Y, &p.X)
@@ -193,7 +199,7 @@ func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
 }
 
 func (v *ProjP1xP1) Sub(p *ProjP3, q *ProjCached) *ProjP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 base.FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
 	YminusX.Sub(&p.Y, &p.X)
@@ -213,7 +219,7 @@ func (v *ProjP1xP1) Sub(p *ProjP3, q *ProjCached) *ProjP1xP1 {
 }
 
 func (v *ProjP1xP1) AddAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 base.FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
 	YminusX.Sub(&p.Y, &p.X)
@@ -232,7 +238,7 @@ func (v *ProjP1xP1) AddAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
 }
 
 func (v *ProjP1xP1) SubAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 base.FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
 	YminusX.Sub(&p.Y, &p.X)
@@ -253,7 +259,7 @@ func (v *ProjP1xP1) SubAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
 // Doubling.
 
 func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
-	var XX, YY, ZZ2, XplusYsq base.FieldElement
+	var XX, YY, ZZ2, XplusYsq FieldElement
 
 	XX.Square(&p.X)
 	YY.Square(&p.Y)
@@ -283,7 +289,7 @@ func (v *ProjP3) Neg(p *ProjP3) *ProjP3 {
 // by @ebfull
 // https://github.com/dalek-cryptography/curve25519-dalek/pull/226/files
 func (v *ProjP3) Equal(u *ProjP3) int {
-	var t1, t2, t3, t4 base.FieldElement
+	var t1, t2, t3, t4 FieldElement
 	t1.Mul(&v.X, &u.Z)
 	t2.Mul(&u.X, &v.Z)
 	t3.Mul(&v.Y, &u.Z)
@@ -313,14 +319,14 @@ func (v *AffineCached) Select(a, b *AffineCached, cond int) *AffineCached {
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *ProjCached) CondNeg(cond int) *ProjCached {
-	base.CondSwap(&v.YplusX, &v.YminusX, cond)
+	CondSwap(&v.YplusX, &v.YminusX, cond)
 	v.T2d.CondNeg(&v.T2d, cond)
 	return v
 }
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *AffineCached) CondNeg(cond int) *AffineCached {
-	base.CondSwap(&v.YplusX, &v.YminusX, cond)
+	CondSwap(&v.YplusX, &v.YminusX, cond)
 	v.T2d.CondNeg(&v.T2d, cond)
 	return v
 }

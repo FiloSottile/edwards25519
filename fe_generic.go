@@ -1,21 +1,21 @@
-// Copyright (c) 2017 George Tankersley. All rights reserved.
+// Copyright (c) 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package base
+package edwards25519
 
 func feMulGeneric(v, x, y *FieldElement) {
-	x0 := x[0]
-	x1 := x[1]
-	x2 := x[2]
-	x3 := x[3]
-	x4 := x[4]
+	x0 := x.l0
+	x1 := x.l1
+	x2 := x.l2
+	x3 := x.l3
+	x4 := x.l4
 
-	y0 := y[0]
-	y1 := y[1]
-	y2 := y[2]
-	y3 := y[3]
-	y4 := y[4]
+	y0 := y.l0
+	y1 := y.l1
+	y2 := y.l2
+	y3 := y.l3
+	y4 := y.l4
 
 	// Reduction can be carried out simultaneously to multiplication. For
 	// example, we do not compute a coefficient r_5 . Whenever the result of a
@@ -109,11 +109,11 @@ func feSquareGeneric(v, x *FieldElement) {
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
 
-	x0 := x[0]
-	x1 := x[1]
-	x2 := x[2]
-	x3 := x[3]
-	x4 := x[4]
+	x0 := x.l0
+	x1 := x.l1
+	x2 := x.l2
+	x3 := x.l3
+	x4 := x.l4
 
 	x0_2 := x0 << 1
 	x1_2 := x1 << 1

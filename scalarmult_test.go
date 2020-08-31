@@ -1,4 +1,4 @@
-// Copyright 2019 Henry de Valence. All rights reserved.
+// Copyright (c) 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,29 +7,26 @@ package edwards25519
 import (
 	"testing"
 	"testing/quick"
-
-	"filippo.io/edwards25519/base"
-	"filippo.io/edwards25519/scalar"
 )
 
-// quickCheckConfig will make each quickcheck test run (2^6 * -quickchecks)
-// times. The default value of -quickchecks is 100.
 var (
-	quickCheckConfig = &quick.Config{MaxCountScale: 1 << 6}
+	// quickCheckConfig6 will make each quickcheck test run (2^6 * -quickchecks)
+	// times. The default value of -quickchecks is 100.
+	quickCheckConfig6 = &quick.Config{MaxCountScale: 1 << 6}
 
 	// a random scalar generated using dalek.
-	dalekScalar = scalar.Scalar([32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
+	dalekScalar = Scalar([32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
 	// the above, times the Ed25519 basepoint.
 	dalekScalarBasepoint = ProjP3{
-		X: base.FieldElement([5]uint64{778774234987948, 1589187156384239, 1213330452914652, 186161118421127, 2186284806803213}),
-		Y: base.FieldElement([5]uint64{1241255309069369, 1115278942994853, 1016511918109334, 1303231926552315, 1801448517689873}),
-		Z: base.FieldElement([5]uint64{353337085654440, 1327844406437681, 2207296012811921, 707394926933424, 917408459573183}),
-		T: base.FieldElement([5]uint64{585487439439725, 1792815221887900, 946062846079052, 1954901232609667, 1418300670001780}),
+		X: FieldElement{778774234987948, 1589187156384239, 1213330452914652, 186161118421127, 2186284806803213},
+		Y: FieldElement{1241255309069369, 1115278942994853, 1016511918109334, 1303231926552315, 1801448517689873},
+		Z: FieldElement{353337085654440, 1327844406437681, 2207296012811921, 707394926933424, 917408459573183},
+		T: FieldElement{585487439439725, 1792815221887900, 946062846079052, 1954901232609667, 1418300670001780},
 	}
 )
 
 func TestScalarMulSmallScalars(t *testing.T) {
-	var z scalar.Scalar
+	var z Scalar
 	var p, check ProjP3
 	p.ScalarMul(&z, &B)
 	check.Zero()
@@ -37,7 +34,7 @@ func TestScalarMulSmallScalars(t *testing.T) {
 		t.Error("0*B != 0")
 	}
 
-	z = scalar.Scalar([32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	z = Scalar([32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 	p.ScalarMul(&z, &B)
 	check.Set(&B)
 	if check.Equal(&p) != 1 {
@@ -63,7 +60,7 @@ func TestBasepointMulVsDalek(t *testing.T) {
 
 func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
 	var p ProjP3
-	var z scalar.Scalar
+	var z Scalar
 	p.VartimeDoubleBaseMul(&dalekScalar, &B, &z)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with b=0")
@@ -75,14 +72,14 @@ func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
 }
 
 func TestScalarMulDistributesOverAdd(t *testing.T) {
-	scalarMulDistributesOverAdd := func(x, y scalar.Scalar) bool {
+	scalarMulDistributesOverAdd := func(x, y Scalar) bool {
 		// The quickcheck generation strategy chooses a random
 		// 32-byte array, but we require that the high bit is
 		// unset.  FIXME: make Scalar opaque.  Until then,
 		// mask the high bits:
 		x[31] &= 127
 		y[31] &= 127
-		var z scalar.Scalar
+		var z Scalar
 		z.Add(&x, &y)
 		var p, q, r, check ProjP3
 		p.ScalarMul(&x, &B)
@@ -92,7 +89,7 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		return check.Equal(&r) == 1
 	}
 
-	if err := quick.Check(scalarMulDistributesOverAdd, quickCheckConfig); err != nil {
+	if err := quick.Check(scalarMulDistributesOverAdd, quickCheckConfig6); err != nil {
 		t.Error(err)
 	}
 }
@@ -126,7 +123,7 @@ func TestBasepointTableGeneration(t *testing.T) {
 }
 
 func TestScalarMulMatchesBasepointMul(t *testing.T) {
-	scalarMulMatchesBasepointMul := func(x scalar.Scalar) bool {
+	scalarMulMatchesBasepointMul := func(x Scalar) bool {
 		// FIXME opaque scalars
 		x[31] &= 127
 		var p, q ProjP3
@@ -135,20 +132,20 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
-	multiScalarMulMatchesBasepointMul := func(x, y, z scalar.Scalar) bool {
+	multiScalarMulMatchesBasepointMul := func(x, y, z Scalar) bool {
 		// FIXME opaque scalars
 		x[31] &= 127
 		y[31] &= 127
 		z[31] &= 127
 		var p, q1, q2, q3, check ProjP3
 
-		p.MultiscalarMul([]scalar.Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+		p.MultiscalarMul([]Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -159,7 +156,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
 		t.Error(err)
 	}
 }
@@ -174,7 +171,7 @@ func TestBasepointNafTableGeneration(t *testing.T) {
 }
 
 func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
-	vartimeDoubleBaseMulMatchesBasepointMul := func(x, y scalar.Scalar) bool {
+	vartimeDoubleBaseMulMatchesBasepointMul := func(x, y Scalar) bool {
 		// FIXME opaque scalars
 		x[31] &= 127
 		y[31] &= 127
@@ -190,20 +187,20 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig); err != nil {
+	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig6); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
-	vartimeMultiScalarMulMatchesBasepointMul := func(x, y, z scalar.Scalar) bool {
+	vartimeMultiScalarMulMatchesBasepointMul := func(x, y, z Scalar) bool {
 		// FIXME opaque scalars
 		x[31] &= 127
 		y[31] &= 127
 		z[31] &= 127
 		var p, q1, q2, q3, check ProjP3
 
-		p.VartimeMultiscalarMul([]scalar.Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+		p.VartimeMultiscalarMul([]Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -214,7 +211,7 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig); err != nil {
+	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
 		t.Error(err)
 	}
 }
@@ -250,7 +247,7 @@ func BenchmarkMultiscalarMulSize8(t *testing.B) {
 	x := dalekScalar
 
 	for i := 0; i < t.N; i++ {
-		p.MultiscalarMul([]scalar.Scalar{x, x, x, x, x, x, x, x}, []*ProjP3{&B, &B, &B, &B, &B, &B, &B, &B})
+		p.MultiscalarMul([]Scalar{x, x, x, x, x, x, x, x}, []*ProjP3{&B, &B, &B, &B, &B, &B, &B, &B})
 	}
 }
 

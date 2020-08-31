@@ -1,11 +1,10 @@
-// Copyright (c) 2017 George Tankersley. All rights reserved.
-// Copyright (c) 2019 The Go Authors. All rights reserved.
+// Copyright (c) 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // +build !go1.13
 
-package base
+package edwards25519
 
 import "unsafe"
 

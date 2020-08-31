@@ -1,10 +1,8 @@
-// Copyright 2016 The Go Authors. All rights reserved.
-// Copyright 2019 Henry de Valence. All rights reserved.
+// Copyright (c) 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package scalar implements the ristretto255 scalar group.
-package scalar
+package edwards25519
 
 import (
 	"crypto/subtle"
@@ -13,8 +11,10 @@ import (
 )
 
 // A Scalar is an integer modulo
-// l = 2^252 + 27742317777372353535851937790883648493,
-// here represented as an opaque little-endian byte string.
+//
+//     l = 2^252 + 27742317777372353535851937790883648493
+//
+// represented as a little-endian byte string.
 type Scalar [32]byte
 
 var (
@@ -104,20 +104,6 @@ func (s *Scalar) Equal(t *Scalar) int {
 	t.Bytes(st[:0])
 	s.Bytes(ss[:0])
 	return subtle.ConstantTimeCompare(ss[:], st[:])
-}
-
-// sliceForAppend extends the input slice by n bytes. head is the full extended
-// slice, while tail is the appended part. If the original slice has sufficient
-// capacity no allocation is performed.
-func sliceForAppend(in []byte, n int) (head, tail []byte) {
-	if total := len(in) + n; cap(in) >= total {
-		head = in[:total]
-	} else {
-		head = make([]byte, total)
-		copy(head, in)
-	}
-	tail = head[len(in):]
-	return
 }
 
 func load3(in []byte) int64 {
