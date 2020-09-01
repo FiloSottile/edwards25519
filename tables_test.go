@@ -10,7 +10,7 @@ import (
 
 func TestProjLookupTable(t *testing.T) {
 	var table projLookupTable
-	table.FromP3(&B)
+	table.FromP3(B)
 
 	var tmp1, tmp2, tmp3 ProjCached
 	table.SelectInto(&tmp1, 6)
@@ -37,7 +37,7 @@ func TestProjLookupTable(t *testing.T) {
 
 func TestAffineLookupTable(t *testing.T) {
 	var table affineLookupTable
-	table.FromP3(&B)
+	table.FromP3(B)
 
 	var tmp1, tmp2, tmp3 AffineCached
 	table.SelectInto(&tmp1, 3)
@@ -64,7 +64,7 @@ func TestAffineLookupTable(t *testing.T) {
 
 func TestNafLookupTable5(t *testing.T) {
 	var table nafLookupTable5
-	table.FromP3(&B)
+	table.FromP3(B)
 
 	var tmp1, tmp2, tmp3, tmp4 ProjCached
 	table.SelectInto(&tmp1, 9)
@@ -95,7 +95,7 @@ func TestNafLookupTable5(t *testing.T) {
 
 func TestNafLookupTable8(t *testing.T) {
 	var table nafLookupTable8
-	table.FromP3(&B)
+	table.FromP3(B)
 
 	var tmp1, tmp2, tmp3, tmp4 AffineCached
 	table.SelectInto(&tmp1, 49)

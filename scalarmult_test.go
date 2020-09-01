@@ -28,15 +28,15 @@ var (
 func TestScalarMulSmallScalars(t *testing.T) {
 	var z Scalar
 	var p, check ProjP3
-	p.ScalarMul(&z, &B)
+	p.ScalarMul(&z, B)
 	check.Zero()
 	if check.Equal(&p) != 1 {
 		t.Error("0*B != 0")
 	}
 
 	z = Scalar([32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	p.ScalarMul(&z, &B)
-	check.Set(&B)
+	p.ScalarMul(&z, B)
+	check.Set(B)
 	if check.Equal(&p) != 1 {
 		t.Error("1*B != 1")
 	}
@@ -44,7 +44,7 @@ func TestScalarMulSmallScalars(t *testing.T) {
 
 func TestScalarMulVsDalek(t *testing.T) {
 	var p ProjP3
-	p.ScalarMul(&dalekScalar, &B)
+	p.ScalarMul(&dalekScalar, B)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("Scalar mul does not match dalek")
 	}
@@ -61,11 +61,11 @@ func TestBasepointMulVsDalek(t *testing.T) {
 func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
 	var p ProjP3
 	var z Scalar
-	p.VartimeDoubleBaseMul(&dalekScalar, &B, &z)
+	p.VartimeDoubleBaseMul(&dalekScalar, B, &z)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with b=0")
 	}
-	p.VartimeDoubleBaseMul(&z, &B, &dalekScalar)
+	p.VartimeDoubleBaseMul(&z, B, &dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with a=0")
 	}
@@ -82,9 +82,9 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		var z Scalar
 		z.Add(&x, &y)
 		var p, q, r, check ProjP3
-		p.ScalarMul(&x, &B)
-		q.ScalarMul(&y, &B)
-		r.ScalarMul(&z, &B)
+		p.ScalarMul(&x, B)
+		q.ScalarMul(&y, B)
+		r.ScalarMul(&z, B)
 		check.Add(&p, &q)
 		return check.Equal(&r) == 1
 	}
@@ -101,7 +101,7 @@ func TestBasepointTableGeneration(t *testing.T) {
 	tmp1 := &ProjP1xP1{}
 	tmp2 := &ProjP2{}
 	tmp3 := &ProjP3{}
-	tmp3.Set(&B)
+	tmp3.Set(B)
 	table := make([]affineLookupTable, 32)
 	for i := 0; i < 32; i++ {
 		// Build the table
@@ -127,7 +127,7 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		// FIXME opaque scalars
 		x[31] &= 127
 		var p, q ProjP3
-		p.ScalarMul(&x, &B)
+		p.ScalarMul(&x, B)
 		q.BasepointMul(&x)
 		return p.Equal(&q) == 1
 	}
@@ -145,7 +145,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		z[31] &= 127
 		var p, q1, q2, q3, check ProjP3
 
-		p.MultiscalarMul([]Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+		p.MultiscalarMul([]Scalar{x, y, z}, []*ProjP3{B, B, B})
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -163,7 +163,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 
 func TestBasepointNafTableGeneration(t *testing.T) {
 	var table nafLookupTable8
-	table.FromP3(&B)
+	table.FromP3(B)
 
 	if table != basepointNafTable {
 		t.Error("BasepointNafTable does not match")
@@ -177,7 +177,7 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		y[31] &= 127
 		var p, q1, q2, check ProjP3
 
-		p.VartimeDoubleBaseMul(&x, &B, &y)
+		p.VartimeDoubleBaseMul(&x, B, &y)
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -200,7 +200,7 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		z[31] &= 127
 		var p, q1, q2, q3, check ProjP3
 
-		p.VartimeMultiscalarMul([]Scalar{x, y, z}, []*ProjP3{&B, &B, &B})
+		p.VartimeMultiscalarMul([]Scalar{x, y, z}, []*ProjP3{B, B, B})
 
 		q1.BasepointMul(&x)
 		q2.BasepointMul(&y)
@@ -230,7 +230,7 @@ func BenchmarkScalarMul(t *testing.B) {
 	var p ProjP3
 
 	for i := 0; i < t.N; i++ {
-		p.ScalarMul(&dalekScalar, &B)
+		p.ScalarMul(&dalekScalar, B)
 	}
 }
 
@@ -238,7 +238,7 @@ func BenchmarkVartimeDoubleBaseMul(t *testing.B) {
 	var p ProjP3
 
 	for i := 0; i < t.N; i++ {
-		p.VartimeDoubleBaseMul(&dalekScalar, &B, &dalekScalar)
+		p.VartimeDoubleBaseMul(&dalekScalar, B, &dalekScalar)
 	}
 }
 
@@ -247,7 +247,7 @@ func BenchmarkMultiscalarMulSize8(t *testing.B) {
 	x := dalekScalar
 
 	for i := 0; i < t.N; i++ {
-		p.MultiscalarMul([]Scalar{x, x, x, x, x, x, x, x}, []*ProjP3{&B, &B, &B, &B, &B, &B, &B, &B})
+		p.MultiscalarMul([]Scalar{x, x, x, x, x, x, x, x}, []*ProjP3{B, B, B, B, B, B, B, B})
 	}
 }
 

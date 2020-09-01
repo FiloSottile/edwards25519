@@ -22,7 +22,6 @@ package edwards25519
 // D is a constant in the curve equation.
 var D = &FieldElement{929955233495203, 466365720129213,
 	1662059464998953, 2033849074728123, 1442794654840575}
-var d2 = new(FieldElement).Add(D, D)
 
 // Point types.
 
@@ -51,7 +50,7 @@ type AffineCached struct {
 }
 
 // B is the Ed25519 basepoint.
-var B = ProjP3{
+var B = &ProjP3{
 	X: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
 	Y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
 	Z: FieldElement{1, 0, 0, 0, 0},
@@ -136,6 +135,8 @@ func (v *ProjP3) FromP2(p *ProjP2) *ProjP3 {
 	v.T.Mul(&p.X, &p.Y)
 	return v
 }
+
+var d2 = new(FieldElement).Add(D, D)
 
 func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
 	v.YplusX.Add(&p.Y, &p.X)

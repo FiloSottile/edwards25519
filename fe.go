@@ -33,21 +33,21 @@ type FieldElement struct {
 const maskLow51Bits uint64 = (1 << 51) - 1
 
 var (
-	Zero     = &FieldElement{0, 0, 0, 0, 0}
-	One      = &FieldElement{1, 0, 0, 0, 0}
-	Two      = &FieldElement{2, 0, 0, 0, 0}
-	MinusOne = new(FieldElement).Neg(One)
+	feZero     = &FieldElement{0, 0, 0, 0, 0}
+	feOne      = &FieldElement{1, 0, 0, 0, 0}
+	feTwo      = &FieldElement{2, 0, 0, 0, 0}
+	feMinusOne = new(FieldElement).Neg(feOne)
 )
 
 // Zero sets v = 0 and returns v.
 func (v *FieldElement) Zero() *FieldElement {
-	*v = *Zero
+	*v = *feZero
 	return v
 }
 
 // One sets v = 1 and returns v.
 func (v *FieldElement) One() *FieldElement {
-	*v = *One
+	*v = *feOne
 	return v
 }
 
@@ -128,7 +128,7 @@ func (v *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 
 // Neg sets v = -a and returns v.
 func (v *FieldElement) Neg(a *FieldElement) *FieldElement {
-	return v.Sub(Zero, a)
+	return v.Sub(feZero, a)
 }
 
 // Invert sets v = 1/z mod p and returns v.
