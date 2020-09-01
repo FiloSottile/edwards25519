@@ -14,42 +14,55 @@ import (
 //
 //     l = 2^252 + 27742317777372353535851937790883648493
 //
-// represented as a little-endian byte string.
-type Scalar [32]byte
+// which is the order of the Ed25519 group.
+//
+// This type works similarly to math/big.Int, and all arguments and
+// receivers are allowed to alias.
+//
+// The zero value is a valid zero element.
+type Scalar struct {
+	// s is the Scalar value in little-endian.
+	//
+	// TODO: is this always reduced? If yes, Bytes does not need to call reduce,
+	// if not NonAdjacentForm and SignedRadix16 need to call reduce.
+	s [32]byte
+}
 
 var (
-	scZero = Scalar([32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	scZero = Scalar{[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 
-	scOne = Scalar([32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	scOne = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 
 	// sage: l = GF(2**252 + 27742317777372353535851937790883648493)
 	// sage: l(-1).lift().digits(256)
-	scMinusOne = Scalar([32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16})
+	scMinusOne = Scalar{[32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}}
 )
 
 // Add sets s = x + y mod l and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
-	scMulAdd(s, &scOne, x, y)
+	scMulAdd(&s.s, &scOne.s, &x.s, &y.s)
 	return s
 }
 
 // Sub sets s = x - y mod l and returns s.
 func (s *Scalar) Sub(x, y *Scalar) *Scalar {
-	// s = -1 * y + x
-	scMulAdd(s, &scMinusOne, y, x)
+	// s = -1 * y + x mod l
+	scMulAdd(&s.s, &scMinusOne.s, &y.s, &x.s)
 	return s
 }
 
 // Neg sets s = -x mod l and returns s.
 func (s *Scalar) Neg(x *Scalar) *Scalar {
-	scMulAdd(s, &scMinusOne, x, &scZero)
+	// s = -1 * x + 0 mod l
+	scMulAdd(&s.s, &scMinusOne.s, &x.s, &scZero.s)
 	return s
 }
 
 // Mul sets s = x * y mod l and returns s.
 func (s *Scalar) Mul(x, y *Scalar) *Scalar {
-	scMulAdd(s, x, y, &scZero)
+	// s = x * y + 0 mod l
+	scMulAdd(&s.s, &x.s, &y.s, &scZero.s)
 	return s
 }
 
@@ -61,7 +74,7 @@ func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
-	scReduce(s, &wideBytes)
+	scReduce(&s.s, &wideBytes)
 	return s
 }
 
@@ -70,20 +83,20 @@ func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 // error and the receiver is unchanged.
 func (s *Scalar) FromCanonicalBytes(x []byte) error {
 	if len(x) != 32 {
-		panic("scalar: invalid scalar length")
+		return errors.New("invalid scalar length")
 	}
 	if !scMinimal(x) {
 		return errors.New("invalid scalar encoding")
 	}
-	copy(s[:], x)
+	copy(s.s[:], x)
 	return nil
 }
 
 // reduce reduces s mod l returns it.
 func (s *Scalar) reduce() *Scalar {
 	var wideBytes [64]byte
-	copy(wideBytes[:], s[:])
-	scReduce(s, &wideBytes)
+	copy(wideBytes[:], s.s[:])
+	scReduce(&s.s, &wideBytes)
 	return s
 }
 
@@ -93,7 +106,7 @@ func (s *Scalar) Bytes(b []byte) []byte {
 	t.reduce()
 
 	res, out := sliceForAppend(b, 32)
-	copy(out, t[:])
+	copy(out, t.s[:])
 
 	return res
 }
@@ -129,7 +142,7 @@ func load4(in []byte) int64 {
 // Output:
 //   s[0]+256*s[1]+...+256^31*s[31] = (ab+c) mod l
 //   where l = 2^252 + 27742317777372353535851937790883648493.
-func scMulAdd(s, a, b, c *Scalar) {
+func scMulAdd(s, a, b, c *[32]byte) {
 	a0 := 2097151 & load3(a[:])
 	a1 := 2097151 & (load4(a[2:]) >> 5)
 	a2 := 2097151 & (load3(a[5:]) >> 2)
@@ -560,7 +573,7 @@ func scMulAdd(s, a, b, c *Scalar) {
 // Output:
 //   s[0]+256*s[1]+...+256^31*s[31] = s mod l
 //   where l = 2^252 + 27742317777372353535851937790883648493.
-func scReduce(out *Scalar, s *[64]byte) {
+func scReduce(out *[32]byte, s *[64]byte) {
 	s0 := 2097151 & load3(s[:])
 	s1 := 2097151 & (load4(s[2:]) >> 5)
 	s2 := 2097151 & (load3(s[5:]) >> 2)
@@ -899,11 +912,13 @@ func scMinimal(sc []byte) bool {
 }
 
 // NonAdjacentForm computes a width-w non-adjacent form for this scalar.
+//
+// w must be between 2 and 8, or NonAdjacentForm will panic.
 func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	// This implementation is adapted from the one
 	// in curve25519-dalek and is documented there:
 	// https://github.com/dalek-cryptography/curve25519-dalek/blob/f630041af28e9a405255f98a8a93adca18e4315b/src/scalar.rs#L800-L871
-	if s[31] > 127 {
+	if s.s[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 	if w < 2 {
@@ -916,7 +931,7 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	var digits [5]uint64
 
 	for i := 0; i < 4; i++ {
-		digits[i] = binary.LittleEndian.Uint64(s[i*8:])
+		digits[i] = binary.LittleEndian.Uint64(s.s[i*8:])
 	}
 
 	width := uint64(1 << w)
@@ -964,7 +979,7 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 }
 
 func (s *Scalar) SignedRadix16() [64]int8 {
-	if s[31] > 127 {
+	if s.s[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 
@@ -972,8 +987,8 @@ func (s *Scalar) SignedRadix16() [64]int8 {
 
 	// Compute unsigned radix-16 digits:
 	for i := 0; i < 32; i++ {
-		digits[2*i] = int8(s[i] & 15)
-		digits[2*i+1] = int8((s[i] >> 4) & 15)
+		digits[2*i] = int8(s.s[i] & 15)
+		digits[2*i+1] = int8((s.s[i] >> 4) & 15)
 	}
 
 	// Recenter coefficients:
@@ -993,8 +1008,14 @@ func (s *Scalar) pow2k(k int) {
 	}
 }
 
-// Inv sets s to the inverse of a nonzero scalar v and returns s.
-func (s *Scalar) Inv(t *Scalar) *Scalar {
+// Invert sets s to the inverse of a nonzero scalar v and returns s.
+//
+// If t is zero, Invert will panic.
+func (s *Scalar) Invert(t *Scalar) *Scalar {
+	if t.s == [32]byte{} {
+		panic("edwards25519: zero Scalar passed to Invert")
+	}
+
 	// Uses a hardcoded sliding window of width 4.
 	var table [8]Scalar
 	var tt Scalar

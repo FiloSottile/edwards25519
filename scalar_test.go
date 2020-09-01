@@ -7,9 +7,17 @@ package edwards25519
 import (
 	"bytes"
 	"math/big"
+	mathrand "math/rand"
+	"reflect"
 	"testing"
 	"testing/quick"
 )
+
+func (s Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
+	rand.Read(s.s[:])
+	s.s[31] &= 127
+	return reflect.ValueOf(s)
+}
 
 func TestScalarFromBytesRoundTrip(t *testing.T) {
 	f1 := func(in, out [32]byte, sc Scalar) bool {
@@ -18,7 +26,7 @@ func TestScalarFromBytesRoundTrip(t *testing.T) {
 			return false
 		}
 		sc.Bytes(out[:0])
-		return bytes.Equal(in[:], out[:]) && scMinimal(sc[:])
+		return bytes.Equal(in[:], out[:]) && scMinimal(sc.s[:])
 	}
 	if err := quick.Check(f1, nil); err != nil {
 		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
@@ -44,7 +52,7 @@ func TestScalarFromUniformBytes(t *testing.T) {
 	mod.Add(mod, new(big.Int).Lsh(big.NewInt(1), 252))
 	f := func(in [64]byte, sc Scalar) bool {
 		sc.FromUniformBytes(in[:])
-		if !scMinimal(sc[:]) {
+		if !scMinimal(sc.s[:]) {
 			return false
 		}
 		b := sc.Bytes(nil)
@@ -79,7 +87,7 @@ func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 		t3.Mul(&y, &z)
 		t2.Add(&t2, &t3)
 
-		return t1.Equal(&t2) == 1 && scMinimal(t1[:]) && scMinimal(t2[:])
+		return t1.Equal(&t2) == 1 && scMinimal(t1.s[:]) && scMinimal(t2.s[:])
 	}
 
 	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig10); err != nil {
@@ -88,12 +96,12 @@ func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 }
 
 func TestScalarNonAdjacentForm(t *testing.T) {
-	s := Scalar([32]byte{
+	s := Scalar{[32]byte{
 		0x1a, 0x0e, 0x97, 0x8a, 0x90, 0xf6, 0x62, 0x2d,
 		0x37, 0x47, 0x02, 0x3f, 0x8a, 0xd8, 0x26, 0x4d,
 		0xa7, 0x58, 0xaa, 0x1b, 0x88, 0xe0, 0x40, 0xd1,
 		0x58, 0x9e, 0x7b, 0x7f, 0x23, 0x76, 0xef, 0x09,
-	})
+	}}
 	expectedNaf := [256]int8{
 		0, 13, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, -9, 0, 0, 0, 0, -11, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 9, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 11, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0,
@@ -117,7 +125,7 @@ func TestScalarNonAdjacentForm(t *testing.T) {
 func TestScalarInvert(t *testing.T) {
 	invertWorks := func(x Scalar) bool {
 		var xInv, check Scalar
-		xInv.Inv(&x)
+		xInv.Invert(&x)
 		check.Mul(&x, &xInv)
 
 		return check.Equal(&scOne) == 1
