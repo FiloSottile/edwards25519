@@ -9,32 +9,32 @@ import (
 )
 
 func TestAddSubNegOnBasePoint(t *testing.T) {
-	Bneg := &ProjP3{}
-	tmpP2 := &ProjP2{}
-	tmpP1xP1 := &ProjP1xP1{}
-	tmpCached := &ProjCached{}
+	Bneg := &Point{}
+	tmpP2 := &projP2{}
+	tmpP1xP1 := &projP1xP1{}
+	tmpCached := &projCached{}
 
-	Bneg.Neg(B)
+	Bneg.Negate(B)
 
-	checkLhs, checkRhs := &ProjP3{}, &ProjP3{}
-	zero := new(ProjP3).Zero()
+	checkLhs, checkRhs := &Point{}, &Point{}
+	zero := new(Point).Zero()
 
 	tmpCached.FromP3(B)
 	tmpP1xP1.Add(B, tmpCached)
-	checkLhs.FromP1xP1(tmpP1xP1)
+	checkLhs.fromP1xP1(tmpP1xP1)
 	tmpP2.FromP3(B)
 	tmpP1xP1.Double(tmpP2)
-	checkRhs.FromP1xP1(tmpP1xP1)
+	checkRhs.fromP1xP1(tmpP1xP1)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B + B != [2]B")
 	}
 
 	tmpCached.FromP3(B)
 	tmpP1xP1.Sub(B, tmpCached)
-	checkLhs.FromP1xP1(tmpP1xP1)
+	checkLhs.fromP1xP1(tmpP1xP1)
 	tmpCached.FromP3(Bneg)
 	tmpP1xP1.Add(B, tmpCached)
-	checkRhs.FromP1xP1(tmpP1xP1)
+	checkRhs.fromP1xP1(tmpP1xP1)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B - B != B + (-B)")
 	}

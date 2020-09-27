@@ -4,10 +4,10 @@
 
 package edwards25519
 
-// Set v to x*B, where B is the Ed25519 basepoint, and return v.
+// ScalarBaseMult sets v = x * B, and returns v.
 //
 // The scalar multiplication is done in constant time.
-func (v *ProjP3) BasepointMul(x *Scalar) *ProjP3 {
+func (v *Point) ScalarBaseMult(x *Scalar) *Point {
 	// Write x = sum(x_i * 16^i) so  x*B = sum( B*x_i*16^i )
 	// as described in the Ed25519 paper
 	//
@@ -21,16 +21,16 @@ func (v *ProjP3) BasepointMul(x *Scalar) *ProjP3 {
 	// and do four doublings to multiply by 16.
 	digits := x.SignedRadix16()
 
-	multiple := &AffineCached{}
-	tmp1 := &ProjP1xP1{}
-	tmp2 := &ProjP2{}
+	multiple := &affineCached{}
+	tmp1 := &projP1xP1{}
+	tmp2 := &projP2{}
 
 	// Accumulate the odd components first
 	v.Zero()
 	for i := 1; i < 64; i += 2 {
 		basepointTable[i/2].SelectInto(multiple, digits[i])
 		tmp1.AddAffine(v, multiple)
-		v.FromP1xP1(tmp1)
+		v.fromP1xP1(tmp1)
 	}
 
 	// Multiply by 16
@@ -42,22 +42,22 @@ func (v *ProjP3) BasepointMul(x *Scalar) *ProjP3 {
 	tmp1.Double(tmp2)    // tmp1 =  8*v in P1xP1 coords
 	tmp2.FromP1xP1(tmp1) // tmp2 =  8*v in P2 coords
 	tmp1.Double(tmp2)    // tmp1 = 16*v in P1xP1 coords
-	v.FromP1xP1(tmp1)    // now v = 16*(odd components)
+	v.fromP1xP1(tmp1)    // now v = 16*(odd components)
 
 	// Accumulate the even components
 	for i := 0; i < 64; i += 2 {
 		basepointTable[i/2].SelectInto(multiple, digits[i])
 		tmp1.AddAffine(v, multiple)
-		v.FromP1xP1(tmp1)
+		v.fromP1xP1(tmp1)
 	}
 
 	return v
 }
 
-// Set v to x*Q, and return v.  v and q may alias.
+// ScalarMult sets v = x * q, and returns v.
 //
 // The scalar multiplication is done in constant time.
-func (v *ProjP3) ScalarMul(x *Scalar, q *ProjP3) *ProjP3 {
+func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	var table projLookupTable
 	table.FromP3(q)
 	// v and q could alias, but once the table is built we can clobber v.
@@ -73,9 +73,9 @@ func (v *ProjP3) ScalarMul(x *Scalar, q *ProjP3) *ProjP3 {
 	digits := x.SignedRadix16()
 
 	// Unwrap first loop iteration to save computing 16*identity
-	multiple := &ProjCached{}
-	tmp1 := &ProjP1xP1{}
-	tmp2 := &ProjP2{}
+	multiple := &projCached{}
+	tmp1 := &projP1xP1{}
+	tmp2 := &projP2{}
 	table.SelectInto(multiple, digits[63])
 	tmp1.Add(v, multiple) // tmp1 = x_63*Q in P1xP1 coords
 	for i := 62; i >= 0; i-- {
@@ -87,20 +87,18 @@ func (v *ProjP3) ScalarMul(x *Scalar, q *ProjP3) *ProjP3 {
 		tmp1.Double(tmp2)    // tmp1 =  8*(prev) in P1xP1 coords
 		tmp2.FromP1xP1(tmp1) // tmp2 =  8*(prev) in P2 coords
 		tmp1.Double(tmp2)    // tmp1 = 16*(prev) in P1xP1 coords
-		v.FromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
+		v.fromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
 		table.SelectInto(multiple, digits[i])
 		tmp1.Add(v, multiple) // tmp1 = x_i*Q + 16*(prev) in P1xP1 coords
 	}
-	v.FromP1xP1(tmp1)
+	v.fromP1xP1(tmp1)
 	return v
 }
 
-// Set v to the result of a multiscalar multiplication and return v.
+// MultiScalarMult sets v = sum(scalars[i] * points[i]), and returns e.
 //
-// The multiscalar multiplication is sum(scalars[i]*points[i]).
-//
-// The multiscalar multiplication is performed in constant time.
-func (v *ProjP3) MultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
+// Execution time depends only on the lengths of the two slices, which must match.
+func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	if len(scalars) != len(points) {
 		panic("called MultiscalarMul with different size inputs")
 	}
@@ -120,14 +118,14 @@ func (v *ProjP3) MultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
 	}
 
 	// Unwrap first loop iteration to save computing 16*identity
-	multiple := &ProjCached{}
-	tmp1 := &ProjP1xP1{}
-	tmp2 := &ProjP2{}
+	multiple := &projCached{}
+	tmp1 := &projP1xP1{}
+	tmp2 := &projP2{}
 	// Lookup-and-add the appropriate multiple of each input point
 	for j := range tables {
 		tables[j].SelectInto(multiple, digits[j][63])
 		tmp1.Add(v, multiple) // tmp1 = v + x_(j,63)*Q in P1xP1 coords
-		v.FromP1xP1(tmp1)     // update v
+		v.fromP1xP1(tmp1)     // update v
 	}
 	tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
 	for i := 62; i >= 0; i-- {
@@ -138,22 +136,22 @@ func (v *ProjP3) MultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
 		tmp1.Double(tmp2)    // tmp1 =  8*(prev) in P1xP1 coords
 		tmp2.FromP1xP1(tmp1) // tmp2 =  8*(prev) in P2 coords
 		tmp1.Double(tmp2)    // tmp1 = 16*(prev) in P1xP1 coords
-		v.FromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
+		v.fromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
 		// Lookup-and-add the appropriate multiple of each input point
 		for j := range tables {
 			tables[j].SelectInto(multiple, digits[j][i])
 			tmp1.Add(v, multiple) // tmp1 = v + x_(j,i)*Q in P1xP1 coords
-			v.FromP1xP1(tmp1)     // update v
+			v.fromP1xP1(tmp1)     // update v
 		}
 		tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
 	}
 	return v
 }
 
-// Set v to a*A + b*B, where B is the Ed25519 basepoint, and return v.
+// VarTimeDoubleScalarBaseMult sets v = a * A + b * B, and returns v.
 //
-// The scalar multiplication is done in variable time.
-func (v *ProjP3) VartimeDoubleBaseMul(a *Scalar, A *ProjP3, b *Scalar) *ProjP3 {
+// Execution time depends on the inputs.
+func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Point {
 	// Similarly to the single variable-base approach, we compute
 	// digits and use them with a lookup table.  However, because
 	// we are allowed to do variable-time operations, we don't
@@ -183,10 +181,10 @@ func (v *ProjP3) VartimeDoubleBaseMul(a *Scalar, A *ProjP3, b *Scalar) *ProjP3 {
 		}
 	}
 
-	multA := &ProjCached{}
-	multB := &AffineCached{}
-	tmp1 := &ProjP1xP1{}
-	tmp2 := &ProjP2{}
+	multA := &projCached{}
+	multB := &affineCached{}
+	tmp1 := &projP1xP1{}
+	tmp2 := &projP2{}
 	tmp2.Zero()
 	v.Zero()
 
@@ -198,21 +196,21 @@ func (v *ProjP3) VartimeDoubleBaseMul(a *Scalar, A *ProjP3, b *Scalar) *ProjP3 {
 
 		// Only update v if we have a nonzero coeff to add in.
 		if aNaf[i] > 0 {
-			v.FromP1xP1(tmp1)
+			v.fromP1xP1(tmp1)
 			aTable.SelectInto(multA, aNaf[i])
 			tmp1.Add(v, multA)
 		} else if aNaf[i] < 0 {
-			v.FromP1xP1(tmp1)
+			v.fromP1xP1(tmp1)
 			aTable.SelectInto(multA, -aNaf[i])
 			tmp1.Sub(v, multA)
 		}
 
 		if bNaf[i] > 0 {
-			v.FromP1xP1(tmp1)
+			v.fromP1xP1(tmp1)
 			basepointNafTable.SelectInto(multB, bNaf[i])
 			tmp1.AddAffine(v, multB)
 		} else if bNaf[i] < 0 {
-			v.FromP1xP1(tmp1)
+			v.fromP1xP1(tmp1)
 			basepointNafTable.SelectInto(multB, -bNaf[i])
 			tmp1.SubAffine(v, multB)
 		}
@@ -220,16 +218,14 @@ func (v *ProjP3) VartimeDoubleBaseMul(a *Scalar, A *ProjP3, b *Scalar) *ProjP3 {
 		tmp2.FromP1xP1(tmp1)
 	}
 
-	v.FromP2(tmp2)
+	v.fromP2(tmp2)
 	return v
 }
 
-// Set v to the result of a multiscalar multiplication and return v.
+// VarTimeMultiScalarMult sets v = sum(scalars[i] * points[i]), and returns v.
 //
-// The multiscalar multiplication is sum(scalars[i]*points[i]).
-//
-// The multiscalar multiplication is performed in variable time.
-func (v *ProjP3) VartimeMultiscalarMul(scalars []Scalar, points []*ProjP3) *ProjP3 {
+// Execution time depends on the inputs.
+func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	if len(scalars) != len(points) {
 		panic("called MultiscalarMul with different size inputs")
 	}
@@ -249,9 +245,9 @@ func (v *ProjP3) VartimeMultiscalarMul(scalars []Scalar, points []*ProjP3) *Proj
 		nafs[i] = scalars[i].NonAdjacentForm(5)
 	}
 
-	multiple := &ProjCached{}
-	tmp1 := &ProjP1xP1{}
-	tmp2 := &ProjP2{}
+	multiple := &projCached{}
+	tmp1 := &projP1xP1{}
+	tmp2 := &projP2{}
 	tmp2.Zero()
 	v.Zero()
 
@@ -266,11 +262,11 @@ func (v *ProjP3) VartimeMultiscalarMul(scalars []Scalar, points []*ProjP3) *Proj
 
 		for j := range nafs {
 			if nafs[j][i] > 0 {
-				v.FromP1xP1(tmp1)
+				v.fromP1xP1(tmp1)
 				tables[j].SelectInto(multiple, nafs[j][i])
 				tmp1.Add(v, multiple)
 			} else if nafs[j][i] < 0 {
-				v.FromP1xP1(tmp1)
+				v.fromP1xP1(tmp1)
 				tables[j].SelectInto(multiple, -nafs[j][i])
 				tmp1.Sub(v, multiple)
 			}
@@ -279,6 +275,6 @@ func (v *ProjP3) VartimeMultiscalarMul(scalars []Scalar, points []*ProjP3) *Proj
 		tmp2.FromP1xP1(tmp1)
 	}
 
-	v.FromP2(tmp2)
+	v.fromP2(tmp2)
 	return v
 }

@@ -29,28 +29,31 @@ var D = &FieldElement{929955233495203, 466365720129213,
 // TODO: rename (T,X,Y,Z) to (W0,W1,W2,W3) for P2 and P3 models?
 // https://doc-internal.dalek.rs/curve25519_dalek/backend/serial/curve_models/index.html
 
-type ProjP1xP1 struct {
+type projP1xP1 struct {
 	X, Y, Z, T FieldElement
 }
 
-type ProjP2 struct {
+type projP2 struct {
 	X, Y, Z FieldElement
 }
 
-type ProjP3 struct {
+type Point struct {
 	X, Y, Z, T FieldElement
+
+	// bradfitz's device: make the type not comparable.
+	_ [0]func()
 }
 
-type ProjCached struct {
+type projCached struct {
 	YplusX, YminusX, Z, T2d FieldElement
 }
 
-type AffineCached struct {
+type affineCached struct {
 	YplusX, YminusX, T2d FieldElement
 }
 
 // B is the Ed25519 basepoint.
-var B = &ProjP3{
+var B = &Point{
 	X: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
 	Y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
 	Z: FieldElement{1, 0, 0, 0, 0},
@@ -59,7 +62,7 @@ var B = &ProjP3{
 
 // Constructors.
 
-func (v *ProjP1xP1) Zero() *ProjP1xP1 {
+func (v *projP1xP1) Zero() *projP1xP1 {
 	v.X.Zero()
 	v.Y.One()
 	v.Z.One()
@@ -67,14 +70,20 @@ func (v *ProjP1xP1) Zero() *ProjP1xP1 {
 	return v
 }
 
-func (v *ProjP2) Zero() *ProjP2 {
+func (v *projP2) Zero() *projP2 {
 	v.X.Zero()
 	v.Y.One()
 	v.Z.One()
 	return v
 }
 
-func (v *ProjP3) Zero() *ProjP3 {
+// NewPoint returns a new zero Point.
+func NewPoint() *Point {
+	return (&Point{}).Zero()
+}
+
+// Zero sets v to the zero point, and returns v.
+func (v *Point) Zero() *Point {
 	v.X.Zero()
 	v.Y.One()
 	v.Z.One()
@@ -82,7 +91,7 @@ func (v *ProjP3) Zero() *ProjP3 {
 	return v
 }
 
-func (v *ProjCached) Zero() *ProjCached {
+func (v *projCached) Zero() *projCached {
 	v.YplusX.One()
 	v.YminusX.One()
 	v.Z.One()
@@ -90,7 +99,7 @@ func (v *ProjCached) Zero() *ProjCached {
 	return v
 }
 
-func (v *AffineCached) Zero() *AffineCached {
+func (v *affineCached) Zero() *affineCached {
 	v.YplusX.One()
 	v.YminusX.One()
 	v.T2d.Zero()
@@ -99,28 +108,29 @@ func (v *AffineCached) Zero() *AffineCached {
 
 // Assignments.
 
-func (v *ProjP3) Set(u *ProjP3) *ProjP3 {
+// Set sets v = u, and returns v.
+func (v *Point) Set(u *Point) *Point {
 	*v = *u
 	return v
 }
 
 // Conversions.
 
-func (v *ProjP2) FromP1xP1(p *ProjP1xP1) *ProjP2 {
+func (v *projP2) FromP1xP1(p *projP1xP1) *projP2 {
 	v.X.Mul(&p.X, &p.T)
 	v.Y.Mul(&p.Y, &p.Z)
 	v.Z.Mul(&p.Z, &p.T)
 	return v
 }
 
-func (v *ProjP2) FromP3(p *ProjP3) *ProjP2 {
+func (v *projP2) FromP3(p *Point) *projP2 {
 	v.X.Set(&p.X)
 	v.Y.Set(&p.Y)
 	v.Z.Set(&p.Z)
 	return v
 }
 
-func (v *ProjP3) FromP1xP1(p *ProjP1xP1) *ProjP3 {
+func (v *Point) fromP1xP1(p *projP1xP1) *Point {
 	v.X.Mul(&p.X, &p.T)
 	v.Y.Mul(&p.Y, &p.Z)
 	v.Z.Mul(&p.Z, &p.T)
@@ -128,7 +138,7 @@ func (v *ProjP3) FromP1xP1(p *ProjP1xP1) *ProjP3 {
 	return v
 }
 
-func (v *ProjP3) FromP2(p *ProjP2) *ProjP3 {
+func (v *Point) fromP2(p *projP2) *Point {
 	v.X.Mul(&p.X, &p.Z)
 	v.Y.Mul(&p.Y, &p.Z)
 	v.Z.Square(&p.Z)
@@ -138,7 +148,7 @@ func (v *ProjP3) FromP2(p *ProjP2) *ProjP3 {
 
 var d2 = new(FieldElement).Add(D, D)
 
-func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
+func (v *projCached) FromP3(p *Point) *projCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
 	v.Z.Set(&p.Z)
@@ -146,7 +156,7 @@ func (v *ProjCached) FromP3(p *ProjP3) *ProjCached {
 	return v
 }
 
-func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
+func (v *affineCached) FromP3(p *Point) *affineCached {
 	v.YplusX.Add(&p.Y, &p.X)
 	v.YminusX.Sub(&p.Y, &p.X)
 	v.T2d.Mul(&p.T, d2)
@@ -161,25 +171,27 @@ func (v *AffineCached) FromP3(p *ProjP3) *AffineCached {
 
 // (Re)addition and subtraction.
 
-func (v *ProjP3) Add(p, q *ProjP3) *ProjP3 {
-	result := ProjP1xP1{}
-	qCached := ProjCached{}
+// Add sets v = p + q, and returns v.
+func (v *Point) Add(p, q *Point) *Point {
+	result := projP1xP1{}
+	qCached := projCached{}
 	qCached.FromP3(q)
 	result.Add(p, &qCached)
-	v.FromP1xP1(&result)
+	v.fromP1xP1(&result)
 	return v
 }
 
-func (v *ProjP3) Sub(p, q *ProjP3) *ProjP3 {
-	result := ProjP1xP1{}
-	qCached := ProjCached{}
+// Subtract sets v = p - q, and returns v.
+func (v *Point) Subtract(p, q *Point) *Point {
+	result := projP1xP1{}
+	qCached := projCached{}
 	qCached.FromP3(q)
 	result.Sub(p, &qCached)
-	v.FromP1xP1(&result)
+	v.fromP1xP1(&result)
 	return v
 }
 
-func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
+func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
@@ -199,7 +211,7 @@ func (v *ProjP1xP1) Add(p *ProjP3, q *ProjCached) *ProjP1xP1 {
 	return v
 }
 
-func (v *ProjP1xP1) Sub(p *ProjP3, q *ProjCached) *ProjP1xP1 {
+func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
@@ -219,7 +231,7 @@ func (v *ProjP1xP1) Sub(p *ProjP3, q *ProjCached) *ProjP1xP1 {
 	return v
 }
 
-func (v *ProjP1xP1) AddAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
+func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
@@ -238,7 +250,7 @@ func (v *ProjP1xP1) AddAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
 	return v
 }
 
-func (v *ProjP1xP1) SubAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
+func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.Y, &p.X)
@@ -259,7 +271,7 @@ func (v *ProjP1xP1) SubAffine(p *ProjP3, q *AffineCached) *ProjP1xP1 {
 
 // Doubling.
 
-func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
+func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 	var XX, YY, ZZ2, XplusYsq FieldElement
 
 	XX.Square(&p.X)
@@ -279,7 +291,8 @@ func (v *ProjP1xP1) Double(p *ProjP2) *ProjP1xP1 {
 
 // Negation.
 
-func (v *ProjP3) Neg(p *ProjP3) *ProjP3 {
+// Negate sets v = -p, and returns v.
+func (v *Point) Negate(p *Point) *Point {
 	v.X.Neg(&p.X)
 	v.Y.Set(&p.Y)
 	v.Z.Set(&p.Z)
@@ -287,9 +300,8 @@ func (v *ProjP3) Neg(p *ProjP3) *ProjP3 {
 	return v
 }
 
-// by @ebfull
-// https://github.com/dalek-cryptography/curve25519-dalek/pull/226/files
-func (v *ProjP3) Equal(u *ProjP3) int {
+// Equal returns 1 if v is equivalent to u, and 0 otherwise.
+func (v *Point) Equal(u *Point) int {
 	var t1, t2, t3, t4 FieldElement
 	t1.Mul(&v.X, &u.Z)
 	t2.Mul(&u.X, &v.Z)
@@ -302,7 +314,7 @@ func (v *ProjP3) Equal(u *ProjP3) int {
 // Constant-time operations
 
 // Select sets v to a if cond == 1 and to b if cond == 0.
-func (v *ProjCached) Select(a, b *ProjCached, cond int) *ProjCached {
+func (v *projCached) Select(a, b *projCached, cond int) *projCached {
 	v.YplusX.Select(&a.YplusX, &b.YplusX, cond)
 	v.YminusX.Select(&a.YminusX, &b.YminusX, cond)
 	v.Z.Select(&a.Z, &b.Z, cond)
@@ -311,7 +323,7 @@ func (v *ProjCached) Select(a, b *ProjCached, cond int) *ProjCached {
 }
 
 // Select sets v to a if cond == 1 and to b if cond == 0.
-func (v *AffineCached) Select(a, b *AffineCached, cond int) *AffineCached {
+func (v *affineCached) Select(a, b *affineCached, cond int) *affineCached {
 	v.YplusX.Select(&a.YplusX, &b.YplusX, cond)
 	v.YminusX.Select(&a.YminusX, &b.YminusX, cond)
 	v.T2d.Select(&a.T2d, &b.T2d, cond)
@@ -319,14 +331,14 @@ func (v *AffineCached) Select(a, b *AffineCached, cond int) *AffineCached {
 }
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
-func (v *ProjCached) CondNeg(cond int) *ProjCached {
+func (v *projCached) CondNeg(cond int) *projCached {
 	CondSwap(&v.YplusX, &v.YminusX, cond)
 	v.T2d.CondNeg(&v.T2d, cond)
 	return v
 }
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
-func (v *AffineCached) CondNeg(cond int) *AffineCached {
+func (v *affineCached) CondNeg(cond int) *affineCached {
 	CondSwap(&v.YplusX, &v.YminusX, cond)
 	v.T2d.CondNeg(&v.T2d, cond)
 	return v
