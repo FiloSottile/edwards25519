@@ -22,7 +22,7 @@ func BenchmarkMul(b *testing.B) {
 	y.Add(feOne, feOne)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Mul(&x, &y)
+		x.Multiply(&x, &y)
 	}
 }
 
@@ -31,6 +31,6 @@ func BenchmarkMul32(b *testing.B) {
 	x.One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Mul32(&x, 0xaa42aa42)
+		x.Mult32(&x, 0xaa42aa42)
 	}
 }

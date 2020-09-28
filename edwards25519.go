@@ -117,9 +117,9 @@ func (v *Point) Set(u *Point) *Point {
 // Conversions.
 
 func (v *projP2) FromP1xP1(p *projP1xP1) *projP2 {
-	v.X.Mul(&p.X, &p.T)
-	v.Y.Mul(&p.Y, &p.Z)
-	v.Z.Mul(&p.Z, &p.T)
+	v.X.Multiply(&p.X, &p.T)
+	v.Y.Multiply(&p.Y, &p.Z)
+	v.Z.Multiply(&p.Z, &p.T)
 	return v
 }
 
@@ -131,18 +131,18 @@ func (v *projP2) FromP3(p *Point) *projP2 {
 }
 
 func (v *Point) fromP1xP1(p *projP1xP1) *Point {
-	v.x.Mul(&p.X, &p.T)
-	v.y.Mul(&p.Y, &p.Z)
-	v.z.Mul(&p.Z, &p.T)
-	v.t.Mul(&p.X, &p.Y)
+	v.x.Multiply(&p.X, &p.T)
+	v.y.Multiply(&p.Y, &p.Z)
+	v.z.Multiply(&p.Z, &p.T)
+	v.t.Multiply(&p.X, &p.Y)
 	return v
 }
 
 func (v *Point) fromP2(p *projP2) *Point {
-	v.x.Mul(&p.X, &p.Z)
-	v.y.Mul(&p.Y, &p.Z)
+	v.x.Multiply(&p.X, &p.Z)
+	v.y.Multiply(&p.Y, &p.Z)
 	v.z.Square(&p.Z)
-	v.t.Mul(&p.X, &p.Y)
+	v.t.Multiply(&p.X, &p.Y)
 	return v
 }
 
@@ -178,22 +178,22 @@ var d2 = new(FieldElement).Add(D, D)
 
 func (v *projCached) FromP3(p *Point) *projCached {
 	v.YplusX.Add(&p.y, &p.x)
-	v.YminusX.Sub(&p.y, &p.x)
+	v.YminusX.Subtract(&p.y, &p.x)
 	v.Z.Set(&p.z)
-	v.T2d.Mul(&p.t, d2)
+	v.T2d.Multiply(&p.t, d2)
 	return v
 }
 
 func (v *affineCached) FromP3(p *Point) *affineCached {
 	v.YplusX.Add(&p.y, &p.x)
-	v.YminusX.Sub(&p.y, &p.x)
-	v.T2d.Mul(&p.t, d2)
+	v.YminusX.Subtract(&p.y, &p.x)
+	v.T2d.Multiply(&p.t, d2)
 
 	var invZ FieldElement
 	invZ.Invert(&p.z)
-	v.YplusX.Mul(&v.YplusX, &invZ)
-	v.YminusX.Mul(&v.YminusX, &invZ)
-	v.T2d.Mul(&v.T2d, &invZ)
+	v.YplusX.Multiply(&v.YplusX, &invZ)
+	v.YminusX.Multiply(&v.YminusX, &invZ)
+	v.T2d.Multiply(&v.T2d, &invZ)
 	return v
 }
 
@@ -223,19 +223,19 @@ func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.y, &p.x)
-	YminusX.Sub(&p.y, &p.x)
+	YminusX.Subtract(&p.y, &p.x)
 
-	PP.Mul(&YplusX, &q.YplusX)
-	MM.Mul(&YminusX, &q.YminusX)
-	TT2d.Mul(&p.t, &q.T2d)
-	ZZ2.Mul(&p.z, &q.Z)
+	PP.Multiply(&YplusX, &q.YplusX)
+	MM.Multiply(&YminusX, &q.YminusX)
+	TT2d.Multiply(&p.t, &q.T2d)
+	ZZ2.Multiply(&p.z, &q.Z)
 
 	ZZ2.Add(&ZZ2, &ZZ2)
 
-	v.X.Sub(&PP, &MM)
+	v.X.Subtract(&PP, &MM)
 	v.Y.Add(&PP, &MM)
 	v.Z.Add(&ZZ2, &TT2d)
-	v.T.Sub(&ZZ2, &TT2d)
+	v.T.Subtract(&ZZ2, &TT2d)
 	return v
 }
 
@@ -243,19 +243,19 @@ func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
 	YplusX.Add(&p.y, &p.x)
-	YminusX.Sub(&p.y, &p.x)
+	YminusX.Subtract(&p.y, &p.x)
 
-	PP.Mul(&YplusX, &q.YminusX) // flipped sign
-	MM.Mul(&YminusX, &q.YplusX) // flipped sign
-	TT2d.Mul(&p.t, &q.T2d)
-	ZZ2.Mul(&p.z, &q.Z)
+	PP.Multiply(&YplusX, &q.YminusX) // flipped sign
+	MM.Multiply(&YminusX, &q.YplusX) // flipped sign
+	TT2d.Multiply(&p.t, &q.T2d)
+	ZZ2.Multiply(&p.z, &q.Z)
 
 	ZZ2.Add(&ZZ2, &ZZ2)
 
-	v.X.Sub(&PP, &MM)
+	v.X.Subtract(&PP, &MM)
 	v.Y.Add(&PP, &MM)
-	v.Z.Sub(&ZZ2, &TT2d) // flipped sign
-	v.T.Add(&ZZ2, &TT2d) // flipped sign
+	v.Z.Subtract(&ZZ2, &TT2d) // flipped sign
+	v.T.Add(&ZZ2, &TT2d)      // flipped sign
 	return v
 }
 
@@ -263,18 +263,18 @@ func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.y, &p.x)
-	YminusX.Sub(&p.y, &p.x)
+	YminusX.Subtract(&p.y, &p.x)
 
-	PP.Mul(&YplusX, &q.YplusX)
-	MM.Mul(&YminusX, &q.YminusX)
-	TT2d.Mul(&p.t, &q.T2d)
+	PP.Multiply(&YplusX, &q.YplusX)
+	MM.Multiply(&YminusX, &q.YminusX)
+	TT2d.Multiply(&p.t, &q.T2d)
 
 	Z2.Add(&p.z, &p.z)
 
-	v.X.Sub(&PP, &MM)
+	v.X.Subtract(&PP, &MM)
 	v.Y.Add(&PP, &MM)
 	v.Z.Add(&Z2, &TT2d)
-	v.T.Sub(&Z2, &TT2d)
+	v.T.Subtract(&Z2, &TT2d)
 	return v
 }
 
@@ -282,18 +282,18 @@ func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
 	YplusX.Add(&p.y, &p.x)
-	YminusX.Sub(&p.y, &p.x)
+	YminusX.Subtract(&p.y, &p.x)
 
-	PP.Mul(&YplusX, &q.YminusX) // flipped sign
-	MM.Mul(&YminusX, &q.YplusX) // flipped sign
-	TT2d.Mul(&p.t, &q.T2d)
+	PP.Multiply(&YplusX, &q.YminusX) // flipped sign
+	MM.Multiply(&YminusX, &q.YplusX) // flipped sign
+	TT2d.Multiply(&p.t, &q.T2d)
 
 	Z2.Add(&p.z, &p.z)
 
-	v.X.Sub(&PP, &MM)
+	v.X.Subtract(&PP, &MM)
 	v.Y.Add(&PP, &MM)
-	v.Z.Sub(&Z2, &TT2d) // flipped sign
-	v.T.Add(&Z2, &TT2d) // flipped sign
+	v.Z.Subtract(&Z2, &TT2d) // flipped sign
+	v.T.Add(&Z2, &TT2d)      // flipped sign
 	return v
 }
 
@@ -310,10 +310,10 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 	XplusYsq.Square(&XplusYsq)
 
 	v.Y.Add(&YY, &XX)
-	v.Z.Sub(&YY, &XX)
+	v.Z.Subtract(&YY, &XX)
 
-	v.X.Sub(&XplusYsq, &v.Y)
-	v.T.Sub(&ZZ2, &v.Z)
+	v.X.Subtract(&XplusYsq, &v.Y)
+	v.T.Subtract(&ZZ2, &v.Z)
 	return v
 }
 
@@ -321,20 +321,20 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 
 // Negate sets v = -p, and returns v.
 func (v *Point) Negate(p *Point) *Point {
-	v.x.Neg(&p.x)
+	v.x.Negate(&p.x)
 	v.y.Set(&p.y)
 	v.z.Set(&p.z)
-	v.t.Neg(&p.t)
+	v.t.Negate(&p.t)
 	return v
 }
 
 // Equal returns 1 if v is equivalent to u, and 0 otherwise.
 func (v *Point) Equal(u *Point) int {
 	var t1, t2, t3, t4 FieldElement
-	t1.Mul(&v.x, &u.z)
-	t2.Mul(&u.x, &v.z)
-	t3.Mul(&v.y, &u.z)
-	t4.Mul(&u.y, &v.z)
+	t1.Multiply(&v.x, &u.z)
+	t2.Multiply(&u.x, &v.z)
+	t3.Multiply(&v.y, &u.z)
+	t4.Multiply(&u.y, &v.z)
 
 	return t1.Equal(&t2) & t3.Equal(&t4)
 }
@@ -360,14 +360,14 @@ func (v *affineCached) Select(a, b *affineCached, cond int) *affineCached {
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *projCached) CondNeg(cond int) *projCached {
-	CondSwap(&v.YplusX, &v.YminusX, cond)
-	v.T2d.CondNeg(&v.T2d, cond)
+	v.YplusX.Swap(&v.YminusX, cond)
+	v.T2d.condNeg(&v.T2d, cond)
 	return v
 }
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *affineCached) CondNeg(cond int) *affineCached {
-	CondSwap(&v.YplusX, &v.YminusX, cond)
-	v.T2d.CondNeg(&v.T2d, cond)
+	v.YplusX.Swap(&v.YminusX, cond)
+	v.T2d.condNeg(&v.T2d, cond)
 	return v
 }

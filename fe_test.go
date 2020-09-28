@@ -99,13 +99,13 @@ func TestMulDistributesOverAdd(t *testing.T) {
 		// Compute t1 = (x+y)*z
 		t1 := new(FieldElement)
 		t1.Add(&x, &y)
-		t1.Mul(t1, &z)
+		t1.Multiply(t1, &z)
 
 		// Compute t2 = x*z + y*z
 		t2 := new(FieldElement)
 		t3 := new(FieldElement)
-		t2.Mul(&x, &z)
-		t3.Mul(&y, &z)
+		t2.Multiply(&x, &z)
+		t3.Multiply(&y, &z)
 		t2.Add(t2, t3)
 
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
@@ -157,7 +157,7 @@ func BenchmarkWideMultCall(t *testing.B) {
 func TestFromBytesRoundTrip(t *testing.T) {
 	f1 := func(in, out [32]byte, fe FieldElement) bool {
 		fe.FromBytes(in[:])
-		fe.Bytes(out[:0])
+		fe.FillBytes(out[:])
 
 		// Mask the most significant bit as it's ignored by FromBytes. (Now
 		// instead of earlier so we check the masking in FromBytes is working.)
@@ -176,7 +176,7 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	}
 
 	f2 := func(fe, r FieldElement, out [32]byte) bool {
-		fe.Bytes(out[:0])
+		fe.FillBytes(out[:])
 		r.FromBytes(out[:])
 
 		// Intentionally not using Equal not to go through Bytes again.
@@ -207,7 +207,8 @@ func TestFromBytesRoundTrip(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if !bytes.Equal(tt.fe.Bytes(nil), tt.b) || new(FieldElement).FromBytes(tt.b).Equal(&tt.fe) != 1 {
+		b := tt.fe.FillBytes(make([]byte, 32))
+		if !bytes.Equal(b, tt.b) || new(FieldElement).FromBytes(tt.b).Equal(&tt.fe) != 1 {
 			t.Errorf("Failed fixed roundtrip: %v", tt)
 		}
 	}
@@ -226,15 +227,15 @@ func TestBytesBigEquivalence(t *testing.T) {
 
 		in[len(in)-1] &= (1 << 7) - 1 // mask the most significant bit
 		b := new(big.Int).SetBytes(swapEndianness(in[:]))
-		fe1.FromBig(b)
+		fe1.fromBig(b)
 
 		if fe != fe1 {
 			return false
 		}
 
-		fe.Bytes(out[:0])
+		fe.FillBytes(out[:])
 		buf := make([]byte, 32) // pad with zeroes
-		copy(buf, swapEndianness(fe1.ToBig().Bytes()))
+		copy(buf, swapEndianness(fe1.toBig().Bytes()))
 
 		return bytes.Equal(out[:], buf) && isInBounds(&fe) && isInBounds(&fe1)
 	}
@@ -256,7 +257,7 @@ func TestSanity(t *testing.T) {
 	// var x2Go, x2sqGo FieldElement
 
 	x = FieldElement{1, 1, 1, 1, 1}
-	x2.Mul(&x, &x)
+	x2.Multiply(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
 	x2sq.Square(&x)
 	// FeSquareGo(&x2sqGo, &x)
@@ -277,7 +278,7 @@ func TestSanity(t *testing.T) {
 	}
 	x.FromBytes(bytes[:])
 
-	x2.Mul(&x, &x)
+	x2.Multiply(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
 	x2sq.Square(&x)
 	// FeSquareGo(&x2sqGo, &x)
@@ -312,7 +313,7 @@ func TestInvert(t *testing.T) {
 	var xinv, r FieldElement
 
 	xinv.Invert(&x)
-	r.Mul(&x, &xinv)
+	r.Multiply(&x, &xinv)
 	r.reduce()
 
 	if one != r {
@@ -328,7 +329,7 @@ func TestInvert(t *testing.T) {
 	x.FromBytes(bytes[:])
 
 	xinv.Invert(&x)
-	r.Mul(&x, &xinv)
+	r.Multiply(&x, &xinv)
 	r.reduce()
 
 	if one != r {
@@ -349,13 +350,13 @@ func TestSelectSwap(t *testing.T) {
 		t.Errorf("Select failed")
 	}
 
-	CondSwap(&c, &d, 0)
+	c.Swap(&d, 0)
 
 	if c.Equal(&a) != 1 || d.Equal(&b) != 1 {
 		t.Errorf("Swap failed")
 	}
 
-	CondSwap(&c, &d, 1)
+	c.Swap(&d, 1)
 
 	if c.Equal(&b) != 1 || d.Equal(&a) != 1 {
 		t.Errorf("Swap failed")
@@ -374,7 +375,7 @@ func TestMul32(t *testing.T) {
 	mul32EquivalentToMul := func(x FieldElement, y uint32) bool {
 		t1 := new(FieldElement)
 		for i := 0; i < 100; i++ {
-			t1.Mul32(&x, y)
+			t1.Mult32(&x, y)
 		}
 
 		ty := new(FieldElement)
@@ -382,7 +383,7 @@ func TestMul32(t *testing.T) {
 
 		t2 := new(FieldElement)
 		for i := 0; i < 100; i++ {
-			t2.Mul(&x, ty)
+			t2.Multiply(&x, ty)
 		}
 
 		return t1.Equal(t2) == 1 && isAlmostInBounds(t1) && isInBounds(t2)

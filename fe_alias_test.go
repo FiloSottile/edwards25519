@@ -81,26 +81,26 @@ func TestAliasing(t *testing.T) {
 		twoArgsF func(v, x, y *FieldElement) *FieldElement
 	}
 	for _, tt := range []target{
-		{name: "Abs", oneArgF: (*FieldElement).Abs},
+		{name: "Abs", oneArgF: (*FieldElement).Absolute},
 		{name: "Invert", oneArgF: (*FieldElement).Invert},
-		{name: "Neg", oneArgF: (*FieldElement).Neg},
+		{name: "Neg", oneArgF: (*FieldElement).Negate},
 		{name: "Set", oneArgF: (*FieldElement).Set},
 		{name: "Square", oneArgF: (*FieldElement).Square},
 		{
 			name: "CondNeg0",
 			oneArgF: func(v, x *FieldElement) *FieldElement {
-				return (*FieldElement).CondNeg(v, x, 0)
+				return (*FieldElement).condNeg(v, x, 0)
 			},
 		},
 		{
 			name: "CondNeg1",
 			oneArgF: func(v, x *FieldElement) *FieldElement {
-				return (*FieldElement).CondNeg(v, x, 1)
+				return (*FieldElement).condNeg(v, x, 1)
 			},
 		},
-		{name: "Mul", twoArgsF: (*FieldElement).Mul},
+		{name: "Mul", twoArgsF: (*FieldElement).Multiply},
 		{name: "Add", twoArgsF: (*FieldElement).Add},
-		{name: "Sub", twoArgsF: (*FieldElement).Sub},
+		{name: "Sub", twoArgsF: (*FieldElement).Subtract},
 		{
 			name: "Select0",
 			twoArgsF: func(v, x, y *FieldElement) *FieldElement {
