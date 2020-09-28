@@ -38,7 +38,7 @@ type projP2 struct {
 }
 
 type Point struct {
-	X, Y, Z, T FieldElement
+	x, y, z, t FieldElement
 
 	// bradfitz's device: make the type not comparable.
 	_ [0]func()
@@ -54,10 +54,10 @@ type affineCached struct {
 
 // B is the Ed25519 basepoint.
 var B = &Point{
-	X: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
-	Y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
-	Z: FieldElement{1, 0, 0, 0, 0},
-	T: FieldElement{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039},
+	x: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
+	y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
+	z: FieldElement{1, 0, 0, 0, 0},
+	t: FieldElement{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039},
 }
 
 // Constructors.
@@ -84,10 +84,10 @@ func NewPoint() *Point {
 
 // Zero sets v to the zero point, and returns v.
 func (v *Point) Zero() *Point {
-	v.X.Zero()
-	v.Y.One()
-	v.Z.One()
-	v.T.Zero()
+	v.x.Zero()
+	v.y.One()
+	v.z.One()
+	v.t.Zero()
 	return v
 }
 
@@ -124,45 +124,73 @@ func (v *projP2) FromP1xP1(p *projP1xP1) *projP2 {
 }
 
 func (v *projP2) FromP3(p *Point) *projP2 {
-	v.X.Set(&p.X)
-	v.Y.Set(&p.Y)
-	v.Z.Set(&p.Z)
+	v.X.Set(&p.x)
+	v.Y.Set(&p.y)
+	v.Z.Set(&p.z)
 	return v
 }
 
 func (v *Point) fromP1xP1(p *projP1xP1) *Point {
-	v.X.Mul(&p.X, &p.T)
-	v.Y.Mul(&p.Y, &p.Z)
-	v.Z.Mul(&p.Z, &p.T)
-	v.T.Mul(&p.X, &p.Y)
+	v.x.Mul(&p.X, &p.T)
+	v.y.Mul(&p.Y, &p.Z)
+	v.z.Mul(&p.Z, &p.T)
+	v.t.Mul(&p.X, &p.Y)
 	return v
 }
 
 func (v *Point) fromP2(p *projP2) *Point {
-	v.X.Mul(&p.X, &p.Z)
-	v.Y.Mul(&p.Y, &p.Z)
-	v.Z.Square(&p.Z)
-	v.T.Mul(&p.X, &p.Y)
+	v.x.Mul(&p.X, &p.Z)
+	v.y.Mul(&p.Y, &p.Z)
+	v.z.Square(&p.Z)
+	v.t.Mul(&p.X, &p.Y)
 	return v
+}
+
+// FromExtendedCoords sets v = (x, y, z, t) in extended Edwards coordinates
+// (see https://eprint.iacr.org/2008/522), and returns v.
+func (v *Point) FromExtendedCoords(x, y, z, t *FieldElement) *Point {
+	v.x.Set(x)
+	v.y.Set(y)
+	v.z.Set(z)
+	v.t.Set(t)
+	return v
+}
+
+// ExtendedCoords returns v in extended Edwards coordinates (see
+// https://eprint.iacr.org/2008/522).
+func (v *Point) ExtendedCoords() (x, y, z, t *FieldElement) {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var w0, w1, w2, w3 FieldElement
+	return v.extendedCoords(&w0, &w1, &w2, &w3)
+}
+
+func (v *Point) extendedCoords(x, y, z, t *FieldElement) (
+	*FieldElement, *FieldElement, *FieldElement, *FieldElement) {
+	x.Set(&v.x)
+	y.Set(&v.y)
+	z.Set(&v.z)
+	t.Set(&v.t)
+	return x, y, z, t
 }
 
 var d2 = new(FieldElement).Add(D, D)
 
 func (v *projCached) FromP3(p *Point) *projCached {
-	v.YplusX.Add(&p.Y, &p.X)
-	v.YminusX.Sub(&p.Y, &p.X)
-	v.Z.Set(&p.Z)
-	v.T2d.Mul(&p.T, d2)
+	v.YplusX.Add(&p.y, &p.x)
+	v.YminusX.Sub(&p.y, &p.x)
+	v.Z.Set(&p.z)
+	v.T2d.Mul(&p.t, d2)
 	return v
 }
 
 func (v *affineCached) FromP3(p *Point) *affineCached {
-	v.YplusX.Add(&p.Y, &p.X)
-	v.YminusX.Sub(&p.Y, &p.X)
-	v.T2d.Mul(&p.T, d2)
+	v.YplusX.Add(&p.y, &p.x)
+	v.YminusX.Sub(&p.y, &p.x)
+	v.T2d.Mul(&p.t, d2)
 
 	var invZ FieldElement
-	invZ.Invert(&p.Z)
+	invZ.Invert(&p.z)
 	v.YplusX.Mul(&v.YplusX, &invZ)
 	v.YminusX.Mul(&v.YminusX, &invZ)
 	v.T2d.Mul(&v.T2d, &invZ)
@@ -194,13 +222,13 @@ func (v *Point) Subtract(p, q *Point) *Point {
 func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
-	YplusX.Add(&p.Y, &p.X)
-	YminusX.Sub(&p.Y, &p.X)
+	YplusX.Add(&p.y, &p.x)
+	YminusX.Sub(&p.y, &p.x)
 
 	PP.Mul(&YplusX, &q.YplusX)
 	MM.Mul(&YminusX, &q.YminusX)
-	TT2d.Mul(&p.T, &q.T2d)
-	ZZ2.Mul(&p.Z, &q.Z)
+	TT2d.Mul(&p.t, &q.T2d)
+	ZZ2.Mul(&p.z, &q.Z)
 
 	ZZ2.Add(&ZZ2, &ZZ2)
 
@@ -214,13 +242,13 @@ func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
 
-	YplusX.Add(&p.Y, &p.X)
-	YminusX.Sub(&p.Y, &p.X)
+	YplusX.Add(&p.y, &p.x)
+	YminusX.Sub(&p.y, &p.x)
 
 	PP.Mul(&YplusX, &q.YminusX) // flipped sign
 	MM.Mul(&YminusX, &q.YplusX) // flipped sign
-	TT2d.Mul(&p.T, &q.T2d)
-	ZZ2.Mul(&p.Z, &q.Z)
+	TT2d.Mul(&p.t, &q.T2d)
+	ZZ2.Mul(&p.z, &q.Z)
 
 	ZZ2.Add(&ZZ2, &ZZ2)
 
@@ -234,14 +262,14 @@ func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
-	YplusX.Add(&p.Y, &p.X)
-	YminusX.Sub(&p.Y, &p.X)
+	YplusX.Add(&p.y, &p.x)
+	YminusX.Sub(&p.y, &p.x)
 
 	PP.Mul(&YplusX, &q.YplusX)
 	MM.Mul(&YminusX, &q.YminusX)
-	TT2d.Mul(&p.T, &q.T2d)
+	TT2d.Mul(&p.t, &q.T2d)
 
-	Z2.Add(&p.Z, &p.Z)
+	Z2.Add(&p.z, &p.z)
 
 	v.X.Sub(&PP, &MM)
 	v.Y.Add(&PP, &MM)
@@ -253,14 +281,14 @@ func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
 	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
 
-	YplusX.Add(&p.Y, &p.X)
-	YminusX.Sub(&p.Y, &p.X)
+	YplusX.Add(&p.y, &p.x)
+	YminusX.Sub(&p.y, &p.x)
 
 	PP.Mul(&YplusX, &q.YminusX) // flipped sign
 	MM.Mul(&YminusX, &q.YplusX) // flipped sign
-	TT2d.Mul(&p.T, &q.T2d)
+	TT2d.Mul(&p.t, &q.T2d)
 
-	Z2.Add(&p.Z, &p.Z)
+	Z2.Add(&p.z, &p.z)
 
 	v.X.Sub(&PP, &MM)
 	v.Y.Add(&PP, &MM)
@@ -293,20 +321,20 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 
 // Negate sets v = -p, and returns v.
 func (v *Point) Negate(p *Point) *Point {
-	v.X.Neg(&p.X)
-	v.Y.Set(&p.Y)
-	v.Z.Set(&p.Z)
-	v.T.Neg(&p.T)
+	v.x.Neg(&p.x)
+	v.y.Set(&p.y)
+	v.z.Set(&p.z)
+	v.t.Neg(&p.t)
 	return v
 }
 
 // Equal returns 1 if v is equivalent to u, and 0 otherwise.
 func (v *Point) Equal(u *Point) int {
 	var t1, t2, t3, t4 FieldElement
-	t1.Mul(&v.X, &u.Z)
-	t2.Mul(&u.X, &v.Z)
-	t3.Mul(&v.Y, &u.Z)
-	t4.Mul(&u.Y, &v.Z)
+	t1.Mul(&v.x, &u.z)
+	t2.Mul(&u.x, &v.z)
+	t3.Mul(&v.y, &u.z)
+	t4.Mul(&u.y, &v.z)
 
 	return t1.Equal(&t2) & t3.Equal(&t4)
 }

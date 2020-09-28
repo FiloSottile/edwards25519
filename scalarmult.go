@@ -95,7 +95,7 @@ func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	return v
 }
 
-// MultiScalarMult sets v = sum(scalars[i] * points[i]), and returns e.
+// MultiScalarMult sets v = sum(scalars[i] * points[i]), and returns v.
 //
 // Execution time depends only on the lengths of the two slices, which must match.
 func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
