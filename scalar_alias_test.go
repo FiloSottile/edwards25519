@@ -82,10 +82,10 @@ func TestScalarAliasing(t *testing.T) {
 	}
 	for _, tt := range []target{
 		{name: "Invert", oneArgF: (*Scalar).Invert},
-		{name: "Neg", oneArgF: (*Scalar).Neg},
-		{name: "Mul", twoArgsF: (*Scalar).Mul},
+		{name: "Neg", oneArgF: (*Scalar).Negate},
+		{name: "Mul", twoArgsF: (*Scalar).Multiply},
 		{name: "Add", twoArgsF: (*Scalar).Add},
-		{name: "Sub", twoArgsF: (*Scalar).Sub},
+		{name: "Sub", twoArgsF: (*Scalar).Subtract},
 	} {
 		var err error
 		switch {

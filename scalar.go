@@ -24,7 +24,8 @@ type Scalar struct {
 	// s is the Scalar value in little-endian.
 	//
 	// TODO: is this always reduced? If yes, Bytes does not need to call reduce,
-	// if not NonAdjacentForm and SignedRadix16 need to call reduce.
+	// if not NonAdjacentForm and SignedRadix16 need to call reduce and the type
+	// should not be comparable and Invert should check for zero-equivalents.
 	s [32]byte
 }
 
@@ -38,31 +39,43 @@ var (
 	scMinusOne = Scalar{[32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}}
 )
 
-// Add sets s = x + y mod l and returns s.
+// Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
 	scMulAdd(&s.s, &scOne.s, &x.s, &y.s)
 	return s
 }
 
-// Sub sets s = x - y mod l and returns s.
-func (s *Scalar) Sub(x, y *Scalar) *Scalar {
+// Subtract sets s = x - y mod l, and returns s.
+func (s *Scalar) Subtract(x, y *Scalar) *Scalar {
 	// s = -1 * y + x mod l
 	scMulAdd(&s.s, &scMinusOne.s, &y.s, &x.s)
 	return s
 }
 
-// Neg sets s = -x mod l and returns s.
-func (s *Scalar) Neg(x *Scalar) *Scalar {
+// Negate sets s = -x mod l, and returns s.
+func (s *Scalar) Negate(x *Scalar) *Scalar {
 	// s = -1 * x + 0 mod l
 	scMulAdd(&s.s, &scMinusOne.s, &x.s, &scZero.s)
 	return s
 }
 
-// Mul sets s = x * y mod l and returns s.
-func (s *Scalar) Mul(x, y *Scalar) *Scalar {
+// Multiply sets s = x * y mod l, and returns s.
+func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	// s = x * y + 0 mod l
 	scMulAdd(&s.s, &x.s, &y.s, &scZero.s)
+	return s
+}
+
+// Zero sets s = 0, and returns s.
+func (s *Scalar) Zero() *Scalar {
+	*s = scZero
+	return s
+}
+
+// Set sets s = x, and returns s.
+func (s *Scalar) Set(x *Scalar) *Scalar {
+	*s = *x
 	return s
 }
 
@@ -100,22 +113,25 @@ func (s *Scalar) reduce() *Scalar {
 	return s
 }
 
-// Bytes appends a 32 bytes little-endian encoding of s to b.
-func (s *Scalar) Bytes(b []byte) []byte {
+// FillBytes sets buf to the value of s as a canonical 32 bytes little-endian
+// encoding, and returns buf.
+//
+// If buf's length is not 32 bytes, FillBytes will panic.
+func (s *Scalar) FillBytes(buf []byte) []byte {
+	if len(buf) != 32 {
+		panic("edwards25519: buffer of the wrong size passed to Scalar.FillBytes")
+	}
 	t := *s
 	t.reduce()
-
-	res, out := sliceForAppend(b, 32)
-	copy(out, t.s[:])
-
-	return res
+	copy(buf, t.s[:])
+	return buf
 }
 
 // Equal returns 1 if s and t are equal, and 0 otherwise.
 func (s *Scalar) Equal(t *Scalar) int {
 	var ss, st [32]byte
-	t.Bytes(st[:0])
-	s.Bytes(ss[:0])
+	t.FillBytes(st[:])
+	s.FillBytes(ss[:])
 	return subtle.ConstantTimeCompare(ss[:], st[:])
 }
 
@@ -911,10 +927,10 @@ func scMinimal(sc []byte) bool {
 	return true
 }
 
-// NonAdjacentForm computes a width-w non-adjacent form for this scalar.
+// nonAdjacentForm computes a width-w non-adjacent form for this scalar.
 //
-// w must be between 2 and 8, or NonAdjacentForm will panic.
-func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
+// w must be between 2 and 8, or nonAdjacentForm will panic.
+func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
 	// This implementation is adapted from the one
 	// in curve25519-dalek and is documented there:
 	// https://github.com/dalek-cryptography/curve25519-dalek/blob/f630041af28e9a405255f98a8a93adca18e4315b/src/scalar.rs#L800-L871
@@ -978,7 +994,7 @@ func (s *Scalar) NonAdjacentForm(w uint) [256]int8 {
 	return naf
 }
 
-func (s *Scalar) SignedRadix16() [64]int8 {
+func (s *Scalar) signedRadix16() [64]int8 {
 	if s.s[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
@@ -1004,11 +1020,11 @@ func (s *Scalar) SignedRadix16() [64]int8 {
 // Given k > 0, set s = s**(2*i).
 func (s *Scalar) pow2k(k int) {
 	for i := 0; i < k; i++ {
-		s.Mul(s, s)
+		s.Multiply(s, s)
 	}
 }
 
-// Invert sets s to the inverse of a nonzero scalar v and returns s.
+// Invert sets s to the inverse of a nonzero scalar v, and returns s.
 //
 // If t is zero, Invert will panic.
 func (s *Scalar) Invert(t *Scalar) *Scalar {
@@ -1019,10 +1035,10 @@ func (s *Scalar) Invert(t *Scalar) *Scalar {
 	// Uses a hardcoded sliding window of width 4.
 	var table [8]Scalar
 	var tt Scalar
-	tt.Mul(t, t)
+	tt.Multiply(t, t)
 	table[0] = *t
 	for i := 0; i < 7; i++ {
-		table[i+1].Mul(&table[i], &tt)
+		table[i+1].Multiply(&table[i], &tt)
 	}
 	// Now table = [t**1, t**3, t**7, t**11, t**13, t**15]
 	// so t**k = t[k/2] for odd k
@@ -1061,59 +1077,59 @@ func (s *Scalar) Invert(t *Scalar) *Scalar {
 
 	*s = table[1/2]
 	s.pow2k(127 + 1)
-	s.Mul(s, &table[1/2])
+	s.Multiply(s, &table[1/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[9/2])
+	s.Multiply(s, &table[9/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[11/2])
+	s.Multiply(s, &table[11/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[13/2])
+	s.Multiply(s, &table[13/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[15/2])
+	s.Multiply(s, &table[15/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[7/2])
+	s.Multiply(s, &table[7/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[15/2])
+	s.Multiply(s, &table[15/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[5/2])
+	s.Multiply(s, &table[5/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[1/2])
+	s.Multiply(s, &table[1/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[15/2])
+	s.Multiply(s, &table[15/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[15/2])
+	s.Multiply(s, &table[15/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[7/2])
+	s.Multiply(s, &table[7/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[3/2])
+	s.Multiply(s, &table[3/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[11/2])
+	s.Multiply(s, &table[11/2])
 	s.pow2k(5 + 1)
-	s.Mul(s, &table[11/2])
+	s.Multiply(s, &table[11/2])
 	s.pow2k(9 + 1)
-	s.Mul(s, &table[9/2])
+	s.Multiply(s, &table[9/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[3/2])
+	s.Multiply(s, &table[3/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[3/2])
+	s.Multiply(s, &table[3/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[3/2])
+	s.Multiply(s, &table[3/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[9/2])
+	s.Multiply(s, &table[9/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[7/2])
+	s.Multiply(s, &table[7/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[3/2])
+	s.Multiply(s, &table[3/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[13/2])
+	s.Multiply(s, &table[13/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[7/2])
+	s.Multiply(s, &table[7/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[9/2])
+	s.Multiply(s, &table[9/2])
 	s.pow2k(3 + 1)
-	s.Mul(s, &table[15/2])
+	s.Multiply(s, &table[15/2])
 	s.pow2k(4 + 1)
-	s.Mul(s, &table[11/2])
+	s.Multiply(s, &table[11/2])
 
 	return s
 }

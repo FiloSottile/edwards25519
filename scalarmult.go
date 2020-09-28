@@ -19,7 +19,7 @@ func (v *Point) ScalarBaseMult(x *Scalar) *Point {
 	//
 	// We use a lookup table for each i to get x_i*16^(2*i)*B
 	// and do four doublings to multiply by 16.
-	digits := x.SignedRadix16()
+	digits := x.signedRadix16()
 
 	multiple := &affineCached{}
 	tmp1 := &projP1xP1{}
@@ -70,7 +70,7 @@ func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	//
 	// We use the lookup table to get the x_i*Q values
 	// and do four doublings to compute 16*Q
-	digits := x.SignedRadix16()
+	digits := x.signedRadix16()
 
 	// Unwrap first loop iteration to save computing 16*identity
 	multiple := &projCached{}
@@ -114,7 +114,7 @@ func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	// Compute signed radix-16 digits for each scalar
 	digits := make([][64]int8, len(scalars))
 	for i := range digits {
-		digits[i] = scalars[i].SignedRadix16()
+		digits[i] = scalars[i].signedRadix16()
 	}
 
 	// Unwrap first loop iteration to save computing 16*identity
@@ -170,8 +170,8 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 	aTable.FromP3(A)
 	// Because the basepoint is fixed, we can use a wider NAF
 	// corresponding to a bigger table.
-	aNaf := a.NonAdjacentForm(5)
-	bNaf := b.NonAdjacentForm(8)
+	aNaf := a.nonAdjacentForm(5)
+	bNaf := b.nonAdjacentForm(8)
 
 	// Find the first nonzero coefficient.
 	i := 255
@@ -242,7 +242,7 @@ func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Poin
 	// Compute a NAF for each scalar
 	nafs := make([][256]int8, len(scalars))
 	for i := range nafs {
-		nafs[i] = scalars[i].NonAdjacentForm(5)
+		nafs[i] = scalars[i].nonAdjacentForm(5)
 	}
 
 	multiple := &projCached{}

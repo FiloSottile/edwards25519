@@ -25,7 +25,7 @@ func TestScalarFromBytesRoundTrip(t *testing.T) {
 		if err := sc.FromCanonicalBytes(in[:]); err != nil {
 			return false
 		}
-		sc.Bytes(out[:0])
+		sc.FillBytes(out[:])
 		return bytes.Equal(in[:], out[:]) && scMinimal(sc.s[:])
 	}
 	if err := quick.Check(f1, nil); err != nil {
@@ -33,7 +33,7 @@ func TestScalarFromBytesRoundTrip(t *testing.T) {
 	}
 
 	f2 := func(sc1, sc2 Scalar, out [32]byte) bool {
-		sc1.Bytes(out[:0])
+		sc1.FillBytes(out[:])
 		if err := sc2.FromCanonicalBytes(out[:]); err != nil {
 			return false
 		}
@@ -55,7 +55,7 @@ func TestScalarFromUniformBytes(t *testing.T) {
 		if !scMinimal(sc.s[:]) {
 			return false
 		}
-		b := sc.Bytes(nil)
+		b := sc.FillBytes(make([]byte, 32))
 		byteSwap(b) // convert to big endian for SetBytes
 		scBig := new(big.Int).SetBytes(b)
 		byteSwap(in[:]) // convert to big endian for SetBytes
@@ -78,13 +78,13 @@ func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 		// Compute t1 = (x+y)*z
 		var t1 Scalar
 		t1.Add(&x, &y)
-		t1.Mul(&t1, &z)
+		t1.Multiply(&t1, &z)
 
 		// Compute t2 = x*z + y*z
 		var t2 Scalar
 		var t3 Scalar
-		t2.Mul(&x, &z)
-		t3.Mul(&y, &z)
+		t2.Multiply(&x, &z)
+		t3.Multiply(&y, &z)
 		t2.Add(&t2, &t3)
 
 		return t1.Equal(&t2) == 1 && scMinimal(t1.s[:]) && scMinimal(t2.s[:])
@@ -113,7 +113,7 @@ func TestScalarNonAdjacentForm(t *testing.T) {
 		0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 15, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
 	}
 
-	sNaf := s.NonAdjacentForm(5)
+	sNaf := s.nonAdjacentForm(5)
 
 	for i := 0; i < 256; i++ {
 		if expectedNaf[i] != sNaf[i] {
@@ -126,7 +126,7 @@ func TestScalarInvert(t *testing.T) {
 	invertWorks := func(x Scalar) bool {
 		var xInv, check Scalar
 		xInv.Invert(&x)
-		check.Mul(&x, &xInv)
+		check.Multiply(&x, &xInv)
 
 		return check.Equal(&scOne) == 1
 	}
