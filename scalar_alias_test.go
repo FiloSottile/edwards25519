@@ -10,92 +10,87 @@ import (
 )
 
 func TestScalarAliasing(t *testing.T) {
-	checkAliasingOneArg := func(f func(v, x *Scalar) *Scalar) func(v, x Scalar) bool {
-		return func(v, x Scalar) bool {
-			x1, v1 := x, x
+	checkAliasingOneArg := func(f func(v, x *Scalar) *Scalar, v, x Scalar) bool {
+		x1, v1 := x, x
 
-			// Calculate a reference f(x) without aliasing.
-			if out := f(&v, &x); out != &v {
-				return false
-			}
-
-			// Test aliasing the argument and the receiver.
-			if out := f(&v1, &v1); out != &v1 || v1 != v {
-				return false
-			}
-
-			// Ensure the arguments was not modified.
-			return x == x1
+		// Calculate a reference f(x) without aliasing.
+		if out := f(&v, &x); out != &v || !isReduced(out) {
+			return false
 		}
-	}
 
-	checkAliasingTwoArgs := func(f func(v, x, y *Scalar) *Scalar) func(v, x, y Scalar) bool {
-		return func(v, x, y Scalar) bool {
-			x1, y1, v1 := x, y, Scalar{}
-
-			// Calculate a reference f(x, y) without aliasing.
-			if out := f(&v, &x, &y); out != &v {
-				return false
-			}
-
-			// Test aliasing the first argument and the receiver.
-			v1 = x
-			if out := f(&v1, &v1, &y); out != &v1 || v1 != v {
-				return false
-			}
-			// Test aliasing the second argument and the receiver.
-			v1 = y
-			if out := f(&v1, &x, &v1); out != &v1 || v1 != v {
-				return false
-			}
-
-			// Calculate a reference f(x, x) without aliasing.
-			if out := f(&v, &x, &x); out != &v {
-				return false
-			}
-
-			// Test aliasing the first argument and the receiver.
-			v1 = x
-			if out := f(&v1, &v1, &x); out != &v1 || v1 != v {
-				return false
-			}
-			// Test aliasing the second argument and the receiver.
-			v1 = x
-			if out := f(&v1, &x, &v1); out != &v1 || v1 != v {
-				return false
-			}
-			// Test aliasing both arguments and the receiver.
-			v1 = x
-			if out := f(&v1, &v1, &v1); out != &v1 || v1 != v {
-				return false
-			}
-
-			// Ensure the arguments were not modified.
-			return x == x1 && y == y1
+		// Test aliasing the argument and the receiver.
+		if out := f(&v1, &v1); out != &v1 || v1 != v || !isReduced(out) {
+			return false
 		}
+
+		// Ensure the arguments was not modified.
+		return x == x1
 	}
 
-	type target struct {
-		name     string
-		oneArgF  func(v, x *Scalar) *Scalar
-		twoArgsF func(v, x, y *Scalar) *Scalar
+	checkAliasingTwoArgs := func(f func(v, x, y *Scalar) *Scalar, v, x, y Scalar) bool {
+		x1, y1, v1 := x, y, Scalar{}
+
+		// Calculate a reference f(x, y) without aliasing.
+		if out := f(&v, &x, &y); out != &v || !isReduced(out) {
+			return false
+		}
+
+		// Test aliasing the first argument and the receiver.
+		v1 = x
+		if out := f(&v1, &v1, &y); out != &v1 || v1 != v || !isReduced(out) {
+			return false
+		}
+		// Test aliasing the second argument and the receiver.
+		v1 = y
+		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out) {
+			return false
+		}
+
+		// Calculate a reference f(x, x) without aliasing.
+		if out := f(&v, &x, &x); out != &v || !isReduced(out) {
+			return false
+		}
+
+		// Test aliasing the first argument and the receiver.
+		v1 = x
+		if out := f(&v1, &v1, &x); out != &v1 || v1 != v || !isReduced(out) {
+			return false
+		}
+		// Test aliasing the second argument and the receiver.
+		v1 = x
+		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out) {
+			return false
+		}
+		// Test aliasing both arguments and the receiver.
+		v1 = x
+		if out := f(&v1, &v1, &v1); out != &v1 || v1 != v || !isReduced(out) {
+			return false
+		}
+
+		// Ensure the arguments were not modified.
+		return x == x1 && y == y1
 	}
-	for _, tt := range []target{
-		{name: "Invert", oneArgF: (*Scalar).Invert},
-		{name: "Neg", oneArgF: (*Scalar).Negate},
-		{name: "Mul", twoArgsF: (*Scalar).Multiply},
-		{name: "Add", twoArgsF: (*Scalar).Add},
-		{name: "Sub", twoArgsF: (*Scalar).Subtract},
+
+	for name, f := range map[string]interface{}{
+		"Invert": func(v Scalar, x notZeroScalar) bool {
+			return checkAliasingOneArg((*Scalar).Invert, v, Scalar(x))
+		},
+		"Negate": func(v, x Scalar) bool {
+			return checkAliasingOneArg((*Scalar).Negate, v, x)
+		},
+		"Multiply": func(v, x, y Scalar) bool {
+			return checkAliasingTwoArgs((*Scalar).Multiply, v, x, y)
+		},
+		"Add": func(v, x, y Scalar) bool {
+			return checkAliasingTwoArgs((*Scalar).Add, v, x, y)
+		},
+		"Subtract": func(v, x, y Scalar) bool {
+			return checkAliasingTwoArgs((*Scalar).Subtract, v, x, y)
+		},
 	} {
-		var err error
-		switch {
-		case tt.oneArgF != nil:
-			err = quick.Check(checkAliasingOneArg(tt.oneArgF), &quick.Config{MaxCountScale: 1 << 8})
-		case tt.twoArgsF != nil:
-			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), &quick.Config{MaxCountScale: 1 << 8})
-		}
+		err := quick.Check(f, &quick.Config{MaxCountScale: 1 << 5})
 		if err != nil {
-			t.Errorf("%v: %v", tt.name, err)
+			t.Errorf("%v: %v", name, err)
 		}
 	}
 }

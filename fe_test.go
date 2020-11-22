@@ -16,9 +16,9 @@ import (
 	"testing/quick"
 )
 
-// quickCheckConfig10 will make each quickcheck test run (1024 * -quickchecks)
+// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
 // times. The default value of -quickchecks is 100.
-var quickCheckConfig10 = &quick.Config{MaxCountScale: 1 << 10}
+var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
 
 func generateFieldElement(rand *mathrand.Rand) FieldElement {
 	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
@@ -77,7 +77,7 @@ func generateWeirdFieldElement(rand *mathrand.Rand) FieldElement {
 	}
 }
 
-func (v FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
+func (FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	if rand.Intn(2) == 0 {
 		return reflect.ValueOf(generateWeirdFieldElement(rand))
 	}
@@ -111,7 +111,7 @@ func TestMulDistributesOverAdd(t *testing.T) {
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig10); err != nil {
+	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig1024); err != nil {
 		t.Error(err)
 	}
 }
@@ -389,7 +389,7 @@ func TestMul32(t *testing.T) {
 		return t1.Equal(t2) == 1 && isAlmostInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig10); err != nil {
+	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig1024); err != nil {
 		t.Error(err)
 	}
 }

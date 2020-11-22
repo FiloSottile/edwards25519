@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	// quickCheckConfig6 will make each quickcheck test run (2^6 * -quickchecks)
+	// quickCheckConfig32 will make each quickcheck test run (32 * -quickchecks)
 	// times. The default value of -quickchecks is 100.
-	quickCheckConfig6 = &quick.Config{MaxCountScale: 1 << 6}
+	quickCheckConfig32 = &quick.Config{MaxCountScale: 1 << 5}
 
 	// a random scalar generated using dalek.
 	dalekScalar = Scalar{[32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4}}
@@ -83,7 +83,7 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		return check.Equal(&r) == 1
 	}
 
-	if err := quick.Check(scalarMulDistributesOverAdd, quickCheckConfig6); err != nil {
+	if err := quick.Check(scalarMulDistributesOverAdd, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -124,7 +124,7 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
+	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -144,7 +144,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
+	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -172,7 +172,7 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig6); err != nil {
+	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -192,7 +192,7 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig6); err != nil {
+	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }

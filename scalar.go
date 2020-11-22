@@ -21,11 +21,8 @@ import (
 //
 // The zero value is a valid zero element.
 type Scalar struct {
-	// s is the Scalar value in little-endian.
-	//
-	// TODO: is this always reduced? If yes, Bytes does not need to call reduce,
-	// if not NonAdjacentForm and SignedRadix16 need to call reduce and the type
-	// should not be comparable and Invert should check for zero-equivalents.
+	// s is the Scalar value in little-endian. The value is always reduced
+	// between operations.
 	s [32]byte
 }
 
@@ -98,19 +95,26 @@ func (s *Scalar) FromCanonicalBytes(x []byte) error {
 	if len(x) != 32 {
 		return errors.New("invalid scalar length")
 	}
-	if !scMinimal(x) {
+	ss := &Scalar{}
+	copy(ss.s[:], x)
+	if !isReduced(ss) {
 		return errors.New("invalid scalar encoding")
 	}
-	copy(s.s[:], x)
+	s.s = ss.s
 	return nil
 }
 
-// reduce reduces s mod l returns it.
-func (s *Scalar) reduce() *Scalar {
-	var wideBytes [64]byte
-	copy(wideBytes[:], s.s[:])
-	scReduce(&s.s, &wideBytes)
-	return s
+// isReduced returns whether the given scalar is reduced modulo l.
+func isReduced(s *Scalar) bool {
+	for i := len(s.s) - 1; i >= 0; i-- {
+		switch {
+		case s.s[i] > scMinusOne.s[i]:
+			return false
+		case s.s[i] < scMinusOne.s[i]:
+			return true
+		}
+	}
+	return true
 }
 
 // FillBytes sets buf to the value of s as a canonical 32 bytes little-endian
@@ -121,18 +125,13 @@ func (s *Scalar) FillBytes(buf []byte) []byte {
 	if len(buf) != 32 {
 		panic("edwards25519: buffer of the wrong size passed to Scalar.FillBytes")
 	}
-	t := *s
-	t.reduce()
-	copy(buf, t.s[:])
+	copy(buf, s.s[:])
 	return buf
 }
 
 // Equal returns 1 if s and t are equal, and 0 otherwise.
 func (s *Scalar) Equal(t *Scalar) int {
-	var ss, st [32]byte
-	t.FillBytes(st[:])
-	s.FillBytes(ss[:])
-	return subtle.ConstantTimeCompare(ss[:], st[:])
+	return subtle.ConstantTimeCompare(s.s[:], t.s[:])
 }
 
 func load3(in []byte) int64 {
@@ -905,26 +904,6 @@ func scReduce(out *[32]byte, s *[64]byte) {
 	out[29] = byte(s11 >> 1)
 	out[30] = byte(s11 >> 9)
 	out[31] = byte(s11 >> 17)
-}
-
-// order is the order of Curve25519 in little-endian form.
-var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
-
-// scMinimal returns true if the given scalar is less than the order of the
-// curve.
-func scMinimal(sc []byte) bool {
-	for i := 3; ; i-- {
-		v := binary.LittleEndian.Uint64(sc[i*8:])
-		if v > order[i] {
-			return false
-		} else if v < order[i] {
-			break
-		} else if i == 0 {
-			return false
-		}
-	}
-
-	return true
 }
 
 // nonAdjacentForm computes a width-w non-adjacent form for this scalar.

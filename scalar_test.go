@@ -13,22 +13,56 @@ import (
 	"testing/quick"
 )
 
-func (s Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
-	rand.Read(s.s[:])
-	s.s[31] &= 127
+// Generate returns a valid (reduced modulo l) Scalar with a distribution
+// weighted towards high, low, and edge values.
+func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
+	s := scZero
+	diceRoll := rand.Intn(100)
+	switch {
+	case diceRoll == 0:
+	case diceRoll == 1:
+		s = scOne
+	case diceRoll == 2:
+		s = scMinusOne
+	case diceRoll < 5:
+		// Generate a low scalar in [0, 2^125).
+		rand.Read(s.s[:16])
+		s.s[15] &= (1 << 5) - 1
+	case diceRoll < 10:
+		// Generate a high scalar in [2^252, 2^252 + 2^124).
+		s.s[31] = 1 << 4
+		rand.Read(s.s[:16])
+		s.s[15] &= (1 << 4) - 1
+	default:
+		// Generate a valid scalar in [0, l) by returning [0, 2^252) which has a
+		// negligibly different distribution (the former has a 2^-127.6 chance
+		// of being out of the latter range).
+		rand.Read(s.s[:])
+		s.s[31] &= (1 << 4) - 1
+	}
 	return reflect.ValueOf(s)
 }
 
-func TestScalarFromBytesRoundTrip(t *testing.T) {
+func TestScalarGenerate(t *testing.T) {
+	f := func(sc Scalar) bool {
+		return isReduced(&sc)
+	}
+	if err := quick.Check(f, quickCheckConfig1024); err != nil {
+		t.Errorf("generated unreduced scalar: %v", err)
+	}
+}
+
+func TestScalarFromCanonicalBytes(t *testing.T) {
 	f1 := func(in, out [32]byte, sc Scalar) bool {
-		in[len(in)-1] &= (1 << 4) - 1 // Mask out top 4 bits for 252-bit numbers
+		// Mask out top 4 bits to guarantee value falls in [0, l).
+		in[len(in)-1] &= (1 << 4) - 1
 		if err := sc.FromCanonicalBytes(in[:]); err != nil {
 			return false
 		}
 		sc.FillBytes(out[:])
-		return bytes.Equal(in[:], out[:]) && scMinimal(sc.s[:])
+		return bytes.Equal(in[:], out[:]) && isReduced(&sc)
 	}
-	if err := quick.Check(f1, nil); err != nil {
+	if err := quick.Check(f1, quickCheckConfig1024); err != nil {
 		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
 	}
 
@@ -37,13 +71,19 @@ func TestScalarFromBytesRoundTrip(t *testing.T) {
 		if err := sc2.FromCanonicalBytes(out[:]); err != nil {
 			return false
 		}
-
-		sc1.reduce()
-		sc2.reduce()
 		return sc1 == sc2
 	}
-	if err := quick.Check(f2, nil); err != nil {
+	if err := quick.Check(f2, quickCheckConfig1024); err != nil {
 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
+	}
+
+	b := scMinusOne.s
+	b[31] += 1
+	s := scOne
+	if err := s.FromCanonicalBytes(b[:]); err == nil {
+		t.Errorf("FromCanonicalBytes worked on a non-canonical value")
+	} else if s != scOne {
+		t.Errorf("FromCanonicalBytes modified its receiver")
 	}
 }
 
@@ -52,25 +92,24 @@ func TestScalarFromUniformBytes(t *testing.T) {
 	mod.Add(mod, new(big.Int).Lsh(big.NewInt(1), 252))
 	f := func(in [64]byte, sc Scalar) bool {
 		sc.FromUniformBytes(in[:])
-		if !scMinimal(sc.s[:]) {
+		if !isReduced(&sc) {
 			return false
 		}
-		b := sc.FillBytes(make([]byte, 32))
-		byteSwap(b) // convert to big endian for SetBytes
-		scBig := new(big.Int).SetBytes(b)
-		byteSwap(in[:]) // convert to big endian for SetBytes
-		inBig := new(big.Int).SetBytes(in[:])
+		scBig := bigIntFromLittleEndianBytes(sc.s[:])
+		inBig := bigIntFromLittleEndianBytes(in[:])
 		return inBig.Mod(inBig, mod).Cmp(scBig) == 0
 	}
-	if err := quick.Check(f, nil); err != nil {
+	if err := quick.Check(f, quickCheckConfig1024); err != nil {
 		t.Error(err)
 	}
 }
 
-func byteSwap(b []byte) {
-	for i := range b[:len(b)/2] {
-		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
+func bigIntFromLittleEndianBytes(b []byte) *big.Int {
+	bb := make([]byte, len(b))
+	for i := range b {
+		bb[i] = b[len(b)-i-1]
 	}
+	return new(big.Int).SetBytes(bb)
 }
 
 func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
@@ -87,10 +126,29 @@ func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 		t3.Multiply(&y, &z)
 		t2.Add(&t2, &t3)
 
-		return t1.Equal(&t2) == 1 && scMinimal(t1.s[:]) && scMinimal(t2.s[:])
+		return t1 == t2 && isReduced(&t1) && isReduced(&t3)
 	}
 
-	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig10); err != nil {
+	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig1024); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestScalarAddLikeSubNeg(t *testing.T) {
+	addLikeSubNeg := func(x, y Scalar) bool {
+		// Compute t1 = x - y
+		var t1 Scalar
+		t1.Subtract(&x, &y)
+
+		// Compute t2 = -y + x
+		var t2 Scalar
+		t2.Negate(&y)
+		t2.Add(&t2, &x)
+
+		return t1 == t2 && isReduced(&t1)
+	}
+
+	if err := quick.Check(addLikeSubNeg, quickCheckConfig1024); err != nil {
 		t.Error(err)
 	}
 }
@@ -122,16 +180,34 @@ func TestScalarNonAdjacentForm(t *testing.T) {
 	}
 }
 
-func TestScalarInvert(t *testing.T) {
-	invertWorks := func(x Scalar) bool {
-		var xInv, check Scalar
-		xInv.Invert(&x)
-		check.Multiply(&x, &xInv)
+type notZeroScalar Scalar
 
-		return check.Equal(&scOne) == 1
+func (notZeroScalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
+	var s Scalar
+	for s == scZero {
+		s = Scalar{}.Generate(rand, size).Interface().(Scalar)
+	}
+	return reflect.ValueOf(notZeroScalar(s))
+}
+
+func TestScalarInvert(t *testing.T) {
+	invertWorks := func(xInv Scalar, x notZeroScalar) bool {
+		xInv.Invert((*Scalar)(&x))
+		var check Scalar
+		check.Multiply((*Scalar)(&x), &xInv)
+		return check == scOne && isReduced(&xInv)
 	}
 
-	if err := quick.Check(invertWorks, quickCheckConfig10); err != nil {
+	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestScalarEqual(t *testing.T) {
+	if scOne.Equal(&scMinusOne) == 1 {
+		t.Errorf("scOne.Equal(&scMinusOne) is true")
+	}
+	if scMinusOne.Equal(&scMinusOne) == 0 {
+		t.Errorf("scMinusOne.Equal(&scMinusOne) is false")
 	}
 }
