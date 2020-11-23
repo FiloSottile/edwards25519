@@ -26,7 +26,7 @@ func (v *Point) ScalarBaseMult(x *Scalar) *Point {
 	tmp2 := &projP2{}
 
 	// Accumulate the odd components first
-	v.Identity()
+	v.Set(NewIdentityPoint())
 	for i := 1; i < 64; i += 2 {
 		basepointTable[i/2].SelectInto(multiple, digits[i])
 		tmp1.AddAffine(v, multiple)
@@ -60,8 +60,6 @@ func (v *Point) ScalarBaseMult(x *Scalar) *Point {
 func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	var table projLookupTable
 	table.FromP3(q)
-	// v and q could alias, but once the table is built we can clobber v.
-	v.Identity()
 
 	// Write x = sum(x_i * 16^i)
 	// so  x*Q = sum( Q*x_i*16^i )
@@ -186,7 +184,6 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 	tmp1 := &projP1xP1{}
 	tmp2 := &projP2{}
 	tmp2.Zero()
-	v.Identity()
 
 	// Move from high to low bits, doubling the accumulator
 	// at each iteration and checking whether there is a nonzero
@@ -249,7 +246,6 @@ func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Poin
 	tmp1 := &projP1xP1{}
 	tmp2 := &projP2{}
 	tmp2.Zero()
-	v.Identity()
 
 	// Move from high to low bits, doubling the accumulator
 	// at each iteration and checking whether there is a nonzero

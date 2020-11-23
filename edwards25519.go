@@ -33,6 +33,12 @@ type projP2 struct {
 	X, Y, Z FieldElement
 }
 
+// Point represents a point on the edwards25519 curve.
+//
+// This type works similarly to math/big.Int, and all arguments and receivers
+// are allowed to alias.
+//
+// The zero value is NOT valid, and it may be used only as a receiver.
 type Point struct {
 	x, y, z, t FieldElement
 
@@ -68,33 +74,25 @@ func (v *projP2) Zero() *projP2 {
 
 // NewIdentityPoint returns a new Point set to the identity.
 func NewIdentityPoint() *Point {
-	return (&Point{}).Identity()
-}
-
-// Identity sets v to the zero point, and returns v.
-func (v *Point) Identity() *Point {
-	v.x.Zero()
-	v.y.One()
-	v.z.One()
-	v.t.Zero()
-	return v
+	return &Point{
+		x: FieldElement{0, 0, 0, 0, 0},
+		y: FieldElement{1, 0, 0, 0, 0},
+		z: FieldElement{1, 0, 0, 0, 0},
+		t: FieldElement{0, 0, 0, 0, 0},
+	}
 }
 
 // NewGeneratorPoint returns a new Point set to the canonical generator.
 func NewGeneratorPoint() *Point {
-	return (&Point{}).Generator()
-}
-
-// Generator sets v to the canonical generator, and returns v.
-func (v *Point) Generator() *Point {
-	v.x = FieldElement{1738742601995546, 1146398526822698,
-		2070867633025821, 562264141797630, 587772402128613}
-	v.y = FieldElement{1801439850948184, 1351079888211148,
-		450359962737049, 900719925474099, 1801439850948198}
-	v.z.One()
-	v.t = FieldElement{1841354044333475, 16398895984059,
-		755974180946558, 900171276175154, 1821297809914039}
-	return v
+	return &Point{
+		x: FieldElement{1738742601995546, 1146398526822698,
+			2070867633025821, 562264141797630, 587772402128613},
+		y: FieldElement{1801439850948184, 1351079888211148,
+			450359962737049, 900719925474099, 1801439850948198},
+		z: FieldElement{1, 0, 0, 0, 0},
+		t: FieldElement{1841354044333475, 16398895984059,
+			755974180946558, 900171276175154, 1821297809914039},
+	}
 }
 
 func (v *projCached) Zero() *projCached {

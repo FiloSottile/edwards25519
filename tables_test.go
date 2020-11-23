@@ -19,14 +19,13 @@ func TestProjLookupTable(t *testing.T) {
 	// Expect T1 + T2 + T3 = identity
 
 	var accP1xP1 projP1xP1
-	var accP3 Point
-	accP3.Identity()
+	accP3 := NewIdentityPoint()
 
-	accP1xP1.Add(&accP3, &tmp1)
+	accP1xP1.Add(accP3, &tmp1)
 	accP3.fromP1xP1(&accP1xP1)
-	accP1xP1.Add(&accP3, &tmp2)
+	accP1xP1.Add(accP3, &tmp2)
 	accP3.fromP1xP1(&accP1xP1)
-	accP1xP1.Add(&accP3, &tmp3)
+	accP1xP1.Add(accP3, &tmp3)
 	accP3.fromP1xP1(&accP1xP1)
 
 	if accP3.Equal(I) != 1 {
@@ -45,14 +44,13 @@ func TestAffineLookupTable(t *testing.T) {
 	// Expect T1 + T2 + T3 = identity
 
 	var accP1xP1 projP1xP1
-	var accP3 Point
-	accP3.Identity()
+	accP3 := NewIdentityPoint()
 
-	accP1xP1.AddAffine(&accP3, &tmp1)
+	accP1xP1.AddAffine(accP3, &tmp1)
 	accP3.fromP1xP1(&accP1xP1)
-	accP1xP1.AddAffine(&accP3, &tmp2)
+	accP1xP1.AddAffine(accP3, &tmp2)
 	accP3.fromP1xP1(&accP1xP1)
-	accP1xP1.AddAffine(&accP3, &tmp3)
+	accP1xP1.AddAffine(accP3, &tmp3)
 	accP3.fromP1xP1(&accP1xP1)
 
 	if accP3.Equal(I) != 1 {
@@ -72,21 +70,20 @@ func TestNafLookupTable5(t *testing.T) {
 	// Expect T1 + T2 = T3 + T4
 
 	var accP1xP1 projP1xP1
-	var lhs, rhs Point
-	lhs.Identity()
-	rhs.Identity()
+	lhs := NewIdentityPoint()
+	rhs := NewIdentityPoint()
 
-	accP1xP1.Add(&lhs, &tmp1)
+	accP1xP1.Add(lhs, &tmp1)
 	lhs.fromP1xP1(&accP1xP1)
-	accP1xP1.Add(&lhs, &tmp2)
+	accP1xP1.Add(lhs, &tmp2)
 	lhs.fromP1xP1(&accP1xP1)
 
-	accP1xP1.Add(&rhs, &tmp3)
+	accP1xP1.Add(rhs, &tmp3)
 	rhs.fromP1xP1(&accP1xP1)
-	accP1xP1.Add(&rhs, &tmp4)
+	accP1xP1.Add(rhs, &tmp4)
 	rhs.fromP1xP1(&accP1xP1)
 
-	if lhs.Equal(&rhs) != 1 {
+	if lhs.Equal(rhs) != 1 {
 		t.Errorf("Sanity check on nafLookupTable5 failed")
 	}
 }
@@ -103,21 +100,20 @@ func TestNafLookupTable8(t *testing.T) {
 	// Expect T1 + T2 = T3 + T4
 
 	var accP1xP1 projP1xP1
-	var lhs, rhs Point
-	lhs.Identity()
-	rhs.Identity()
+	lhs := NewIdentityPoint()
+	rhs := NewIdentityPoint()
 
-	accP1xP1.AddAffine(&lhs, &tmp1)
+	accP1xP1.AddAffine(lhs, &tmp1)
 	lhs.fromP1xP1(&accP1xP1)
-	accP1xP1.AddAffine(&lhs, &tmp2)
+	accP1xP1.AddAffine(lhs, &tmp2)
 	lhs.fromP1xP1(&accP1xP1)
 
-	accP1xP1.AddAffine(&rhs, &tmp3)
+	accP1xP1.AddAffine(rhs, &tmp3)
 	rhs.fromP1xP1(&accP1xP1)
-	accP1xP1.AddAffine(&rhs, &tmp4)
+	accP1xP1.AddAffine(rhs, &tmp4)
 	rhs.fromP1xP1(&accP1xP1)
 
-	if lhs.Equal(&rhs) != 1 {
+	if lhs.Equal(rhs) != 1 {
 		t.Errorf("Sanity check on nafLookupTable8 failed")
 	}
 }
