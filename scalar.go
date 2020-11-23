@@ -122,6 +122,33 @@ func isReduced(s *Scalar) bool {
 	return true
 }
 
+// FromBytesWithClamping applies the buffer pruning described in RFC 8032,
+// Section 5.1.5 (also known as clamping) and sets s to the result. The input
+// must be 32 bytes, and it is not modified.
+//
+// Note that since Scalar values are always reduced modulo the prime order of
+// the curve, the resulting value will not preserve any of the cofactor-clearing
+// properties that clamping is meant to provide. It will however work as
+// expected as long as it is applied to points on the prime order subgroup, like
+// in Ed25519. In fact, it is lost to history why RFC 8032 adopted the
+// irrelevant RFC 7748 clamping, but it is now required for compatibility.
+func (s *Scalar) FromBytesWithClamping(x []byte) *Scalar {
+	// The description above omits the purpose of the high bits of the clamping
+	// for brevity, but those are also lost to reductions, and are also
+	// irrelevant to edwards25519 as they protect against a specific
+	// implementation bug that was once observed in a generic Montgomery ladder.
+	if len(x) != 32 {
+		panic("edwards25519: invalid FromBytesWithClamping input length")
+	}
+	var wideBytes [64]byte
+	copy(wideBytes[:], x[:])
+	wideBytes[0] &= 248
+	wideBytes[31] &= 63
+	wideBytes[31] |= 64
+	scReduce(&s.s, &wideBytes)
+	return s
+}
+
 // FillBytes sets buf to the value of s as a canonical 32 bytes little-endian
 // encoding, and returns buf.
 //
