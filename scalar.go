@@ -69,12 +69,6 @@ func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	return s
 }
 
-// Zero sets s = 0, and returns s.
-func (s *Scalar) Zero() *Scalar {
-	*s = scZero
-	return s
-}
-
 // Set sets s = x, and returns s.
 func (s *Scalar) Set(x *Scalar) *Scalar {
 	*s = *x
