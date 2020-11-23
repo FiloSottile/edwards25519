@@ -215,7 +215,7 @@ func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 // are accepted.
 func (v *FieldElement) FromBytes(x []byte) *FieldElement {
 	if len(x) != 32 {
-		panic("ed25519: invalid field element input size")
+		panic("edwards25519: invalid field element input size")
 	}
 
 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).

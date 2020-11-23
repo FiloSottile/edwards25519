@@ -14,7 +14,7 @@ import (
 //
 //     l = 2^252 + 27742317777372353535851937790883648493
 //
-// which is the order of the Ed25519 group.
+// which is the prime order of the edwards25519 group.
 //
 // This type works similarly to math/big.Int, and all arguments and
 // receivers are allowed to alias.
@@ -85,7 +85,7 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
 // distributed random bytes.
 func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 	if len(x) != 64 {
-		panic("scalar: invalid uniform input length")
+		panic("edwards25519: invalid FromUniformBytes input length")
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])

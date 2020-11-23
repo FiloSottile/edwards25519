@@ -25,10 +25,6 @@ var D = &FieldElement{929955233495203, 466365720129213,
 
 // Point types.
 
-// TODO: write documentation
-// TODO: rename (T,X,Y,Z) to (W0,W1,W2,W3) for P2 and P3 models?
-// https://doc-internal.dalek.rs/curve25519_dalek/backend/serial/curve_models/index.html
-
 type projP1xP1 struct {
 	X, Y, Z, T FieldElement
 }

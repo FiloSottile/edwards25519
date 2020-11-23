@@ -16,7 +16,7 @@ var (
 
 	// a random scalar generated using dalek.
 	dalekScalar = Scalar{[32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4}}
-	// the above, times the Ed25519 basepoint.
+	// the above, times the edwards25519 basepoint.
 	dalekScalarBasepoint = Point{
 		x: FieldElement{778774234987948, 1589187156384239, 1213330452914652, 186161118421127, 2186284806803213},
 		y: FieldElement{1241255309069369, 1115278942994853, 1016511918109334, 1303231926552315, 1801448517689873},

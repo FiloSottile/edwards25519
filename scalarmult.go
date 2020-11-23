@@ -100,7 +100,7 @@ func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 // Execution time depends only on the lengths of the two slices, which must match.
 func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	if len(scalars) != len(points) {
-		panic("called MultiscalarMul with different size inputs")
+		panic("edwards25519: called MultiScalarMult with different size inputs")
 	}
 
 	// Proceed as in the single-base case, but share doublings
@@ -227,7 +227,7 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 // Execution time depends on the inputs.
 func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	if len(scalars) != len(points) {
-		panic("called MultiscalarMul with different size inputs")
+		panic("edwards25519: called VarTimeMultiScalarMult with different size inputs")
 	}
 
 	// Generalize double-base NAF computation to arbitrary sizes.
