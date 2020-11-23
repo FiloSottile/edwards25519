@@ -206,12 +206,12 @@ func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 	return v
 }
 
-// FromBytes sets v to x, which must be a 32 bytes little-endian encoding.
+// SetBytes sets v to x, which must be a 32 bytes little-endian encoding.
 //
 // Consistently with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
 // are accepted.
-func (v *FieldElement) FromBytes(x []byte) *FieldElement {
+func (v *FieldElement) SetBytes(x []byte) *FieldElement {
 	if len(x) != 32 {
 		panic("edwards25519: invalid field element input size")
 	}

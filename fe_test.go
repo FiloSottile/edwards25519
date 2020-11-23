@@ -154,13 +154,13 @@ func BenchmarkWideMultCall(t *testing.B) {
 	}
 }
 
-func TestFromBytesRoundTrip(t *testing.T) {
+func TestSetBytesRoundTrip(t *testing.T) {
 	f1 := func(in, out [32]byte, fe FieldElement) bool {
-		fe.FromBytes(in[:])
+		fe.SetBytes(in[:])
 		fe.FillBytes(out[:])
 
-		// Mask the most significant bit as it's ignored by FromBytes. (Now
-		// instead of earlier so we check the masking in FromBytes is working.)
+		// Mask the most significant bit as it's ignored by SetBytes. (Now
+		// instead of earlier so we check the masking in SetBytes is working.)
 		in[len(in)-1] &= (1 << 7) - 1
 
 		// TODO: values in the range [2^255-19, 2^255-1] will still fail the
@@ -177,10 +177,10 @@ func TestFromBytesRoundTrip(t *testing.T) {
 
 	f2 := func(fe, r FieldElement, out [32]byte) bool {
 		fe.FillBytes(out[:])
-		r.FromBytes(out[:])
+		r.SetBytes(out[:])
 
 		// Intentionally not using Equal not to go through Bytes again.
-		// Calling reduce because both Generate and FromBytes can produce
+		// Calling reduce because both Generate and SetBytes can produce
 		// non-canonical representations.
 		fe.reduce()
 		r.reduce()
@@ -208,7 +208,7 @@ func TestFromBytesRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		b := tt.fe.FillBytes(make([]byte, 32))
-		if !bytes.Equal(b, tt.b) || new(FieldElement).FromBytes(tt.b).Equal(&tt.fe) != 1 {
+		if !bytes.Equal(b, tt.b) || new(FieldElement).SetBytes(tt.b).Equal(&tt.fe) != 1 {
 			t.Errorf("Failed fixed roundtrip: %v", tt)
 		}
 	}
@@ -223,7 +223,7 @@ func swapEndianness(buf []byte) []byte {
 
 func TestBytesBigEquivalence(t *testing.T) {
 	f1 := func(in, out [32]byte, fe, fe1 FieldElement) bool {
-		fe.FromBytes(in[:])
+		fe.SetBytes(in[:])
 
 		in[len(in)-1] &= (1 << 7) - 1 // mask the most significant bit
 		b := new(big.Int).SetBytes(swapEndianness(in[:]))
@@ -261,7 +261,7 @@ func (v *FieldElement) fromBig(n *big.Int) *FieldElement {
 		}
 	}
 
-	return v.FromBytes(buf[:32])
+	return v.SetBytes(buf[:32])
 }
 
 // toBig returns v as a big.Int.
@@ -282,9 +282,9 @@ func (v *FieldElement) toBig() *big.Int {
 	return new(big.Int).SetBits(words)
 }
 
-func TestFromBytesRoundTripEdgeCases(t *testing.T) {
+func TestSetBytesRoundTripEdgeCases(t *testing.T) {
 	// TODO: values close to 0, close to 2^255-19, between 2^255-19 and 2^255-1,
-	// and between 2^255 and 2^256-1. Test both the documented FromBytes
+	// and between 2^255 and 2^256-1. Test both the documented SetBytes
 	// behavior, and that Bytes reduces them.
 }
 
@@ -314,7 +314,7 @@ func TestSanity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x.FromBytes(bytes[:])
+	x.SetBytes(bytes[:])
 
 	x2.Multiply(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
@@ -364,7 +364,7 @@ func TestInvert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x.FromBytes(bytes[:])
+	x.SetBytes(bytes[:])
 
 	xinv.Invert(&x)
 	r.Multiply(&x, &xinv)

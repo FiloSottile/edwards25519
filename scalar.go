@@ -81,11 +81,11 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
 	return s
 }
 
-// FromUniformBytes sets s to an uniformly distributed value given 64 uniformly
+// SetUniformBytes sets s to an uniformly distributed value given 64 uniformly
 // distributed random bytes.
-func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
+func (s *Scalar) SetUniformBytes(x []byte) *Scalar {
 	if len(x) != 64 {
-		panic("edwards25519: invalid FromUniformBytes input length")
+		panic("edwards25519: invalid SetUniformBytes input length")
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
@@ -93,10 +93,10 @@ func (s *Scalar) FromUniformBytes(x []byte) *Scalar {
 	return s
 }
 
-// FromCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding
-// of s. If x is not a canonical encoding of s, FromCanonicalBytes returns an
+// SetCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding
+// of s. If x is not a canonical encoding of s, SetCanonicalBytes returns an
 // error and the receiver is unchanged.
-func (s *Scalar) FromCanonicalBytes(x []byte) error {
+func (s *Scalar) SetCanonicalBytes(x []byte) error {
 	if len(x) != 32 {
 		return errors.New("invalid scalar length")
 	}
@@ -122,7 +122,7 @@ func isReduced(s *Scalar) bool {
 	return true
 }
 
-// FromBytesWithClamping applies the buffer pruning described in RFC 8032,
+// SetBytesWithClamping applies the buffer pruning described in RFC 8032,
 // Section 5.1.5 (also known as clamping) and sets s to the result. The input
 // must be 32 bytes, and it is not modified.
 //
@@ -132,13 +132,13 @@ func isReduced(s *Scalar) bool {
 // expected as long as it is applied to points on the prime order subgroup, like
 // in Ed25519. In fact, it is lost to history why RFC 8032 adopted the
 // irrelevant RFC 7748 clamping, but it is now required for compatibility.
-func (s *Scalar) FromBytesWithClamping(x []byte) *Scalar {
+func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
 	// The description above omits the purpose of the high bits of the clamping
 	// for brevity, but those are also lost to reductions, and are also
 	// irrelevant to edwards25519 as they protect against a specific
 	// implementation bug that was once observed in a generic Montgomery ladder.
 	if len(x) != 32 {
-		panic("edwards25519: invalid FromBytesWithClamping input length")
+		panic("edwards25519: invalid SetBytesWithClamping input length")
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])

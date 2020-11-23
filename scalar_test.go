@@ -52,11 +52,11 @@ func TestScalarGenerate(t *testing.T) {
 	}
 }
 
-func TestScalarFromCanonicalBytes(t *testing.T) {
+func TestScalarSetCanonicalBytes(t *testing.T) {
 	f1 := func(in, out [32]byte, sc Scalar) bool {
 		// Mask out top 4 bits to guarantee value falls in [0, l).
 		in[len(in)-1] &= (1 << 4) - 1
-		if err := sc.FromCanonicalBytes(in[:]); err != nil {
+		if err := sc.SetCanonicalBytes(in[:]); err != nil {
 			return false
 		}
 		sc.FillBytes(out[:])
@@ -68,7 +68,7 @@ func TestScalarFromCanonicalBytes(t *testing.T) {
 
 	f2 := func(sc1, sc2 Scalar, out [32]byte) bool {
 		sc1.FillBytes(out[:])
-		if err := sc2.FromCanonicalBytes(out[:]); err != nil {
+		if err := sc2.SetCanonicalBytes(out[:]); err != nil {
 			return false
 		}
 		return sc1 == sc2
@@ -80,18 +80,18 @@ func TestScalarFromCanonicalBytes(t *testing.T) {
 	b := scMinusOne.s
 	b[31] += 1
 	s := scOne
-	if err := s.FromCanonicalBytes(b[:]); err == nil {
-		t.Errorf("FromCanonicalBytes worked on a non-canonical value")
+	if err := s.SetCanonicalBytes(b[:]); err == nil {
+		t.Errorf("SetCanonicalBytes worked on a non-canonical value")
 	} else if s != scOne {
-		t.Errorf("FromCanonicalBytes modified its receiver")
+		t.Errorf("SetCanonicalBytes modified its receiver")
 	}
 }
 
-func TestScalarFromUniformBytes(t *testing.T) {
+func TestScalarSetUniformBytes(t *testing.T) {
 	mod, _ := new(big.Int).SetString("27742317777372353535851937790883648493", 10)
 	mod.Add(mod, new(big.Int).Lsh(big.NewInt(1), 252))
 	f := func(in [64]byte, sc Scalar) bool {
-		sc.FromUniformBytes(in[:])
+		sc.SetUniformBytes(in[:])
 		if !isReduced(&sc) {
 			return false
 		}
