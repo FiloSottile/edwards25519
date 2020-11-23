@@ -53,22 +53,20 @@ func TestScalarGenerate(t *testing.T) {
 }
 
 func TestScalarSetCanonicalBytes(t *testing.T) {
-	f1 := func(in, out [32]byte, sc Scalar) bool {
+	f1 := func(in [32]byte, sc Scalar) bool {
 		// Mask out top 4 bits to guarantee value falls in [0, l).
 		in[len(in)-1] &= (1 << 4) - 1
 		if err := sc.SetCanonicalBytes(in[:]); err != nil {
 			return false
 		}
-		sc.FillBytes(out[:])
-		return bytes.Equal(in[:], out[:]) && isReduced(&sc)
+		return bytes.Equal(in[:], sc.Bytes()) && isReduced(&sc)
 	}
 	if err := quick.Check(f1, quickCheckConfig1024); err != nil {
 		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
 	}
 
-	f2 := func(sc1, sc2 Scalar, out [32]byte) bool {
-		sc1.FillBytes(out[:])
-		if err := sc2.SetCanonicalBytes(out[:]); err != nil {
+	f2 := func(sc1, sc2 Scalar) bool {
+		if err := sc2.SetCanonicalBytes(sc1.Bytes()); err != nil {
 			return false
 		}
 		return sc1 == sc2

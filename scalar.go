@@ -143,14 +143,9 @@ func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
 	return s
 }
 
-// FillBytes sets buf to the value of s as a canonical 32 bytes little-endian
-// encoding, and returns buf.
-//
-// If buf's length is not 32 bytes, FillBytes will panic.
-func (s *Scalar) FillBytes(buf []byte) []byte {
-	if len(buf) != 32 {
-		panic("edwards25519: buffer of the wrong size passed to Scalar.FillBytes")
-	}
+// Bytes returns the canonical 32 bytes little-endian encoding of s.
+func (s *Scalar) Bytes() []byte {
+	buf := make([]byte, 32)
 	copy(buf, s.s[:])
 	return buf
 }

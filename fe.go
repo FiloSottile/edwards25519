@@ -236,19 +236,17 @@ func (v *FieldElement) SetBytes(x []byte) *FieldElement {
 	return v
 }
 
-// FillBytes sets buf to the value of v as a canonical 32 bytes little-endian
-// encoding, and returns buf.
-//
-// If buf's length is not 32 bytes, FillBytes will panic.
-func (v *FieldElement) FillBytes(b []byte) []byte {
+// Bytes returns the canonical 32 bytes little-endian encoding of v.
+func (v *FieldElement) Bytes() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [32]byte
+	return v.bytes(&out)
+}
+
+func (v *FieldElement) bytes(out *[32]byte) []byte {
 	t := *v
 	t.reduce()
-	if len(b) != 32 {
-		panic("edwards25519: buffer of the wrong size passed to FieldElement.FillBytes")
-	}
-	for i := range b {
-		b[i] = 0
-	}
 
 	var buf [8]byte
 	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
@@ -256,14 +254,14 @@ func (v *FieldElement) FillBytes(b []byte) []byte {
 		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
 		for i, bb := range buf {
 			off := bitsOffset/8 + i
-			if off >= len(b) {
+			if off >= len(out) {
 				break
 			}
-			b[off] |= bb
+			out[off] |= bb
 		}
 	}
 
-	return b
+	return out[:]
 }
 
 // sliceForAppend extends the input slice by n bytes. head is the full extended
@@ -282,9 +280,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
 func (v *FieldElement) Equal(u *FieldElement) int {
-	sa, sv := make([]byte, 32), make([]byte, 32)
-	u.FillBytes(sa)
-	v.FillBytes(sv)
+	sa, sv := u.Bytes(), v.Bytes()
 	return subtle.ConstantTimeCompare(sa, sv)
 }
 
@@ -329,7 +325,7 @@ func (v *FieldElement) condNeg(u *FieldElement, cond int) *FieldElement {
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
 func (v *FieldElement) IsNegative() int {
-	b := v.FillBytes(make([]byte, 32))
+	b := v.Bytes()
 	return int(b[0] & 1)
 }
 

@@ -155,9 +155,8 @@ func BenchmarkWideMultCall(t *testing.B) {
 }
 
 func TestSetBytesRoundTrip(t *testing.T) {
-	f1 := func(in, out [32]byte, fe FieldElement) bool {
+	f1 := func(in [32]byte, fe FieldElement) bool {
 		fe.SetBytes(in[:])
-		fe.FillBytes(out[:])
 
 		// Mask the most significant bit as it's ignored by SetBytes. (Now
 		// instead of earlier so we check the masking in SetBytes is working.)
@@ -169,15 +168,14 @@ func TestSetBytesRoundTrip(t *testing.T) {
 		// not good. We should have a weird generator that aims for edge cases,
 		// and we'll know it works when this test breaks.
 
-		return bytes.Equal(in[:], out[:]) && isInBounds(&fe)
+		return bytes.Equal(in[:], fe.Bytes()) && isInBounds(&fe)
 	}
 	if err := quick.Check(f1, nil); err != nil {
 		t.Errorf("failed bytes->FE->bytes round-trip: %v", err)
 	}
 
-	f2 := func(fe, r FieldElement, out [32]byte) bool {
-		fe.FillBytes(out[:])
-		r.SetBytes(out[:])
+	f2 := func(fe, r FieldElement) bool {
+		r.SetBytes(fe.Bytes())
 
 		// Intentionally not using Equal not to go through Bytes again.
 		// Calling reduce because both Generate and SetBytes can produce
@@ -207,7 +205,7 @@ func TestSetBytesRoundTrip(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		b := tt.fe.FillBytes(make([]byte, 32))
+		b := tt.fe.Bytes()
 		if !bytes.Equal(b, tt.b) || new(FieldElement).SetBytes(tt.b).Equal(&tt.fe) != 1 {
 			t.Errorf("Failed fixed roundtrip: %v", tt)
 		}
@@ -222,7 +220,7 @@ func swapEndianness(buf []byte) []byte {
 }
 
 func TestBytesBigEquivalence(t *testing.T) {
-	f1 := func(in, out [32]byte, fe, fe1 FieldElement) bool {
+	f1 := func(in [32]byte, fe, fe1 FieldElement) bool {
 		fe.SetBytes(in[:])
 
 		in[len(in)-1] &= (1 << 7) - 1 // mask the most significant bit
@@ -233,11 +231,10 @@ func TestBytesBigEquivalence(t *testing.T) {
 			return false
 		}
 
-		fe.FillBytes(out[:])
 		buf := make([]byte, 32) // pad with zeroes
 		copy(buf, swapEndianness(fe1.toBig().Bytes()))
 
-		return bytes.Equal(out[:], buf) && isInBounds(&fe) && isInBounds(&fe1)
+		return bytes.Equal(fe.Bytes(), buf) && isInBounds(&fe) && isInBounds(&fe1)
 	}
 	if err := quick.Check(f1, nil); err != nil {
 		t.Error(err)
@@ -266,7 +263,7 @@ func (v *FieldElement) fromBig(n *big.Int) *FieldElement {
 
 // toBig returns v as a big.Int.
 func (v *FieldElement) toBig() *big.Int {
-	buf := v.FillBytes(make([]byte, 32))
+	buf := v.Bytes()
 
 	words := make([]big.Word, 32*8/bits.UintSize)
 	for n := range words {
