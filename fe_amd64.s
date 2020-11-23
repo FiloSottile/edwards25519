@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64,!purego
+// +build amd64,gc,!purego
 
 // func feMul(out, a, b *fieldElement)
 TEXT ·feMul(SB),$0-24
