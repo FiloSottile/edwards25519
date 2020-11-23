@@ -27,17 +27,15 @@ var (
 
 func TestScalarMultSmallScalars(t *testing.T) {
 	var z Scalar
-	var p, check Point
+	var p Point
 	p.ScalarMult(&z, B)
-	check.Zero()
-	if check.Equal(&p) != 1 {
+	if I.Equal(&p) != 1 {
 		t.Error("0*B != 0")
 	}
 
 	z = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 	p.ScalarMult(&z, B)
-	check.Set(B)
-	if check.Equal(&p) != 1 {
+	if B.Equal(&p) != 1 {
 		t.Error("1*B != 1")
 	}
 }
@@ -138,7 +136,6 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		q1.ScalarBaseMult(&x)
 		q2.ScalarBaseMult(&y)
 		q3.ScalarBaseMult(&z)
-		check.Zero()
 		check.Add(&q1, &q2).Add(&check, &q3)
 
 		return p.Equal(&check) == 1
@@ -166,7 +163,6 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 
 		q1.ScalarBaseMult(&x)
 		q2.ScalarBaseMult(&y)
-		check.Zero()
 		check.Add(&q1, &q2)
 
 		return p.Equal(&check) == 1
@@ -186,7 +182,6 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		q1.ScalarBaseMult(&x)
 		q2.ScalarBaseMult(&y)
 		q3.ScalarBaseMult(&z)
-		check.Zero()
 		check.Add(&q1, &q2).Add(&check, &q3)
 
 		return p.Equal(&check) == 1

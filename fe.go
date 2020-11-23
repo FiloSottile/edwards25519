@@ -41,6 +41,10 @@ var (
 	feMinusOne = new(FieldElement).Negate(feOne)
 )
 
+func NewFieldElement() *FieldElement {
+	return &FieldElement{}
+}
+
 // Zero sets v = 0, and returns v.
 func (v *FieldElement) Zero() *FieldElement {
 	*v = *feZero

@@ -5,8 +5,12 @@
 package edwards25519
 
 import (
+	"reflect"
 	"testing"
 )
+
+var B = NewGeneratorPoint()
+var I = NewIdentityPoint()
 
 func TestAddSubNegOnBasePoint(t *testing.T) {
 	Bneg := &Point{}
@@ -17,7 +21,6 @@ func TestAddSubNegOnBasePoint(t *testing.T) {
 	Bneg.Negate(B)
 
 	checkLhs, checkRhs := &Point{}, &Point{}
-	zero := new(Point).Zero()
 
 	tmpCached.FromP3(B)
 	tmpP1xP1.Add(B, tmpCached)
@@ -38,10 +41,16 @@ func TestAddSubNegOnBasePoint(t *testing.T) {
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B - B != B + (-B)")
 	}
-	if zero.Equal(checkLhs) != 1 {
+	if I.Equal(checkLhs) != 1 {
 		t.Error("B - B != 0")
 	}
-	if zero.Equal(checkRhs) != 1 {
+	if I.Equal(checkRhs) != 1 {
 		t.Error("B + (-B) != 0")
+	}
+}
+
+func TestComparable(t *testing.T) {
+	if reflect.TypeOf(Point{}).Comparable() {
+		t.Error("Point is unexpectedly comparable")
 	}
 }

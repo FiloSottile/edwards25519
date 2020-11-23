@@ -19,9 +19,8 @@ func TestProjLookupTable(t *testing.T) {
 	// Expect T1 + T2 + T3 = identity
 
 	var accP1xP1 projP1xP1
-	var accP3, check Point
-	accP3.Zero()
-	check.Zero()
+	var accP3 Point
+	accP3.Identity()
 
 	accP1xP1.Add(&accP3, &tmp1)
 	accP3.fromP1xP1(&accP1xP1)
@@ -30,7 +29,7 @@ func TestProjLookupTable(t *testing.T) {
 	accP1xP1.Add(&accP3, &tmp3)
 	accP3.fromP1xP1(&accP1xP1)
 
-	if accP3.Equal(&check) != 1 {
+	if accP3.Equal(I) != 1 {
 		t.Errorf("Sanity check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
 	}
 }
@@ -46,9 +45,8 @@ func TestAffineLookupTable(t *testing.T) {
 	// Expect T1 + T2 + T3 = identity
 
 	var accP1xP1 projP1xP1
-	var accP3, check Point
-	accP3.Zero()
-	check.Zero()
+	var accP3 Point
+	accP3.Identity()
 
 	accP1xP1.AddAffine(&accP3, &tmp1)
 	accP3.fromP1xP1(&accP1xP1)
@@ -57,7 +55,7 @@ func TestAffineLookupTable(t *testing.T) {
 	accP1xP1.AddAffine(&accP3, &tmp3)
 	accP3.fromP1xP1(&accP1xP1)
 
-	if accP3.Equal(&check) != 1 {
+	if accP3.Equal(I) != 1 {
 		t.Errorf("Sanity check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
 	}
 }
@@ -75,8 +73,8 @@ func TestNafLookupTable5(t *testing.T) {
 
 	var accP1xP1 projP1xP1
 	var lhs, rhs Point
-	lhs.Zero()
-	rhs.Zero()
+	lhs.Identity()
+	rhs.Identity()
 
 	accP1xP1.Add(&lhs, &tmp1)
 	lhs.fromP1xP1(&accP1xP1)
@@ -106,8 +104,8 @@ func TestNafLookupTable8(t *testing.T) {
 
 	var accP1xP1 projP1xP1
 	var lhs, rhs Point
-	lhs.Zero()
-	rhs.Zero()
+	lhs.Identity()
+	rhs.Identity()
 
 	accP1xP1.AddAffine(&lhs, &tmp1)
 	lhs.fromP1xP1(&accP1xP1)

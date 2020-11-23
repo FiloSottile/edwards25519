@@ -36,6 +36,11 @@ var (
 	scMinusOne = Scalar{[32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}}
 )
 
+// NewScalar returns a new zero Scalar.
+func NewScalar() *Scalar {
+	return &Scalar{}
+}
+
 // Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l

@@ -40,7 +40,8 @@ type projP2 struct {
 type Point struct {
 	x, y, z, t FieldElement
 
-	// bradfitz's device: make the type not comparable.
+	// Make the type not comparable with bradfitz's device, since equal points
+	// can be represented by different Go values.
 	_ [0]func()
 }
 
@@ -50,14 +51,6 @@ type projCached struct {
 
 type affineCached struct {
 	YplusX, YminusX, T2d FieldElement
-}
-
-// B is the Ed25519 basepoint.
-var B = &Point{
-	x: FieldElement{1738742601995546, 1146398526822698, 2070867633025821, 562264141797630, 587772402128613},
-	y: FieldElement{1801439850948184, 1351079888211148, 450359962737049, 900719925474099, 1801439850948198},
-	z: FieldElement{1, 0, 0, 0, 0},
-	t: FieldElement{1841354044333475, 16398895984059, 755974180946558, 900171276175154, 1821297809914039},
 }
 
 // Constructors.
@@ -77,17 +70,34 @@ func (v *projP2) Zero() *projP2 {
 	return v
 }
 
-// NewPoint returns a new zero Point.
-func NewPoint() *Point {
-	return (&Point{}).Zero()
+// NewIdentityPoint returns a new Point set to the identity.
+func NewIdentityPoint() *Point {
+	return (&Point{}).Identity()
 }
 
-// Zero sets v to the zero point, and returns v.
-func (v *Point) Zero() *Point {
+// Identity sets v to the zero point, and returns v.
+func (v *Point) Identity() *Point {
 	v.x.Zero()
 	v.y.One()
 	v.z.One()
 	v.t.Zero()
+	return v
+}
+
+// NewGeneratorPoint returns a new Point set to the canonical generator.
+func NewGeneratorPoint() *Point {
+	return (&Point{}).Generator()
+}
+
+// Generator sets v to the canonical generator, and returns v.
+func (v *Point) Generator() *Point {
+	v.x = FieldElement{1738742601995546, 1146398526822698,
+		2070867633025821, 562264141797630, 587772402128613}
+	v.y = FieldElement{1801439850948184, 1351079888211148,
+		450359962737049, 900719925474099, 1801439850948198}
+	v.z.One()
+	v.t = FieldElement{1841354044333475, 16398895984059,
+		755974180946558, 900171276175154, 1821297809914039}
 	return v
 }
 
