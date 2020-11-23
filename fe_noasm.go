@@ -6,6 +6,6 @@
 
 package edwards25519
 
-func feMul(v, x, y *FieldElement) { feMulGeneric(v, x, y) }
+func feMul(v, x, y *fieldElement) { feMulGeneric(v, x, y) }
 
-func feSquare(v, x *FieldElement) { feSquareGeneric(v, x) }
+func feSquare(v, x *fieldElement) { feSquareGeneric(v, x) }

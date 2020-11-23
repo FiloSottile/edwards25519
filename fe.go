@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 )
 
-// FieldElement represents an element of the field GF(2^255-19). Note that this
+// fieldElement represents an element of the field GF(2^255-19). Note that this
 // is not a cryptographically secure group, and should only be used to interact
 // with Point coordinates.
 //
@@ -17,7 +17,7 @@ import (
 // are allowed to alias.
 //
 // The zero value is a valid zero element.
-type FieldElement struct {
+type fieldElement struct {
 	// An element t represents the integer
 	//     t.l0 + t.l1*2^51 + t.l2*2^102 + t.l3*2^153 + t.l4*2^204
 	//
@@ -33,24 +33,20 @@ type FieldElement struct {
 const maskLow51Bits uint64 = (1 << 51) - 1
 
 var (
-	feZero     = &FieldElement{0, 0, 0, 0, 0}
-	feOne      = &FieldElement{1, 0, 0, 0, 0}
-	feTwo      = &FieldElement{2, 0, 0, 0, 0}
-	feMinusOne = new(FieldElement).Negate(feOne)
+	feZero     = &fieldElement{0, 0, 0, 0, 0}
+	feOne      = &fieldElement{1, 0, 0, 0, 0}
+	feTwo      = &fieldElement{2, 0, 0, 0, 0}
+	feMinusOne = new(fieldElement).Negate(feOne)
 )
 
-func NewFieldElement() *FieldElement {
-	return &FieldElement{}
-}
-
 // Zero sets v = 0, and returns v.
-func (v *FieldElement) Zero() *FieldElement {
+func (v *fieldElement) Zero() *fieldElement {
 	*v = *feZero
 	return v
 }
 
 // One sets v = 1, and returns v.
-func (v *FieldElement) One() *FieldElement {
+func (v *fieldElement) One() *fieldElement {
 	*v = *feOne
 	return v
 }
@@ -58,7 +54,7 @@ func (v *FieldElement) One() *FieldElement {
 // carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
 // two because of the inliner heuristics. The two functions MUST be called one
 // after the other.
-func (v *FieldElement) carryPropagate1() *FieldElement {
+func (v *fieldElement) carryPropagate1() *fieldElement {
 	v.l1 += v.l0 >> 51
 	v.l0 &= maskLow51Bits
 	v.l2 += v.l1 >> 51
@@ -67,7 +63,7 @@ func (v *FieldElement) carryPropagate1() *FieldElement {
 	v.l2 &= maskLow51Bits
 	return v
 }
-func (v *FieldElement) carryPropagate2() *FieldElement {
+func (v *fieldElement) carryPropagate2() *fieldElement {
 	v.l4 += v.l3 >> 51
 	v.l3 &= maskLow51Bits
 	v.l0 += (v.l4 >> 51) * 19
@@ -76,7 +72,7 @@ func (v *FieldElement) carryPropagate2() *FieldElement {
 }
 
 // reduce reduces v modulo 2^255 - 19 and returns it.
-func (v *FieldElement) reduce() *FieldElement {
+func (v *fieldElement) reduce() *fieldElement {
 	v.carryPropagate1().carryPropagate2()
 
 	// After the light reduction we now have a field element representation
@@ -109,7 +105,7 @@ func (v *FieldElement) reduce() *FieldElement {
 }
 
 // Add sets v = a + b, and returns v.
-func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
+func (v *fieldElement) Add(a, b *fieldElement) *fieldElement {
 	v.l0 = a.l0 + b.l0
 	v.l1 = a.l1 + b.l1
 	v.l2 = a.l2 + b.l2
@@ -119,7 +115,7 @@ func (v *FieldElement) Add(a, b *FieldElement) *FieldElement {
 }
 
 // Subtract sets v = a - b, and returns v.
-func (v *FieldElement) Subtract(a, b *FieldElement) *FieldElement {
+func (v *fieldElement) Subtract(a, b *fieldElement) *fieldElement {
 	// We first add 2 * p, to guarantee the subtraction won't underflow, and
 	// then subtract b (which can be up to 2^255 + 2^13 * 19).
 	v.l0 = (a.l0 + 0xFFFFFFFFFFFDA) - b.l0
@@ -131,15 +127,17 @@ func (v *FieldElement) Subtract(a, b *FieldElement) *FieldElement {
 }
 
 // Negate sets v = -a, and returns v.
-func (v *FieldElement) Negate(a *FieldElement) *FieldElement {
+func (v *fieldElement) Negate(a *fieldElement) *fieldElement {
 	return v.Subtract(feZero, a)
 }
 
 // Invert sets v = 1/z mod p, and returns v.
-func (v *FieldElement) Invert(z *FieldElement) *FieldElement {
+//
+// TODO: what if z is zero?
+func (v *fieldElement) Invert(z *fieldElement) *fieldElement {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
 	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
-	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t FieldElement
+	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t fieldElement
 
 	z2.Square(z)             // 2
 	t.Square(&z2)            // 4
@@ -201,7 +199,7 @@ func (v *FieldElement) Invert(z *FieldElement) *FieldElement {
 }
 
 // Set sets v = a, and returns v.
-func (v *FieldElement) Set(a *FieldElement) *FieldElement {
+func (v *fieldElement) Set(a *fieldElement) *fieldElement {
 	*v = *a
 	return v
 }
@@ -211,7 +209,7 @@ func (v *FieldElement) Set(a *FieldElement) *FieldElement {
 // Consistently with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
 // are accepted.
-func (v *FieldElement) SetBytes(x []byte) *FieldElement {
+func (v *fieldElement) SetBytes(x []byte) *fieldElement {
 	if len(x) != 32 {
 		panic("edwards25519: invalid field element input size")
 	}
@@ -237,14 +235,14 @@ func (v *FieldElement) SetBytes(x []byte) *FieldElement {
 }
 
 // Bytes returns the canonical 32 bytes little-endian encoding of v.
-func (v *FieldElement) Bytes() []byte {
+func (v *fieldElement) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
 	var out [32]byte
 	return v.bytes(&out)
 }
 
-func (v *FieldElement) bytes(out *[32]byte) []byte {
+func (v *fieldElement) bytes(out *[32]byte) []byte {
 	t := *v
 	t.reduce()
 
@@ -279,7 +277,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 }
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
-func (v *FieldElement) Equal(u *FieldElement) int {
+func (v *fieldElement) Equal(u *fieldElement) int {
 	sa, sv := u.Bytes(), v.Bytes()
 	return subtle.ConstantTimeCompare(sa, sv)
 }
@@ -287,7 +285,7 @@ func (v *FieldElement) Equal(u *FieldElement) int {
 const mask64Bits uint64 = (1 << 64) - 1
 
 // Select sets v to a if cond == 1, and to b if cond == 0.
-func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
+func (v *fieldElement) Select(a, b *fieldElement, cond int) *fieldElement {
 	m := uint64(cond) * mask64Bits
 	v.l0 = (m & a.l0) | (^m & b.l0)
 	v.l1 = (m & a.l1) | (^m & b.l1)
@@ -298,7 +296,7 @@ func (v *FieldElement) Select(a, b *FieldElement, cond int) *FieldElement {
 }
 
 // Swap swaps v and u if cond == 1 or leaves them unchanged if cond == 0, and returns v.
-func (v *FieldElement) Swap(u *FieldElement, cond int) {
+func (v *fieldElement) Swap(u *fieldElement, cond int) {
 	m := uint64(cond) * mask64Bits
 	t := m & (v.l0 ^ u.l0)
 	v.l0 ^= t
@@ -318,36 +316,36 @@ func (v *FieldElement) Swap(u *FieldElement, cond int) {
 }
 
 // condNeg sets v to -u if cond == 1, and to u if cond == 0.
-func (v *FieldElement) condNeg(u *FieldElement, cond int) *FieldElement {
-	tmp := new(FieldElement).Negate(u)
+func (v *fieldElement) condNeg(u *fieldElement, cond int) *fieldElement {
+	tmp := new(fieldElement).Negate(u)
 	return v.Select(tmp, u, cond)
 }
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
-func (v *FieldElement) IsNegative() int {
+func (v *fieldElement) IsNegative() int {
 	b := v.Bytes()
 	return int(b[0] & 1)
 }
 
 // Absolute sets v to |u|, and returns v.
-func (v *FieldElement) Absolute(u *FieldElement) *FieldElement {
+func (v *fieldElement) Absolute(u *fieldElement) *fieldElement {
 	return v.condNeg(u, u.IsNegative())
 }
 
 // Multiply sets v = x * y, and returns v.
-func (v *FieldElement) Multiply(x, y *FieldElement) *FieldElement {
+func (v *fieldElement) Multiply(x, y *fieldElement) *fieldElement {
 	feMul(v, x, y)
 	return v
 }
 
 // Square sets v = x * x, and returns v.
-func (v *FieldElement) Square(x *FieldElement) *FieldElement {
+func (v *fieldElement) Square(x *fieldElement) *fieldElement {
 	feSquare(v, x)
 	return v
 }
 
 // Mult32 sets v = x * y, and returns v.
-func (v *FieldElement) Mult32(x *FieldElement, y uint32) *FieldElement {
+func (v *fieldElement) Mult32(x *fieldElement, y uint32) *fieldElement {
 	x0lo, x0hi := mul51(x.l0, y)
 	x1lo, x1hi := mul51(x.l1, y)
 	x2lo, x2hi := mul51(x.l2, y)

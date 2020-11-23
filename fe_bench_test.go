@@ -7,7 +7,7 @@ package edwards25519
 import "testing"
 
 func BenchmarkAdd(b *testing.B) {
-	var x, y FieldElement
+	var x, y fieldElement
 	x.One()
 	y.Add(feOne, feOne)
 	b.ResetTimer()
@@ -17,7 +17,7 @@ func BenchmarkAdd(b *testing.B) {
 }
 
 func BenchmarkMul(b *testing.B) {
-	var x, y FieldElement
+	var x, y fieldElement
 	x.One()
 	y.Add(feOne, feOne)
 	b.ResetTimer()
@@ -27,7 +27,7 @@ func BenchmarkMul(b *testing.B) {
 }
 
 func BenchmarkMul32(b *testing.B) {
-	var x FieldElement
+	var x fieldElement
 	x.One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

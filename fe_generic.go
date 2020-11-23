@@ -4,7 +4,7 @@
 
 package edwards25519
 
-func feMulGeneric(v, x, y *FieldElement) {
+func feMulGeneric(v, x, y *fieldElement) {
 	x0 := x.l0
 	x1 := x.l1
 	x2 := x.l2
@@ -100,11 +100,11 @@ func feMulGeneric(v, x, y *FieldElement) {
 	// r_0 to r_1 , from r_1 to r_2 , from r_2 to r_3 , from r_3 to r_4 , and
 	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
 	// right shift by 51, one logical and with 2^51 − 1, and one addition.
-	*v = FieldElement{r00, r10, r20, r30, r40}
+	*v = fieldElement{r00, r10, r20, r30, r40}
 	v.carryPropagate1().carryPropagate2()
 }
 
-func feSquareGeneric(v, x *FieldElement) {
+func feSquareGeneric(v, x *fieldElement) {
 	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
@@ -174,6 +174,6 @@ func feSquareGeneric(v, x *FieldElement) {
 	r41 *= 19
 	r00 += r41
 
-	*v = FieldElement{r00, r10, r20, r30, r40}
+	*v = fieldElement{r00, r10, r20, r30, r40}
 	v.carryPropagate1().carryPropagate2()
 }

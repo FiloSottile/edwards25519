@@ -9,8 +9,8 @@ import (
 	"testing/quick"
 )
 
-func checkAliasingOneArg(f func(v, x *FieldElement) *FieldElement) func(v, x FieldElement) bool {
-	return func(v, x FieldElement) bool {
+func checkAliasingOneArg(f func(v, x *fieldElement) *fieldElement) func(v, x fieldElement) bool {
+	return func(v, x fieldElement) bool {
 		x1, v1 := x, x
 
 		// Calculate a reference f(x) without aliasing.
@@ -28,9 +28,9 @@ func checkAliasingOneArg(f func(v, x *FieldElement) *FieldElement) func(v, x Fie
 	}
 }
 
-func checkAliasingTwoArgs(f func(v, x, y *FieldElement) *FieldElement) func(v, x, y FieldElement) bool {
-	return func(v, x, y FieldElement) bool {
-		x1, y1, v1 := x, y, FieldElement{}
+func checkAliasingTwoArgs(f func(v, x, y *fieldElement) *fieldElement) func(v, x, y fieldElement) bool {
+	return func(v, x, y fieldElement) bool {
+		x1, y1, v1 := x, y, fieldElement{}
 
 		// Calculate a reference f(x, y) without aliasing.
 		if out := f(&v, &x, &y); out != &v && isInBounds(out) {
@@ -77,40 +77,40 @@ func checkAliasingTwoArgs(f func(v, x, y *FieldElement) *FieldElement) func(v, x
 func TestAliasing(t *testing.T) {
 	type target struct {
 		name     string
-		oneArgF  func(v, x *FieldElement) *FieldElement
-		twoArgsF func(v, x, y *FieldElement) *FieldElement
+		oneArgF  func(v, x *fieldElement) *fieldElement
+		twoArgsF func(v, x, y *fieldElement) *fieldElement
 	}
 	for _, tt := range []target{
-		{name: "Abs", oneArgF: (*FieldElement).Absolute},
-		{name: "Invert", oneArgF: (*FieldElement).Invert},
-		{name: "Neg", oneArgF: (*FieldElement).Negate},
-		{name: "Set", oneArgF: (*FieldElement).Set},
-		{name: "Square", oneArgF: (*FieldElement).Square},
+		{name: "Abs", oneArgF: (*fieldElement).Absolute},
+		{name: "Invert", oneArgF: (*fieldElement).Invert},
+		{name: "Neg", oneArgF: (*fieldElement).Negate},
+		{name: "Set", oneArgF: (*fieldElement).Set},
+		{name: "Square", oneArgF: (*fieldElement).Square},
 		{
 			name: "CondNeg0",
-			oneArgF: func(v, x *FieldElement) *FieldElement {
-				return (*FieldElement).condNeg(v, x, 0)
+			oneArgF: func(v, x *fieldElement) *fieldElement {
+				return (*fieldElement).condNeg(v, x, 0)
 			},
 		},
 		{
 			name: "CondNeg1",
-			oneArgF: func(v, x *FieldElement) *FieldElement {
-				return (*FieldElement).condNeg(v, x, 1)
+			oneArgF: func(v, x *fieldElement) *fieldElement {
+				return (*fieldElement).condNeg(v, x, 1)
 			},
 		},
-		{name: "Mul", twoArgsF: (*FieldElement).Multiply},
-		{name: "Add", twoArgsF: (*FieldElement).Add},
-		{name: "Sub", twoArgsF: (*FieldElement).Subtract},
+		{name: "Mul", twoArgsF: (*fieldElement).Multiply},
+		{name: "Add", twoArgsF: (*fieldElement).Add},
+		{name: "Sub", twoArgsF: (*fieldElement).Subtract},
 		{
 			name: "Select0",
-			twoArgsF: func(v, x, y *FieldElement) *FieldElement {
-				return (*FieldElement).Select(v, x, y, 0)
+			twoArgsF: func(v, x, y *fieldElement) *fieldElement {
+				return (*fieldElement).Select(v, x, y, 0)
 			},
 		},
 		{
 			name: "Select1",
-			twoArgsF: func(v, x, y *FieldElement) *FieldElement {
-				return (*FieldElement).Select(v, x, y, 1)
+			twoArgsF: func(v, x, y *fieldElement) *fieldElement {
+				return (*fieldElement).Select(v, x, y, 1)
 			},
 		},
 	} {

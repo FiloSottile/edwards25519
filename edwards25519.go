@@ -6,8 +6,6 @@
 //
 //     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
 //
-// as well as GF(2^255-19) field arithmetic.
-//
 // This is better known as the Edwards curve equivalent to Curve25519, and is
 // the curve used by the Ed25519 signature scheme.
 //
@@ -19,18 +17,14 @@
 // powerful alternative.
 package edwards25519
 
-// D is a constant in the curve equation.
-var D = &FieldElement{929955233495203, 466365720129213,
-	1662059464998953, 2033849074728123, 1442794654840575}
-
 // Point types.
 
 type projP1xP1 struct {
-	X, Y, Z, T FieldElement
+	X, Y, Z, T fieldElement
 }
 
 type projP2 struct {
-	X, Y, Z FieldElement
+	X, Y, Z fieldElement
 }
 
 // Point represents a point on the edwards25519 curve.
@@ -40,7 +34,7 @@ type projP2 struct {
 //
 // The zero value is NOT valid, and it may be used only as a receiver.
 type Point struct {
-	x, y, z, t FieldElement
+	x, y, z, t fieldElement
 
 	// Make the type not comparable with bradfitz's device, since equal points
 	// can be represented by different Go values.
@@ -48,11 +42,11 @@ type Point struct {
 }
 
 type projCached struct {
-	YplusX, YminusX, Z, T2d FieldElement
+	YplusX, YminusX, Z, T2d fieldElement
 }
 
 type affineCached struct {
-	YplusX, YminusX, T2d FieldElement
+	YplusX, YminusX, T2d fieldElement
 }
 
 // Constructors.
@@ -75,22 +69,22 @@ func (v *projP2) Zero() *projP2 {
 // NewIdentityPoint returns a new Point set to the identity.
 func NewIdentityPoint() *Point {
 	return &Point{
-		x: FieldElement{0, 0, 0, 0, 0},
-		y: FieldElement{1, 0, 0, 0, 0},
-		z: FieldElement{1, 0, 0, 0, 0},
-		t: FieldElement{0, 0, 0, 0, 0},
+		x: fieldElement{0, 0, 0, 0, 0},
+		y: fieldElement{1, 0, 0, 0, 0},
+		z: fieldElement{1, 0, 0, 0, 0},
+		t: fieldElement{0, 0, 0, 0, 0},
 	}
 }
 
 // NewGeneratorPoint returns a new Point set to the canonical generator.
 func NewGeneratorPoint() *Point {
 	return &Point{
-		x: FieldElement{1738742601995546, 1146398526822698,
+		x: fieldElement{1738742601995546, 1146398526822698,
 			2070867633025821, 562264141797630, 587772402128613},
-		y: FieldElement{1801439850948184, 1351079888211148,
+		y: fieldElement{1801439850948184, 1351079888211148,
 			450359962737049, 900719925474099, 1801439850948198},
-		z: FieldElement{1, 0, 0, 0, 0},
-		t: FieldElement{1841354044333475, 16398895984059,
+		z: fieldElement{1, 0, 0, 0, 0},
+		t: fieldElement{1841354044333475, 16398895984059,
 			755974180946558, 900171276175154, 1821297809914039},
 	}
 }
@@ -150,35 +144,10 @@ func (v *Point) fromP2(p *projP2) *Point {
 	return v
 }
 
-// FromExtendedCoords sets v = (x, y, z, t) in extended Edwards coordinates
-// (see https://eprint.iacr.org/2008/522), and returns v.
-func (v *Point) FromExtendedCoords(x, y, z, t *FieldElement) *Point {
-	v.x.Set(x)
-	v.y.Set(y)
-	v.z.Set(z)
-	v.t.Set(t)
-	return v
-}
-
-// ExtendedCoords returns v in extended Edwards coordinates (see
-// https://eprint.iacr.org/2008/522).
-func (v *Point) ExtendedCoords() (x, y, z, t *FieldElement) {
-	// This function is outlined to make the allocations inline in the caller
-	// rather than happen on the heap.
-	var w0, w1, w2, w3 FieldElement
-	return v.extendedCoords(&w0, &w1, &w2, &w3)
-}
-
-func (v *Point) extendedCoords(x, y, z, t *FieldElement) (
-	*FieldElement, *FieldElement, *FieldElement, *FieldElement) {
-	x.Set(&v.x)
-	y.Set(&v.y)
-	z.Set(&v.z)
-	t.Set(&v.t)
-	return x, y, z, t
-}
-
-var d2 = new(FieldElement).Add(D, D)
+// d is a constant in the curve equation.
+var d = &fieldElement{929955233495203, 466365720129213,
+	1662059464998953, 2033849074728123, 1442794654840575}
+var d2 = new(fieldElement).Add(d, d)
 
 func (v *projCached) FromP3(p *Point) *projCached {
 	v.YplusX.Add(&p.y, &p.x)
@@ -193,7 +162,7 @@ func (v *affineCached) FromP3(p *Point) *affineCached {
 	v.YminusX.Subtract(&p.y, &p.x)
 	v.T2d.Multiply(&p.t, d2)
 
-	var invZ FieldElement
+	var invZ fieldElement
 	invZ.Invert(&p.z)
 	v.YplusX.Multiply(&v.YplusX, &invZ)
 	v.YminusX.Multiply(&v.YminusX, &invZ)
@@ -224,7 +193,7 @@ func (v *Point) Subtract(p, q *Point) *Point {
 }
 
 func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 fieldElement
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -244,7 +213,7 @@ func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 fieldElement
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -264,7 +233,7 @@ func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 fieldElement
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -283,7 +252,7 @@ func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 FieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 fieldElement
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -304,7 +273,7 @@ func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
 // Doubling.
 
 func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
-	var XX, YY, ZZ2, XplusYsq FieldElement
+	var XX, YY, ZZ2, XplusYsq fieldElement
 
 	XX.Square(&p.X)
 	YY.Square(&p.Y)
@@ -334,7 +303,7 @@ func (v *Point) Negate(p *Point) *Point {
 
 // Equal returns 1 if v is equivalent to u, and 0 otherwise.
 func (v *Point) Equal(u *Point) int {
-	var t1, t2, t3, t4 FieldElement
+	var t1, t2, t3, t4 fieldElement
 	t1.Multiply(&v.x, &u.z)
 	t2.Multiply(&u.x, &v.z)
 	t3.Multiply(&v.y, &u.z)

@@ -20,11 +20,11 @@ import (
 // times. The default value of -quickchecks is 100.
 var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
 
-func generateFieldElement(rand *mathrand.Rand) FieldElement {
+func generateFieldElement(rand *mathrand.Rand) fieldElement {
 	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
 	// bits, like the ones returned by lightReduce.
 	const maskLow52Bits = (1 << 52) - 1
-	return FieldElement{
+	return fieldElement{
 		rand.Uint64() & maskLow52Bits,
 		rand.Uint64() & maskLow51Bits,
 		rand.Uint64() & maskLow51Bits,
@@ -67,8 +67,8 @@ var (
 	}
 )
 
-func generateWeirdFieldElement(rand *mathrand.Rand) FieldElement {
-	return FieldElement{
+func generateWeirdFieldElement(rand *mathrand.Rand) fieldElement {
+	return fieldElement{
 		weirdLimbs52[rand.Intn(len(weirdLimbs52))],
 		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
 		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
@@ -77,7 +77,7 @@ func generateWeirdFieldElement(rand *mathrand.Rand) FieldElement {
 	}
 }
 
-func (FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
+func (fieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	if rand.Intn(2) == 0 {
 		return reflect.ValueOf(generateWeirdFieldElement(rand))
 	}
@@ -86,7 +86,7 @@ func (FieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 
 // isInBounds returns whether the element is within the expected bit size bounds
 // after a light reduction.
-func isInBounds(x *FieldElement) bool {
+func isInBounds(x *fieldElement) bool {
 	return bits.Len64(x.l0) <= 52 &&
 		bits.Len64(x.l1) <= 51 &&
 		bits.Len64(x.l2) <= 51 &&
@@ -95,15 +95,15 @@ func isInBounds(x *FieldElement) bool {
 }
 
 func TestMulDistributesOverAdd(t *testing.T) {
-	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
+	mulDistributesOverAdd := func(x, y, z fieldElement) bool {
 		// Compute t1 = (x+y)*z
-		t1 := new(FieldElement)
+		t1 := new(fieldElement)
 		t1.Add(&x, &y)
 		t1.Multiply(t1, &z)
 
 		// Compute t2 = x*z + y*z
-		t2 := new(FieldElement)
-		t3 := new(FieldElement)
+		t2 := new(fieldElement)
+		t3 := new(fieldElement)
 		t2.Multiply(&x, &z)
 		t3.Multiply(&y, &z)
 		t2.Add(t2, t3)
@@ -155,7 +155,7 @@ func BenchmarkWideMultCall(t *testing.B) {
 }
 
 func TestSetBytesRoundTrip(t *testing.T) {
-	f1 := func(in [32]byte, fe FieldElement) bool {
+	f1 := func(in [32]byte, fe fieldElement) bool {
 		fe.SetBytes(in[:])
 
 		// Mask the most significant bit as it's ignored by SetBytes. (Now
@@ -174,7 +174,7 @@ func TestSetBytesRoundTrip(t *testing.T) {
 		t.Errorf("failed bytes->FE->bytes round-trip: %v", err)
 	}
 
-	f2 := func(fe, r FieldElement) bool {
+	f2 := func(fe, r fieldElement) bool {
 		r.SetBytes(fe.Bytes())
 
 		// Intentionally not using Equal not to go through Bytes again.
@@ -190,23 +190,23 @@ func TestSetBytesRoundTrip(t *testing.T) {
 
 	// Check some fixed vectors from dalek
 	type feRTTest struct {
-		fe FieldElement
+		fe fieldElement
 		b  []byte
 	}
 	var tests = []feRTTest{
 		{
-			fe: FieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676},
+			fe: fieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676},
 			b:  []byte{74, 209, 69, 197, 70, 70, 161, 222, 56, 226, 229, 19, 112, 60, 25, 92, 187, 74, 222, 56, 50, 153, 51, 233, 40, 74, 57, 6, 160, 185, 213, 31},
 		},
 		{
-			fe: FieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972},
+			fe: fieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972},
 			b:  []byte{199, 23, 106, 112, 61, 77, 216, 79, 186, 60, 11, 118, 13, 16, 103, 15, 42, 32, 83, 250, 44, 57, 204, 198, 78, 199, 253, 119, 146, 172, 3, 122},
 		},
 	}
 
 	for _, tt := range tests {
 		b := tt.fe.Bytes()
-		if !bytes.Equal(b, tt.b) || new(FieldElement).SetBytes(tt.b).Equal(&tt.fe) != 1 {
+		if !bytes.Equal(b, tt.b) || new(fieldElement).SetBytes(tt.b).Equal(&tt.fe) != 1 {
 			t.Errorf("Failed fixed roundtrip: %v", tt)
 		}
 	}
@@ -220,7 +220,7 @@ func swapEndianness(buf []byte) []byte {
 }
 
 func TestBytesBigEquivalence(t *testing.T) {
-	f1 := func(in [32]byte, fe, fe1 FieldElement) bool {
+	f1 := func(in [32]byte, fe, fe1 fieldElement) bool {
 		fe.SetBytes(in[:])
 
 		in[len(in)-1] &= (1 << 7) - 1 // mask the most significant bit
@@ -242,7 +242,7 @@ func TestBytesBigEquivalence(t *testing.T) {
 }
 
 // fromBig sets v = n, and returns v. The bit length of n must not exceed 256.
-func (v *FieldElement) fromBig(n *big.Int) *FieldElement {
+func (v *fieldElement) fromBig(n *big.Int) *fieldElement {
 	if n.BitLen() > 32*8 {
 		panic("edwards25519: invalid field element input size")
 	}
@@ -262,7 +262,7 @@ func (v *FieldElement) fromBig(n *big.Int) *FieldElement {
 }
 
 // toBig returns v as a big.Int.
-func (v *FieldElement) toBig() *big.Int {
+func (v *fieldElement) toBig() *big.Int {
 	buf := v.Bytes()
 
 	words := make([]big.Word, 32*8/bits.UintSize)
@@ -287,11 +287,11 @@ func TestSetBytesRoundTripEdgeCases(t *testing.T) {
 
 // Tests self-consistency between FeMul and FeSquare.
 func TestSanity(t *testing.T) {
-	var x FieldElement
-	var x2, x2sq FieldElement
-	// var x2Go, x2sqGo FieldElement
+	var x fieldElement
+	var x2, x2sq fieldElement
+	// var x2Go, x2sqGo fieldElement
 
-	x = FieldElement{1, 1, 1, 1, 1}
+	x = fieldElement{1, 1, 1, 1, 1}
 	x2.Multiply(&x, &x)
 	// FeMulGo(&x2Go, &x, &x)
 	x2sq.Square(&x)
@@ -328,8 +328,8 @@ func TestSanity(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
-	x := FieldElement{1, 1, 1, 1, 1}
-	y := FieldElement{5, 4, 3, 2, 1}
+	x := fieldElement{1, 1, 1, 1, 1}
+	y := fieldElement{5, 4, 3, 2, 1}
 
 	eq := x.Equal(&x)
 	if eq != 1 {
@@ -343,9 +343,9 @@ func TestEqual(t *testing.T) {
 }
 
 func TestInvert(t *testing.T) {
-	x := FieldElement{1, 1, 1, 1, 1}
-	one := FieldElement{1, 0, 0, 0, 0}
-	var xinv, r FieldElement
+	x := fieldElement{1, 1, 1, 1, 1}
+	one := fieldElement{1, 0, 0, 0, 0}
+	var xinv, r fieldElement
 
 	xinv.Invert(&x)
 	r.Multiply(&x, &xinv)
@@ -373,10 +373,10 @@ func TestInvert(t *testing.T) {
 }
 
 func TestSelectSwap(t *testing.T) {
-	a := FieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676}
-	b := FieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972}
+	a := fieldElement{358744748052810, 1691584618240980, 977650209285361, 1429865912637724, 560044844278676}
+	b := fieldElement{84926274344903, 473620666599931, 365590438845504, 1028470286882429, 2146499180330972}
 
-	var c, d FieldElement
+	var c, d fieldElement
 
 	c.Select(&a, &b, 1)
 	d.Select(&a, &b, 0)
@@ -399,7 +399,7 @@ func TestSelectSwap(t *testing.T) {
 }
 
 func TestMul32(t *testing.T) {
-	isAlmostInBounds := func(x *FieldElement) bool {
+	isAlmostInBounds := func(x *fieldElement) bool {
 		return bits.Len64(x.l0) <= 52 &&
 			bits.Len64(x.l1) <= 52 &&
 			bits.Len64(x.l2) <= 52 &&
@@ -407,16 +407,16 @@ func TestMul32(t *testing.T) {
 			bits.Len64(x.l4) <= 52
 	}
 
-	mul32EquivalentToMul := func(x FieldElement, y uint32) bool {
-		t1 := new(FieldElement)
+	mul32EquivalentToMul := func(x fieldElement, y uint32) bool {
+		t1 := new(fieldElement)
 		for i := 0; i < 100; i++ {
 			t1.Mult32(&x, y)
 		}
 
-		ty := new(FieldElement)
+		ty := new(fieldElement)
 		ty.l0 = uint64(y)
 
-		t2 := new(FieldElement)
+		t2 := new(fieldElement)
 		for i := 0; i < 100; i++ {
 			t2.Multiply(&x, ty)
 		}

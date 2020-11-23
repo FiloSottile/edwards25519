@@ -7,7 +7,7 @@
 package edwards25519
 
 //go:noescape
-func feMul(out, a, b *FieldElement)
+func feMul(out, a, b *fieldElement)
 
 //go:noescape
-func feSquare(out, x *FieldElement)
+func feSquare(out, x *fieldElement)
