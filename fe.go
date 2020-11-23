@@ -7,8 +7,6 @@ package edwards25519
 import (
 	"crypto/subtle"
 	"encoding/binary"
-	"math/big"
-	"math/bits"
 )
 
 // FieldElement represents an element of the field GF(2^255-19). Note that this
@@ -280,44 +278,6 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 	}
 	tail = head[len(in):]
 	return
-}
-
-// fromBig sets v = n, and returns v. The bit length of n must not exceed 256.
-func (v *FieldElement) fromBig(n *big.Int) *FieldElement {
-	if n.BitLen() > 32*8 {
-		panic("ed25519: invalid field element input size")
-	}
-
-	buf := make([]byte, 0, 32)
-	for _, word := range n.Bits() {
-		for i := 0; i < bits.UintSize; i += 8 {
-			if len(buf) >= cap(buf) {
-				break
-			}
-			buf = append(buf, byte(word))
-			word >>= 8
-		}
-	}
-
-	return v.FromBytes(buf[:32])
-}
-
-// toBig returns v as a big.Int.
-func (v *FieldElement) toBig() *big.Int {
-	buf := v.FillBytes(make([]byte, 32))
-
-	words := make([]big.Word, 32*8/bits.UintSize)
-	for n := range words {
-		for i := 0; i < bits.UintSize; i += 8 {
-			if len(buf) == 0 {
-				break
-			}
-			words[n] |= big.Word(buf[0]) << big.Word(i)
-			buf = buf[1:]
-		}
-	}
-
-	return new(big.Int).SetBits(words)
 }
 
 // Equal returns 1 if v and u are equal, and 0 otherwise.
