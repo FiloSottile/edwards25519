@@ -121,12 +121,19 @@ func (v *Point) Set(u *Point) *Point {
 // Bytes returns the canonical 32 bytes encoding of v, according to RFC 8032,
 // Section 5.1.2.
 func (v *Point) Bytes() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var buf [32]byte
+	return v.bytes(&buf)
+}
+
+func (v *Point) bytes(buf *[32]byte) []byte {
 	var recip, x, y fieldElement
 	recip.Invert(&v.z)
 	x.Multiply(&v.x, &recip) // x = X / Z
 	y.Multiply(&v.y, &recip) // y = Y / Z
 
-	out := y.Bytes()
+	out := y.bytes(buf)
 	out[31] |= byte(x.IsNegative() << 7)
 	return out
 }
