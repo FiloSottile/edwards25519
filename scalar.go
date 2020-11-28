@@ -87,20 +87,20 @@ func (s *Scalar) SetUniformBytes(x []byte) *Scalar {
 	return s
 }
 
-// SetCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding
-// of s. If x is not a canonical encoding of s, SetCanonicalBytes returns an
-// error and the receiver is unchanged.
-func (s *Scalar) SetCanonicalBytes(x []byte) error {
+// SetCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding of
+// s, and returns s. If x is not a canonical encoding of s, SetCanonicalBytes
+// returns nil and an error and the receiver is unchanged.
+func (s *Scalar) SetCanonicalBytes(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
-		return errors.New("invalid scalar length")
+		return nil, errors.New("invalid scalar length")
 	}
 	ss := &Scalar{}
 	copy(ss.s[:], x)
 	if !isReduced(ss) {
-		return errors.New("invalid scalar encoding")
+		return nil, errors.New("invalid scalar encoding")
 	}
 	s.s = ss.s
-	return nil
+	return s, nil
 }
 
 // isReduced returns whether the given scalar is reduced modulo l.
