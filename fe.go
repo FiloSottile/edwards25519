@@ -208,7 +208,7 @@ func (v *fieldElement) Set(a *fieldElement) *fieldElement {
 //
 // Consistently with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
-// are accepted.
+// are accepted. Note that this is laxer than specified by RFC 8032.
 func (v *fieldElement) SetBytes(x []byte) *fieldElement {
 	if len(x) != 32 {
 		panic("edwards25519: invalid field element input size")
@@ -359,4 +359,100 @@ func (v *fieldElement) Mult32(x *fieldElement, y uint32) *fieldElement {
 	// The hi portions are going to be only 32 bits, plus any previous excess,
 	// so we can skip the carry propagation.
 	return v
+}
+
+// Pow22523 set v = x^((p-5)/8), and returns v. (p-5)/8 is 2^252-3.
+func (v *fieldElement) Pow22523(x *fieldElement) *fieldElement {
+	var t0, t1, t2 fieldElement
+
+	t0.Square(x)
+	for i := 1; i < 1; i++ {
+		t0.Square(&t0)
+	}
+	t1.Square(&t0)
+	for i := 1; i < 2; i++ {
+		t1.Square(&t1)
+	}
+	t1.Multiply(x, &t1)
+	t0.Multiply(&t0, &t1)
+	t0.Square(&t0)
+	for i := 1; i < 1; i++ {
+		t0.Square(&t0)
+	}
+	t0.Multiply(&t1, &t0)
+	t1.Square(&t0)
+	for i := 1; i < 5; i++ {
+		t1.Square(&t1)
+	}
+	t0.Multiply(&t1, &t0)
+	t1.Square(&t0)
+	for i := 1; i < 10; i++ {
+		t1.Square(&t1)
+	}
+	t1.Multiply(&t1, &t0)
+	t2.Square(&t1)
+	for i := 1; i < 20; i++ {
+		t2.Square(&t2)
+	}
+	t1.Multiply(&t2, &t1)
+	t1.Square(&t1)
+	for i := 1; i < 10; i++ {
+		t1.Square(&t1)
+	}
+	t0.Multiply(&t1, &t0)
+	t1.Square(&t0)
+	for i := 1; i < 50; i++ {
+		t1.Square(&t1)
+	}
+	t1.Multiply(&t1, &t0)
+	t2.Square(&t1)
+	for i := 1; i < 100; i++ {
+		t2.Square(&t2)
+	}
+	t1.Multiply(&t2, &t1)
+	t1.Square(&t1)
+	for i := 1; i < 50; i++ {
+		t1.Square(&t1)
+	}
+	t0.Multiply(&t1, &t0)
+	t0.Square(&t0)
+	for i := 1; i < 2; i++ {
+		t0.Square(&t0)
+	}
+	return v.Multiply(&t0, x)
+}
+
+// sqrtM1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
+var sqrtM1 = &fieldElement{1718705420411056, 234908883556509,
+	2233514472574048, 2117202627021982, 765476049583133}
+
+// feSqrtRatio sets r to the non-negative square root of the ratio of u and v.
+//
+// If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
+// sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
+// and returns r and 0.
+func (r *fieldElement) SqrtRatio(u, v *fieldElement) (rr *fieldElement, wasSquare int) {
+	var a, b fieldElement
+
+	v3 := a.Multiply(a.Square(v), v)  // v^3 = v^2 * v
+	v7 := b.Multiply(b.Square(v3), v) // v^7 = (v^3)^2 * v
+
+	// r = (u * v3) * (u * v7)^((p-5)/8)
+	uv3 := a.Multiply(u, v3) // (u * v3)
+	uv7 := b.Multiply(u, v7) // (u * v7)
+	r.Multiply(uv3, r.Pow22523(uv7))
+
+	check := a.Multiply(v, a.Square(r)) // check = v * r^2
+
+	uNeg := b.Negate(u)
+	correctSignSqrt := check.Equal(u)
+	flippedSignSqrt := check.Equal(uNeg)
+	flippedSignSqrtI := check.Equal(uNeg.Multiply(uNeg, sqrtM1))
+
+	rPrime := b.Multiply(r, sqrtM1) // r_prime = SQRT_M1 * r
+	// r = CT_SELECT(r_prime IF flipped_sign_sqrt | flipped_sign_sqrt_i ELSE r)
+	r.Select(rPrime, r, flippedSignSqrt|flippedSignSqrtI)
+
+	r.Absolute(r) // Choose the nonnegative square root.
+	return r, correctSignSqrt | flippedSignSqrt
 }

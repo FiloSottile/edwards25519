@@ -7,6 +7,7 @@ package edwards25519
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
 	"io"
 	"math/big"
 	"math/bits"
@@ -15,6 +16,10 @@ import (
 	"testing"
 	"testing/quick"
 )
+
+func (v fieldElement) String() string {
+	return hex.EncodeToString(v.Bytes())
+}
 
 // quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
 // times. The default value of -quickchecks is 100.
@@ -261,6 +266,14 @@ func (v *fieldElement) fromBig(n *big.Int) *fieldElement {
 	return v.SetBytes(buf[:32])
 }
 
+func (v *fieldElement) fromDecimal(s string) *fieldElement {
+	n, ok := new(big.Int).SetString(s, 10)
+	if !ok {
+		panic("not a valid decimal: " + s)
+	}
+	return v.fromBig(n)
+}
+
 // toBig returns v as a big.Int.
 func (v *fieldElement) toBig() *big.Int {
 	buf := v.Bytes()
@@ -277,6 +290,17 @@ func (v *fieldElement) toBig() *big.Int {
 	}
 
 	return new(big.Int).SetBits(words)
+}
+
+func TestDecimalConstants(t *testing.T) {
+	sqrtM1String := "19681161376707505956807079304988542015446066515923890162744021073123829784752"
+	if exp := (&fieldElement{}).fromDecimal(sqrtM1String); sqrtM1.Equal(exp) != 1 {
+		t.Errorf("sqrtM1 is %v, expected %v", sqrtM1, exp)
+	}
+	dString := "37095705934669439343138083508754565189542113879843219016388785533085940283555"
+	if exp := (&fieldElement{}).fromDecimal(dString); d.Equal(exp) != 1 {
+		t.Errorf("d is %v, expected %v", d, exp)
+	}
 }
 
 func TestSetBytesRoundTripEdgeCases(t *testing.T) {
@@ -426,5 +450,64 @@ func TestMul32(t *testing.T) {
 
 	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig1024); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSqrtRatio(t *testing.T) {
+	// From draft-irtf-cfrg-ristretto255-decaf448-00, Appendix A.4.
+	type test struct {
+		u, v      string
+		wasSquare int
+		r         string
+	}
+	var tests = []test{
+		// If u is 0, the function is defined to return (0, TRUE), even if v
+		// is zero. Note that where used in this package, the denominator v
+		// is never zero.
+		{
+			"0000000000000000000000000000000000000000000000000000000000000000",
+			"0000000000000000000000000000000000000000000000000000000000000000",
+			1, "0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		// 0/1 == 0²
+		{
+			"0000000000000000000000000000000000000000000000000000000000000000",
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			1, "0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		// If u is non-zero and v is zero, defined to return (0, FALSE).
+		{
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			"0000000000000000000000000000000000000000000000000000000000000000",
+			0, "0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		// 2/1 is not square in this field.
+		{
+			"0200000000000000000000000000000000000000000000000000000000000000",
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			0, "3c5ff1b5d8e4113b871bd052f9e7bcd0582804c266ffb2d4f4203eb07fdb7c54",
+		},
+		// 4/1 == 2²
+		{
+			"0400000000000000000000000000000000000000000000000000000000000000",
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			1, "0200000000000000000000000000000000000000000000000000000000000000",
+		},
+		// 1/4 == (2⁻¹)² == (2^(p-2))² per Euler's theorem
+		{
+			"0100000000000000000000000000000000000000000000000000000000000000",
+			"0400000000000000000000000000000000000000000000000000000000000000",
+			1, "f6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff3f",
+		},
+	}
+
+	for i, tt := range tests {
+		u := (&fieldElement{}).SetBytes(decodeHex(tt.u))
+		v := (&fieldElement{}).SetBytes(decodeHex(tt.v))
+		want := (&fieldElement{}).SetBytes(decodeHex(tt.r))
+		got, wasSquare := (&fieldElement{}).SqrtRatio(u, v)
+		if got.Equal(want) == 0 || wasSquare != tt.wasSquare {
+			t.Errorf("%d: got (%v, %v), want (%v, %v)", i, got, wasSquare, want, tt.wasSquare)
+		}
 	}
 }

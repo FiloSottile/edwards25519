@@ -17,6 +17,8 @@
 // powerful alternative.
 package edwards25519
 
+import "errors"
+
 // Point types.
 
 type projP1xP1 struct {
@@ -34,6 +36,8 @@ type projP2 struct {
 //
 // The zero value is NOT valid, and it may be used only as a receiver.
 type Point struct {
+	// The point is internally represented in extended coordinates (X, Y, Z, T)
+	// where x = X/Z, y = Y/Z, and xy = T/Z per https://eprint.iacr.org/2008/522.
 	x, y, z, t fieldElement
 
 	// Make the type not comparable with bradfitz's device, since equal points
@@ -110,6 +114,72 @@ func (v *affineCached) Zero() *affineCached {
 func (v *Point) Set(u *Point) *Point {
 	*v = *u
 	return v
+}
+
+// Encoding.
+
+// Bytes returns the canonical 32 bytes encoding of v, according to RFC 8032,
+// Section 5.1.2.
+func (v *Point) Bytes() []byte {
+	var recip, x, y fieldElement
+	recip.Invert(&v.z)
+	x.Multiply(&v.x, &recip) // x = X / Z
+	y.Multiply(&v.y, &recip) // y = Y / Z
+
+	out := y.Bytes()
+	out[31] |= byte(x.IsNegative() << 7)
+	return out
+}
+
+// SetBytes sets v = x, where x is a 32 bytes encoding of v. If x does not
+// represent a valid point on the curve, SetBytes returns nil and an error and
+// the receiver is unchanged. Otherwise, SetBytes returns v.
+//
+// Note that SetBytes accepts all non-canonical encodings of valid points.
+// That is, it follows decoding rules that match most implementations in
+// the ecosystem rather than RFC 8032.
+func (v *Point) SetBytes(x []byte) (*Point, error) {
+	// Specifically, the non-canonical encodings that are accepted are
+	//   1) the ones where the field element is not reduced (see the
+	//      (*fieldElement).SetBytes docs) and
+	//   2) the ones where the x-coordinate is zero and the sign bit is set.
+	//
+	// This is consistent with crypto/ed25519/internal/edwards25519. Read more
+	// at https://hdevalence.ca/blog/2020-10-04-its-25519am, specifically the
+	// "Canonical A, R" section.
+
+	if len(x) != 32 {
+		return nil, errors.New("edwards25519: invalid point encoding length")
+	}
+	y := (&fieldElement{}).SetBytes(x)
+
+	// -x² + y² = 1 + dx²y²
+	// x² + dx²y² = x²(dy² + 1) = y² - 1
+	// x² = (y² - 1) / (dy² + 1)
+
+	// u = y² - 1
+	y2 := (&fieldElement{}).Square(y)
+	u := (&fieldElement{}).Subtract(y2, feOne)
+
+	// v = dy² + 1
+	vv := (&fieldElement{}).Multiply(y2, d)
+	vv = vv.Add(vv, feOne)
+
+	// x = +√(u/v)
+	xx, wasSquare := (&fieldElement{}).SqrtRatio(u, vv)
+	if wasSquare == 0 {
+		return nil, errors.New("edwards25519: invalid point encoding")
+	}
+
+	// Select the negative square root if the sign bit is set.
+	xx = xx.condNeg(xx, int(x[31]>>7))
+
+	v.x.Set(xx)
+	v.y.Set(y)
+	v.z.One()
+	v.t.Multiply(xx, y) // xy = T / Z
+
+	return v, nil
 }
 
 // Conversions.
