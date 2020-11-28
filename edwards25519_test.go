@@ -266,6 +266,38 @@ func TestNonCanonicalPoints(t *testing.T) {
 	}
 }
 
+// TestBytesMontgomery tests the SetBytesWithClamping+BytesMontgomery path
+// equivalence to X25519. (Note that you intentionally can't actually implement
+// full X25519 with this package because there is no SetBytesMontgomery.)
+// Disabled to avoid the golang.org/x/crypto module dependency.
+/* func TestBytesMontgomery(t *testing.T) {
+	f := func(scalar [32]byte) bool {
+		s := NewScalar().SetBytesWithClamping(scalar[:])
+		p := (&Point{}).ScalarBaseMult(s)
+		got := p.BytesMontgomery()
+		want, _ := curve25519.X25519(scalar[:], curve25519.Basepoint)
+		return bytes.Equal(got, want)
+	}
+	if err := quick.Check(f, nil); err != nil {
+		t.Error(err)
+	}
+} */
+
+func TestBytesMontgomerySodium(t *testing.T) {
+	// Generated with libsodium.js 1.0.18
+	// crypto_sign_keypair().publicKey
+	publicKey := "3bf918ffc2c955dc895bf145f566fb96623c1cadbe040091175764b5fde322c0"
+	p, err := (&Point{}).SetBytes(decodeHex(publicKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// crypto_sign_ed25519_pk_to_curve25519(publicKey)
+	want := "efc6c9d0738e9ea18d738ad4a2653631558931b0f1fde4dd58c436d19686dc28"
+	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func decodeHex(s string) []byte {
 	b, err := hex.DecodeString(s)
 	if err != nil {

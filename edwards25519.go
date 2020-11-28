@@ -182,6 +182,29 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	return v, nil
 }
 
+// BytesMontgomery converts v to a point on the birationally-equivalent
+// Curve25519 Montgomery curve, and returns its canonical 32 bytes encoding
+// according to RFC 7748.
+//
+// Note that BytesMontgomery only encodes the u-coordinate, so v and -v encode
+// to the same value.
+func (v *Point) BytesMontgomery() []byte {
+	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
+	// Montgomery u-coordinate
+	//
+	// 		u = (1 + y) / (1 - y)
+	//
+	// where y = Y / Z.
+
+	var y, recip, u fieldElement
+
+	y.Multiply(&v.y, y.Invert(&v.z))        // y = Y / Z
+	recip.Invert(recip.Subtract(feOne, &y)) // r = 1/(1 - y)
+	u.Multiply(u.Add(feOne, &y), &recip)    // u = (1 + y)*r
+
+	return u.Bytes()
+}
+
 // Conversions.
 
 func (v *projP2) FromP1xP1(p *projP1xP1) *projP2 {
