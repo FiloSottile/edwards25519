@@ -56,7 +56,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 	f1 := func(in [32]byte, sc Scalar) bool {
 		// Mask out top 4 bits to guarantee value falls in [0, l).
 		in[len(in)-1] &= (1 << 4) - 1
-		if err := sc.SetCanonicalBytes(in[:]); err != nil {
+		if _, err := sc.SetCanonicalBytes(in[:]); err != nil {
 			return false
 		}
 		return bytes.Equal(in[:], sc.Bytes()) && isReduced(&sc)
@@ -66,7 +66,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 	}
 
 	f2 := func(sc1, sc2 Scalar) bool {
-		if err := sc2.SetCanonicalBytes(sc1.Bytes()); err != nil {
+		if _, err := sc2.SetCanonicalBytes(sc1.Bytes()); err != nil {
 			return false
 		}
 		return sc1 == sc2
@@ -78,10 +78,12 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 	b := scMinusOne.s
 	b[31] += 1
 	s := scOne
-	if err := s.SetCanonicalBytes(b[:]); err == nil {
+	if out, err := s.SetCanonicalBytes(b[:]); err == nil {
 		t.Errorf("SetCanonicalBytes worked on a non-canonical value")
 	} else if s != scOne {
 		t.Errorf("SetCanonicalBytes modified its receiver")
+	} else if out != nil {
+		t.Errorf("SetCanonicalBytes did not return nil with an error")
 	}
 }
 
