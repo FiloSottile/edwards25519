@@ -405,6 +405,30 @@ func (v *Point) Equal(u *Point) int {
 	return t1.Equal(&t2) & t3.Equal(&t4)
 }
 
+// EqualCofactor returns 1 if v and u are equal up to cofactor multiplication
+// (i.e. if their difference is of small order).
+func (v *Point) EqualCofactor(u *Point) int {
+	var t1 projCached
+	var t2 projP1xP1
+	var t3 projP2
+
+	t1.FromP3(u)
+	t2.Sub(v, &t1)    // t2 =    (P - Q)
+	t3.FromP1xP1(&t2) // t3 =    (P - Q)
+	t2.Double(&t3)    // t2 = [2](P - Q)
+	t3.FromP1xP1(&t2) // t3 = [2](P - Q)
+	t2.Double(&t3)    // t2 = [4](P - Q)
+	t3.FromP1xP1(&t2) // t3 = [4](P - Q)
+	t2.Double(&t3)    // t2 = [8](P - Q)
+	t3.FromP1xP1(&t2) // t3 = [8](P - Q)
+
+	// Now we want to check whether the point t3 is the identity.
+	// In projective coordinates this is (X:Y:Z) ~ (0:1:0)
+	// ie. X/Z = 0, Y/Z = 1
+	// <=> X = 0, Y = Z
+	return t3.X.Equal(feZero) & t3.Y.Equal(&t3.Z)
+}
+
 // Constant-time operations
 
 // Select sets v to a if cond == 1 and to b if cond == 0.
