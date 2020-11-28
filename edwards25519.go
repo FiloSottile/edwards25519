@@ -135,7 +135,7 @@ func (v *Point) bytes(buf *[32]byte) []byte {
 
 	out := y.bytes(buf)
 	out[31] |= byte(x.IsNegative() << 7)
-	return out[:]
+	return out
 }
 
 // SetBytes sets v = x, where x is a 32 bytes encoding of v. If x does not
