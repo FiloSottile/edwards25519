@@ -41,32 +41,34 @@ func NewScalar() *Scalar {
 	return &Scalar{}
 }
 
+// MultiplyAdd sets s = x * y + z mod l, and returns s.
+func (s *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
+	scMulAdd(&s.s, &x.s, &y.s, &z.s)
+	return s
+}
+
 // Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
-	scMulAdd(&s.s, &scOne.s, &x.s, &y.s)
-	return s
+	return s.MultiplyAdd(&scOne, x, y)
 }
 
 // Subtract sets s = x - y mod l, and returns s.
 func (s *Scalar) Subtract(x, y *Scalar) *Scalar {
 	// s = -1 * y + x mod l
-	scMulAdd(&s.s, &scMinusOne.s, &y.s, &x.s)
-	return s
+	return s.MultiplyAdd(&scMinusOne, y, x)
 }
 
 // Negate sets s = -x mod l, and returns s.
 func (s *Scalar) Negate(x *Scalar) *Scalar {
 	// s = -1 * x + 0 mod l
-	scMulAdd(&s.s, &scMinusOne.s, &x.s, &scZero.s)
-	return s
+	return s.MultiplyAdd(&scMinusOne, x, &scZero)
 }
 
 // Multiply sets s = x * y mod l, and returns s.
 func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	// s = x * y + 0 mod l
-	scMulAdd(&s.s, &x.s, &y.s, &scZero.s)
-	return s
+	return s.MultiplyAdd(x, y, &scZero)
 }
 
 // Set sets s = x, and returns s.
