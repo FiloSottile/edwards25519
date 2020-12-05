@@ -298,6 +298,14 @@ func TestBytesMontgomerySodium(t *testing.T) {
 	}
 }
 
+func TestBytesMontgomeryInfinity(t *testing.T) {
+	p := NewIdentityPoint()
+	want := "0000000000000000000000000000000000000000000000000000000000000000"
+	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func decodeHex(s string) []byte {
 	b, err := hex.DecodeString(s)
 	if err != nil {

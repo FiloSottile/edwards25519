@@ -133,7 +133,7 @@ func (v *fieldElement) Negate(a *fieldElement) *fieldElement {
 
 // Invert sets v = 1/z mod p, and returns v.
 //
-// TODO: what if z is zero?
+// If z == 0, Invert returns v = 0.
 func (v *fieldElement) Invert(z *fieldElement) *fieldElement {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
 	// same sequence of 255 squarings and 11 multiplications as [Curve25519].

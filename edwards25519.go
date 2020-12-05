@@ -194,7 +194,8 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 // according to RFC 7748.
 //
 // Note that BytesMontgomery only encodes the u-coordinate, so v and -v encode
-// to the same value.
+// to the same value. If v is the identity point, BytesMontgomery returns 32
+// zero bytes, analogously to the X25519 function.
 func (v *Point) BytesMontgomery() []byte {
 	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
 	// Montgomery u-coordinate

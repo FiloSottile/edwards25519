@@ -394,6 +394,14 @@ func TestInvert(t *testing.T) {
 	if one != r {
 		t.Errorf("random inversion identity failed, got: %x for field element %x", r, x)
 	}
+
+	zero := fieldElement{}
+	x.Set(&zero)
+	if xx := xinv.Invert(&x); xx != &xinv {
+		t.Errorf("inverting zero did not return the receiver")
+	} else if xinv.Equal(&zero) != 1 {
+		t.Errorf("inverting zero did not return zero")
+	}
 }
 
 func TestSelectSwap(t *testing.T) {
