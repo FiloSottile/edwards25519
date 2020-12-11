@@ -21,8 +21,7 @@ type fieldElement struct {
 	// An element t represents the integer
 	//     t.l0 + t.l1*2^51 + t.l2*2^102 + t.l3*2^153 + t.l4*2^204
 	//
-	// Between operations, all limbs are expected to be lower than 2^51, except
-	// l0, which can be up to 2^51 + 2^13 * 19 due to carry propagation.
+	// Between operations, all limbs are expected to be lower than 2^52.
 	l0 uint64
 	l1 uint64
 	l2 uint64

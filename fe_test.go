@@ -93,10 +93,10 @@ func (fieldElement) Generate(rand *mathrand.Rand, size int) reflect.Value {
 // after a light reduction.
 func isInBounds(x *fieldElement) bool {
 	return bits.Len64(x.l0) <= 52 &&
-		bits.Len64(x.l1) <= 51 &&
-		bits.Len64(x.l2) <= 51 &&
-		bits.Len64(x.l3) <= 51 &&
-		bits.Len64(x.l4) <= 51
+		bits.Len64(x.l1) <= 52 &&
+		bits.Len64(x.l2) <= 52 &&
+		bits.Len64(x.l3) <= 52 &&
+		bits.Len64(x.l4) <= 52
 }
 
 func TestMulDistributesOverAdd(t *testing.T) {
@@ -431,14 +431,6 @@ func TestSelectSwap(t *testing.T) {
 }
 
 func TestMul32(t *testing.T) {
-	isAlmostInBounds := func(x *fieldElement) bool {
-		return bits.Len64(x.l0) <= 52 &&
-			bits.Len64(x.l1) <= 52 &&
-			bits.Len64(x.l2) <= 52 &&
-			bits.Len64(x.l3) <= 52 &&
-			bits.Len64(x.l4) <= 52
-	}
-
 	mul32EquivalentToMul := func(x fieldElement, y uint32) bool {
 		t1 := new(fieldElement)
 		for i := 0; i < 100; i++ {
@@ -453,7 +445,7 @@ func TestMul32(t *testing.T) {
 			t2.Multiply(&x, ty)
 		}
 
-		return t1.Equal(t2) == 1 && isAlmostInBounds(t1) && isInBounds(t2)
+		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
 
 	if err := quick.Check(mul32EquivalentToMul, quickCheckConfig1024); err != nil {
@@ -537,5 +529,9 @@ func TestCarryPropagate(t *testing.T) {
 
 	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
 		t.Error(err)
+	}
+
+	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
+		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
 	}
 }
