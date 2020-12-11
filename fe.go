@@ -51,19 +51,14 @@ func (v *fieldElement) One() *fieldElement {
 	return v
 }
 
-// carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits. It is split in
-// two because of the inliner heuristics. The two functions MUST be called one
-// after the other.
-func (v *fieldElement) carryPropagate1() *fieldElement {
+// carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits.
+func (v *fieldElement) carryPropagate() *fieldElement {
 	v.l1 += v.l0 >> 51
 	v.l0 &= maskLow51Bits
 	v.l2 += v.l1 >> 51
 	v.l1 &= maskLow51Bits
 	v.l3 += v.l2 >> 51
 	v.l2 &= maskLow51Bits
-	return v
-}
-func (v *fieldElement) carryPropagate2() *fieldElement {
 	v.l4 += v.l3 >> 51
 	v.l3 &= maskLow51Bits
 	v.l0 += (v.l4 >> 51) * 19
@@ -73,7 +68,7 @@ func (v *fieldElement) carryPropagate2() *fieldElement {
 
 // reduce reduces v modulo 2^255 - 19 and returns it.
 func (v *fieldElement) reduce() *fieldElement {
-	v.carryPropagate1().carryPropagate2()
+	v.carryPropagate()
 
 	// After the light reduction we now have a field element representation
 	// v < 2^255 + 2^13 * 19, but need v < 2^255 - 19.
@@ -111,7 +106,7 @@ func (v *fieldElement) Add(a, b *fieldElement) *fieldElement {
 	v.l2 = a.l2 + b.l2
 	v.l3 = a.l3 + b.l3
 	v.l4 = a.l4 + b.l4
-	return v.carryPropagate1().carryPropagate2()
+	return v.carryPropagate()
 }
 
 // Subtract sets v = a - b, and returns v.
@@ -123,7 +118,7 @@ func (v *fieldElement) Subtract(a, b *fieldElement) *fieldElement {
 	v.l2 = (a.l2 + 0xFFFFFFFFFFFFE) - b.l2
 	v.l3 = (a.l3 + 0xFFFFFFFFFFFFE) - b.l3
 	v.l4 = (a.l4 + 0xFFFFFFFFFFFFE) - b.l4
-	return v.carryPropagate1().carryPropagate2()
+	return v.carryPropagate()
 }
 
 // Negate sets v = -a, and returns v.
