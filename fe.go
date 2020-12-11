@@ -51,21 +51,6 @@ func (v *fieldElement) One() *fieldElement {
 	return v
 }
 
-// carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits.
-func (v *fieldElement) carryPropagate() *fieldElement {
-	v.l1 += v.l0 >> 51
-	v.l0 &= maskLow51Bits
-	v.l2 += v.l1 >> 51
-	v.l1 &= maskLow51Bits
-	v.l3 += v.l2 >> 51
-	v.l2 &= maskLow51Bits
-	v.l4 += v.l3 >> 51
-	v.l3 &= maskLow51Bits
-	v.l0 += (v.l4 >> 51) * 19
-	v.l4 &= maskLow51Bits
-	return v
-}
-
 // reduce reduces v modulo 2^255 - 19 and returns it.
 func (v *fieldElement) reduce() *fieldElement {
 	v.carryPropagate()
@@ -106,7 +91,11 @@ func (v *fieldElement) Add(a, b *fieldElement) *fieldElement {
 	v.l2 = a.l2 + b.l2
 	v.l3 = a.l3 + b.l3
 	v.l4 = a.l4 + b.l4
-	return v.carryPropagate()
+	// Using the generic implementation here is actually faster than the
+	// assembly. Probably because the body of this function is so simple that
+	// the compiler can figure out better optimizations by inlining the carry
+	// propagation.
+	return v.carryPropagateGeneric()
 }
 
 // Subtract sets v = a - b, and returns v.
