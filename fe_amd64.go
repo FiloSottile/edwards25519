@@ -11,3 +11,7 @@ func feMul(out, a, b *fieldElement)
 
 //go:noescape
 func feSquare(out, x *fieldElement)
+
+func (v *fieldElement) carryPropagate() *fieldElement {
+	return v.carryPropagateGeneric()
+}
