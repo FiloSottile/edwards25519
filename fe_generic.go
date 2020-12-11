@@ -178,17 +178,20 @@ func feSquareGeneric(v, x *fieldElement) {
 	v.carryPropagate()
 }
 
-// carryPropagate brings the limbs below 52, 51, 51, 51, 51 bits.
+// carryPropagate brings the limbs below 52 bits by applying the reduction
+// identity to the l4 carry.
 func (v *fieldElement) carryPropagateGeneric() *fieldElement {
-	v.l1 += v.l0 >> 51
-	v.l0 &= maskLow51Bits
-	v.l2 += v.l1 >> 51
-	v.l1 &= maskLow51Bits
-	v.l3 += v.l2 >> 51
-	v.l2 &= maskLow51Bits
-	v.l4 += v.l3 >> 51
-	v.l3 &= maskLow51Bits
-	v.l0 += (v.l4 >> 51) * 19
-	v.l4 &= maskLow51Bits
+	c0 := v.l0 >> 51
+	c1 := v.l1 >> 51
+	c2 := v.l2 >> 51
+	c3 := v.l3 >> 51
+	c4 := v.l4 >> 51
+
+	v.l0 = v.l0&maskLow51Bits + c4*19
+	v.l1 = v.l1&maskLow51Bits + c0
+	v.l2 = v.l2&maskLow51Bits + c1
+	v.l3 = v.l3&maskLow51Bits + c2
+	v.l4 = v.l4&maskLow51Bits + c3
+
 	return v
 }
