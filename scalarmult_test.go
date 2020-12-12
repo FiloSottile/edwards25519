@@ -32,12 +32,14 @@ func TestScalarMultSmallScalars(t *testing.T) {
 	if I.Equal(&p) != 1 {
 		t.Error("0*B != 0")
 	}
+	checkOnCurve(t, &p)
 
 	z = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 	p.ScalarMult(&z, B)
 	if B.Equal(&p) != 1 {
 		t.Error("1*B != 1")
 	}
+	checkOnCurve(t, &p)
 }
 
 func TestScalarMultVsDalek(t *testing.T) {
@@ -46,6 +48,7 @@ func TestScalarMultVsDalek(t *testing.T) {
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("Scalar mul does not match dalek")
 	}
+	checkOnCurve(t, &p)
 }
 
 func TestBasepointMulVsDalek(t *testing.T) {
@@ -54,6 +57,7 @@ func TestBasepointMulVsDalek(t *testing.T) {
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("Scalar mul does not match dalek")
 	}
+	checkOnCurve(t, &p)
 }
 
 func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
@@ -63,10 +67,12 @@ func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with b=0")
 	}
+	checkOnCurve(t, &p)
 	p.VarTimeDoubleScalarBaseMult(&z, B, &dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
 		t.Error("VartimeDoubleBaseMul fails with a=0")
 	}
+	checkOnCurve(t, &p)
 }
 
 func TestScalarMulDistributesOverAdd(t *testing.T) {
@@ -78,6 +84,7 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		q.ScalarMult(&y, B)
 		r.ScalarMult(&z, B)
 		check.Add(&p, &q)
+		checkOnCurve(t, &p, &q, &r, &check)
 		return check.Equal(&r) == 1
 	}
 
@@ -111,6 +118,7 @@ func TestBasepointTableGeneration(t *testing.T) {
 		}
 		tmp1.Double(tmp2)
 		tmp3.fromP1xP1(tmp1)
+		checkOnCurve(t, tmp3)
 	}
 }
 
@@ -119,6 +127,7 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		var p, q Point
 		p.ScalarMult(&x, B)
 		q.ScalarBaseMult(&x)
+		checkOnCurve(t, &p, &q)
 		return p.Equal(&q) == 1
 	}
 
@@ -138,6 +147,7 @@ func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		q3.ScalarBaseMult(&z)
 		check.Add(&q1, &q2).Add(&check, &q3)
 
+		checkOnCurve(t, &p, &check, &q1, &q2, &q3)
 		return p.Equal(&check) == 1
 	}
 
@@ -165,6 +175,7 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		q2.ScalarBaseMult(&y)
 		check.Add(&q1, &q2)
 
+		checkOnCurve(t, &p, &check, &q1, &q2)
 		return p.Equal(&check) == 1
 	}
 
@@ -184,6 +195,7 @@ func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
 		q3.ScalarBaseMult(&z)
 		check.Add(&q1, &q2).Add(&check, &q3)
 
+		checkOnCurve(t, &p, &check, &q1, &q2, &q3)
 		return p.Equal(&check) == 1
 	}
 

@@ -13,28 +13,30 @@ import (
 var B = NewGeneratorPoint()
 var I = NewIdentityPoint()
 
-func checkOnCurve(t *testing.T, p *Point) {
+func checkOnCurve(t *testing.T, points ...*Point) {
 	t.Helper()
-	var XX, YY, ZZ, ZZZZ fieldElement
-	XX.Square(&p.x)
-	YY.Square(&p.y)
-	ZZ.Square(&p.z)
-	ZZZZ.Square(&ZZ)
-	// -x² + y² = 1 + dx²y²
-	// -(X/Z)² + (Y/Z)² = 1 + d(X/Z)²(Y/Z)²
-	// (-X² + Y²)/Z² = 1 + (dX²Y²)/Z⁴
-	// (-X² + Y²)*Z² = Z⁴ + dX²Y²
-	var lhs, rhs fieldElement
-	lhs.Subtract(&YY, &XX).Multiply(&lhs, &ZZ)
-	rhs.Multiply(d, &XX).Multiply(&rhs, &YY).Add(&rhs, &ZZZZ)
-	if lhs.Equal(&rhs) != 1 {
-		t.Errorf("X, Y, and Z do not specify a point on the curve\nX = %v\nY = %v\nZ = %v", p.x, p.y, p.z)
-	}
-	// xy = T/Z
-	lhs.Multiply(&p.x, &p.y)
-	rhs.Multiply(&p.z, &p.t)
-	if lhs.Equal(&rhs) != 1 {
-		t.Errorf("T is not valid\nX = %v\nY = %v\nZ = %v", p.x, p.y, p.z)
+	for i, p := range points {
+		var XX, YY, ZZ, ZZZZ fieldElement
+		XX.Square(&p.x)
+		YY.Square(&p.y)
+		ZZ.Square(&p.z)
+		ZZZZ.Square(&ZZ)
+		// -x² + y² = 1 + dx²y²
+		// -(X/Z)² + (Y/Z)² = 1 + d(X/Z)²(Y/Z)²
+		// (-X² + Y²)/Z² = 1 + (dX²Y²)/Z⁴
+		// (-X² + Y²)*Z² = Z⁴ + dX²Y²
+		var lhs, rhs fieldElement
+		lhs.Subtract(&YY, &XX).Multiply(&lhs, &ZZ)
+		rhs.Multiply(d, &XX).Multiply(&rhs, &YY).Add(&rhs, &ZZZZ)
+		if lhs.Equal(&rhs) != 1 {
+			t.Errorf("X, Y, and Z do not specify a point on the curve\nX = %v\nY = %v\nZ = %v", p.x, p.y, p.z)
+		}
+		// xy = T/Z
+		lhs.Multiply(&p.x, &p.y)
+		rhs.Multiply(&p.z, &p.t)
+		if lhs.Equal(&rhs) != 1 {
+			t.Errorf("point %d is not valid\nX = %v\nY = %v\nZ = %v", i, p.x, p.y, p.z)
+		}
 	}
 }
 
@@ -73,6 +75,7 @@ func TestAddSubNegOnBasePoint(t *testing.T) {
 	if I.Equal(checkRhs) != 1 {
 		t.Error("B + (-B) != 0")
 	}
+	checkOnCurve(t, checkLhs, checkRhs, Bneg)
 }
 
 func TestComparable(t *testing.T) {
@@ -250,18 +253,17 @@ func TestNonCanonicalPoints(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error decoding non-canonical point: %v", err)
 			}
-			checkOnCurve(t, p1)
 			p2, err := (&Point{}).SetBytes(decodeHex(tt.canonical))
 			if err != nil {
 				t.Fatalf("error decoding canonical point: %v", err)
 			}
-			checkOnCurve(t, p2)
 			if p1.Equal(p2) != 1 {
 				t.Errorf("equivalent points are not equal: %v, %v", p1, p2)
 			}
 			if encoding := hex.EncodeToString(p1.Bytes()); encoding != tt.canonical {
 				t.Errorf("re-encoding does not match canonical; got %q, expected %q", encoding, tt.canonical)
 			}
+			checkOnCurve(t, p1, p2)
 		})
 	}
 }
