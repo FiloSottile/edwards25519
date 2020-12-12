@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"reflect"
 	"testing"
+	"testing/quick"
 )
 
 var B = NewGeneratorPoint()
@@ -305,6 +306,49 @@ func TestBytesMontgomeryInfinity(t *testing.T) {
 	want := "0000000000000000000000000000000000000000000000000000000000000000"
 	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestMultByCofactor(t *testing.T) {
+	lowOrderBytes := "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85"
+	lowOrder, err := (&Point{}).SetBytes(decodeHex(lowOrderBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if p := (&Point{}).MultByCofactor(lowOrder); p.Equal(NewIdentityPoint()) != 1 {
+		t.Errorf("expected low order point * cofactor to be the identity")
+	}
+
+	f := func(scalar [64]byte) bool {
+		s := NewScalar().SetUniformBytes(scalar[:])
+		p := (&Point{}).ScalarBaseMult(s)
+		p8 := (&Point{}).MultByCofactor(p)
+		checkOnCurve(t, p8)
+
+		// 8 * p == (8 * s) * B
+		s.Multiply(s, &Scalar{[32]byte{8}})
+		pp := (&Point{}).ScalarBaseMult(s)
+		if p8.Equal(pp) != 1 {
+			return false
+		}
+
+		// 8 * p == 8 * (lowOrder + p)
+		pp.Add(p, lowOrder)
+		pp.MultByCofactor(pp)
+		if p8.Equal(pp) != 1 {
+			return false
+		}
+
+		// 8 * p == p + p + p + p + p + p + p + p
+		pp.Set(NewIdentityPoint())
+		for i := 0; i < 8; i++ {
+			pp.Add(pp, p)
+		}
+		return p8.Equal(pp) == 1
+	}
+	if err := quick.Check(f, nil); err != nil {
+		t.Error(err)
 	}
 }
 

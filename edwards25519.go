@@ -391,6 +391,18 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 	return v
 }
 
+// MultByCofactor sets v = 8 * p, and returns v.
+func (v *Point) MultByCofactor(p *Point) *Point {
+	result := projP1xP1{}
+	pp := (&projP2{}).FromP3(p)
+	result.Double(pp)
+	pp.FromP1xP1(&result)
+	result.Double(pp)
+	pp.FromP1xP1(&result)
+	result.Double(pp)
+	return v.fromP1xP1(&result)
+}
+
 // Negation.
 
 // Negate sets v = -p, and returns v.
