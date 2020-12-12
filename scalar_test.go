@@ -6,6 +6,7 @@ package edwards25519
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/big"
 	mathrand "math/rand"
 	"reflect"
@@ -101,6 +102,36 @@ func TestScalarSetUniformBytes(t *testing.T) {
 	}
 	if err := quick.Check(f, quickCheckConfig1024); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestScalarSetBytesWithClamping(t *testing.T) {
+	// Generated with libsodium.js 1.0.18 crypto_scalarmult_base.
+	// Replace with crypto_scalarmult_ed25519_base vectors once
+	// https://github.com/jedisct1/libsodium.js/issues/256 is fixed.
+
+	random := "633d368491364dc9cd4c1bf891b1d59460face1644813240a313e61f2c88216e"
+	s := (&Scalar{}).SetBytesWithClamping(decodeHex(random))
+	p := (&Point{}).ScalarBaseMult(s)
+	want := "f39e4e2953998c47237364569fa7356ce4d22f9ae51aa8bb40d088fff7c38057"
+	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
+		t.Errorf("random: got %q, want %q", got, want)
+	}
+
+	zero := "0000000000000000000000000000000000000000000000000000000000000000"
+	s = (&Scalar{}).SetBytesWithClamping(decodeHex(zero))
+	p = (&Point{}).ScalarBaseMult(s)
+	want = "2fe57da347cd62431528daac5fbb290730fff684afc4cfc2ed90995f58cb3b74"
+	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
+		t.Errorf("zero: got %q, want %q", got, want)
+	}
+
+	one := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	s = (&Scalar{}).SetBytesWithClamping(decodeHex(one))
+	p = (&Point{}).ScalarBaseMult(s)
+	want = "847c0d2c375234f365e660955187a3735a0f7613d1609d3a6a4d8c53aeaa5a22"
+	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
+		t.Errorf("one: got %q, want %q", got, want)
 	}
 }
 
