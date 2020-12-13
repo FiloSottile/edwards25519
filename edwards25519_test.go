@@ -344,18 +344,16 @@ func TestMultByCofactor(t *testing.T) {
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
-	b := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p := NewIdentityPoint()
-			p.Add(p, NewGeneratorPoint())
-			s := NewScalar()
-			testAllocationsSink ^= s.Bytes()[0]
-			testAllocationsSink ^= p.Bytes()[0]
-			testAllocationsSink ^= p.BytesMontgomery()[0]
-		}
+	allocs := testing.AllocsPerRun(100, func() {
+		p := NewIdentityPoint()
+		p.Add(p, NewGeneratorPoint())
+		s := NewScalar()
+		testAllocationsSink ^= s.Bytes()[0]
+		testAllocationsSink ^= p.Bytes()[0]
+		testAllocationsSink ^= p.BytesMontgomery()[0]
 	})
-	if b.AllocsPerOp() != 0 {
-		t.Errorf("expected zero allocations, got:\n%v", b.MemString())
+	if allocs := int(allocs); allocs != 0 {
+		t.Errorf("expected zero allocations, got %d", allocs)
 	}
 }
 
