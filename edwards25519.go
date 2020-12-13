@@ -133,7 +133,7 @@ func (v *Point) bytes(buf *[32]byte) []byte {
 	x.Multiply(&v.x, &recip) // x = X / Z
 	y.Multiply(&v.y, &recip) // y = Y / Z
 
-	out := y.bytes(buf)
+	out := copyFieldElement(buf, &y)
 	out[31] |= byte(x.IsNegative() << 7)
 	return out
 }
@@ -197,6 +197,13 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 // to the same value. If v is the identity point, BytesMontgomery returns 32
 // zero bytes, analogously to the X25519 function.
 func (v *Point) BytesMontgomery() []byte {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var buf [32]byte
+	return v.bytesMontgomery(&buf)
+}
+
+func (v *Point) bytesMontgomery(buf *[32]byte) []byte {
 	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
 	// Montgomery u-coordinate
 	//
@@ -210,7 +217,13 @@ func (v *Point) BytesMontgomery() []byte {
 	recip.Invert(recip.Subtract(feOne, &y)) // r = 1/(1 - y)
 	u.Multiply(u.Add(feOne, &y), &recip)    // u = (1 + y)*r
 
-	return u.Bytes()
+	return copyFieldElement(buf, &u)
+}
+
+func copyFieldElement(buf *[32]byte, v *fieldElement) []byte {
+	out := v.Bytes()
+	copy(buf[:], out)
+	return buf[:]
 }
 
 // Conversions.
