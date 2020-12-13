@@ -42,31 +42,20 @@ func checkOnCurve(t *testing.T, points ...*Point) {
 }
 
 func TestAddSubNegOnBasePoint(t *testing.T) {
-	Bneg := &Point{}
-	tmpP2 := &projP2{}
-	tmpP1xP1 := &projP1xP1{}
-	tmpCached := &projCached{}
-
-	Bneg.Negate(B)
-
 	checkLhs, checkRhs := &Point{}, &Point{}
 
-	tmpCached.FromP3(B)
-	tmpP1xP1.Add(B, tmpCached)
-	checkLhs.fromP1xP1(tmpP1xP1)
-	tmpP2.FromP3(B)
-	tmpP1xP1.Double(tmpP2)
+	checkLhs.Add(B, B)
+	tmpP2 := (&projP2{}).FromP3(B)
+	tmpP1xP1 := (&projP1xP1{}).Double(tmpP2)
 	checkRhs.fromP1xP1(tmpP1xP1)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B + B != [2]B")
 	}
+	checkOnCurve(t, checkLhs, checkRhs)
 
-	tmpCached.FromP3(B)
-	tmpP1xP1.Sub(B, tmpCached)
-	checkLhs.fromP1xP1(tmpP1xP1)
-	tmpCached.FromP3(Bneg)
-	tmpP1xP1.Add(B, tmpCached)
-	checkRhs.fromP1xP1(tmpP1xP1)
+	checkLhs.Subtract(B, B)
+	Bneg := (&Point{}).Negate(B)
+	checkRhs.Add(B, Bneg)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B - B != B + (-B)")
 	}

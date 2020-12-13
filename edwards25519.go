@@ -55,14 +55,6 @@ type affineCached struct {
 
 // Constructors.
 
-func (v *projP1xP1) Zero() *projP1xP1 {
-	v.X.Zero()
-	v.Y.One()
-	v.Z.One()
-	v.T.One()
-	return v
-}
-
 func (v *projP2) Zero() *projP2 {
 	v.X.Zero()
 	v.Y.One()
@@ -288,22 +280,16 @@ func (v *affineCached) FromP3(p *Point) *affineCached {
 
 // Add sets v = p + q, and returns v.
 func (v *Point) Add(p, q *Point) *Point {
-	result := projP1xP1{}
-	qCached := projCached{}
-	qCached.FromP3(q)
-	result.Add(p, &qCached)
-	v.fromP1xP1(&result)
-	return v
+	qCached := (&projCached{}).FromP3(q)
+	result := (&projP1xP1{}).Add(p, qCached)
+	return v.fromP1xP1(result)
 }
 
 // Subtract sets v = p - q, and returns v.
 func (v *Point) Subtract(p, q *Point) *Point {
-	result := projP1xP1{}
-	qCached := projCached{}
-	qCached.FromP3(q)
-	result.Sub(p, &qCached)
-	v.fromP1xP1(&result)
-	return v
+	qCached := (&projCached{}).FromP3(q)
+	result := (&projP1xP1{}).Sub(p, qCached)
+	return v.fromP1xP1(result)
 }
 
 func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {

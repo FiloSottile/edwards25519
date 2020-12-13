@@ -245,20 +245,6 @@ func (v *fieldElement) bytes(out *[32]byte) []byte {
 	return out[:]
 }
 
-// sliceForAppend extends the input slice by n bytes. head is the full extended
-// slice, while tail is the appended part. If the original slice has sufficient
-// capacity no allocation is performed.
-func sliceForAppend(in []byte, n int) (head, tail []byte) {
-	if total := len(in) + n; cap(in) >= total {
-		head = in[:total]
-	} else {
-		head = make([]byte, total)
-		copy(head, in)
-	}
-	tail = head[len(in):]
-	return
-}
-
 // Equal returns 1 if v and u are equal, and 0 otherwise.
 func (v *fieldElement) Equal(u *fieldElement) int {
 	sa, sv := u.Bytes(), v.Bytes()
@@ -348,68 +334,58 @@ func (v *fieldElement) Mult32(x *fieldElement, y uint32) *fieldElement {
 func (v *fieldElement) Pow22523(x *fieldElement) *fieldElement {
 	var t0, t1, t2 fieldElement
 
-	t0.Square(x)
-	for i := 1; i < 1; i++ {
-		t0.Square(&t0)
-	}
-	t1.Square(&t0)
-	for i := 1; i < 2; i++ {
+	t0.Square(x)             // x^2
+	t1.Square(&t0)           // x^4
+	t1.Square(&t1)           // x^8
+	t1.Multiply(x, &t1)      // x^9
+	t0.Multiply(&t0, &t1)    // x^11
+	t0.Square(&t0)           // x^22
+	t0.Multiply(&t1, &t0)    // x^31
+	t1.Square(&t0)           // x^62
+	for i := 1; i < 5; i++ { // x^992
 		t1.Square(&t1)
 	}
-	t1.Multiply(x, &t1)
-	t0.Multiply(&t0, &t1)
-	t0.Square(&t0)
-	for i := 1; i < 1; i++ {
-		t0.Square(&t0)
-	}
-	t0.Multiply(&t1, &t0)
-	t1.Square(&t0)
-	for i := 1; i < 5; i++ {
+	t0.Multiply(&t1, &t0)     // x^1023 -> 1023 = 2^10 - 1
+	t1.Square(&t0)            // 2^11 - 2
+	for i := 1; i < 10; i++ { // 2^20 - 2^10
 		t1.Square(&t1)
 	}
-	t0.Multiply(&t1, &t0)
-	t1.Square(&t0)
-	for i := 1; i < 10; i++ {
-		t1.Square(&t1)
-	}
-	t1.Multiply(&t1, &t0)
-	t2.Square(&t1)
-	for i := 1; i < 20; i++ {
+	t1.Multiply(&t1, &t0)     // 2^20 - 1
+	t2.Square(&t1)            // 2^21 - 2
+	for i := 1; i < 20; i++ { // 2^40 - 2^20
 		t2.Square(&t2)
 	}
-	t1.Multiply(&t2, &t1)
-	t1.Square(&t1)
-	for i := 1; i < 10; i++ {
+	t1.Multiply(&t2, &t1)     // 2^40 - 1
+	t1.Square(&t1)            // 2^41 - 2
+	for i := 1; i < 10; i++ { // 2^50 - 2^10
 		t1.Square(&t1)
 	}
-	t0.Multiply(&t1, &t0)
-	t1.Square(&t0)
-	for i := 1; i < 50; i++ {
+	t0.Multiply(&t1, &t0)     // 2^50 - 1
+	t1.Square(&t0)            // 2^51 - 2
+	for i := 1; i < 50; i++ { // 2^100 - 2^50
 		t1.Square(&t1)
 	}
-	t1.Multiply(&t1, &t0)
-	t2.Square(&t1)
-	for i := 1; i < 100; i++ {
+	t1.Multiply(&t1, &t0)      // 2^100 - 1
+	t2.Square(&t1)             // 2^101 - 2
+	for i := 1; i < 100; i++ { // 2^200 - 2^100
 		t2.Square(&t2)
 	}
-	t1.Multiply(&t2, &t1)
-	t1.Square(&t1)
-	for i := 1; i < 50; i++ {
+	t1.Multiply(&t2, &t1)     // 2^200 - 1
+	t1.Square(&t1)            // 2^201 - 2
+	for i := 1; i < 50; i++ { // 2^250 - 2^50
 		t1.Square(&t1)
 	}
-	t0.Multiply(&t1, &t0)
-	t0.Square(&t0)
-	for i := 1; i < 2; i++ {
-		t0.Square(&t0)
-	}
-	return v.Multiply(&t0, x)
+	t0.Multiply(&t1, &t0)     // 2^250 - 1
+	t0.Square(&t0)            // 2^251 - 2
+	t0.Square(&t0)            // 2^252 - 4
+	return v.Multiply(&t0, x) // 2^252 - 3 -> x^(2^252-3)
 }
 
 // sqrtM1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
 var sqrtM1 = &fieldElement{1718705420411056, 234908883556509,
 	2233514472574048, 2117202627021982, 765476049583133}
 
-// feSqrtRatio sets r to the non-negative square root of the ratio of u and v.
+// SqrtRatio sets r to the non-negative square root of the ratio of u and v.
 //
 // If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
 // sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
