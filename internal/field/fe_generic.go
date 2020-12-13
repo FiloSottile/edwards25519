@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package edwards25519
+package field
 
-func feMulGeneric(v, x, y *fieldElement) {
-	x0 := x.l0
-	x1 := x.l1
-	x2 := x.l2
-	x3 := x.l3
-	x4 := x.l4
+func feMulGeneric(v, x, y *Element) {
+	x0 := x.L0
+	x1 := x.L1
+	x2 := x.L2
+	x3 := x.L3
+	x4 := x.L4
 
-	y0 := y.l0
-	y1 := y.l1
-	y2 := y.l2
-	y3 := y.l3
-	y4 := y.l4
+	y0 := y.L0
+	y1 := y.L1
+	y2 := y.L2
+	y3 := y.L3
+	y4 := y.L4
 
 	// Reduction can be carried out simultaneously to multiplication. For
 	// example, we do not compute a coefficient r_5 . Whenever the result of a
@@ -100,20 +100,20 @@ func feMulGeneric(v, x, y *fieldElement) {
 	// r_0 to r_1 , from r_1 to r_2 , from r_2 to r_3 , from r_3 to r_4 , and
 	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
 	// right shift by 51, one logical and with 2^51 − 1, and one addition.
-	*v = fieldElement{r00, r10, r20, r30, r40}
+	*v = Element{r00, r10, r20, r30, r40}
 	v.carryPropagate()
 }
 
-func feSquareGeneric(v, x *fieldElement) {
+func feSquareGeneric(v, x *Element) {
 	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
 	// this is combined with multiplication by 19 where possible. The coefficient
 	// reduction after squaring is the same as for multiplication.
 
-	x0 := x.l0
-	x1 := x.l1
-	x2 := x.l2
-	x3 := x.l3
-	x4 := x.l4
+	x0 := x.L0
+	x1 := x.L1
+	x2 := x.L2
+	x3 := x.L3
+	x4 := x.L4
 
 	x0_2 := x0 << 1
 	x1_2 := x1 << 1
@@ -174,24 +174,24 @@ func feSquareGeneric(v, x *fieldElement) {
 	r41 *= 19
 	r00 += r41
 
-	*v = fieldElement{r00, r10, r20, r30, r40}
+	*v = Element{r00, r10, r20, r30, r40}
 	v.carryPropagate()
 }
 
 // carryPropagate brings the limbs below 52 bits by applying the reduction
 // identity to the l4 carry.
-func (v *fieldElement) carryPropagateGeneric() *fieldElement {
-	c0 := v.l0 >> 51
-	c1 := v.l1 >> 51
-	c2 := v.l2 >> 51
-	c3 := v.l3 >> 51
-	c4 := v.l4 >> 51
+func (v *Element) carryPropagateGeneric() *Element {
+	c0 := v.L0 >> 51
+	c1 := v.L1 >> 51
+	c2 := v.L2 >> 51
+	c3 := v.L3 >> 51
+	c4 := v.L4 >> 51
 
-	v.l0 = v.l0&maskLow51Bits + c4*19
-	v.l1 = v.l1&maskLow51Bits + c0
-	v.l2 = v.l2&maskLow51Bits + c1
-	v.l3 = v.l3&maskLow51Bits + c2
-	v.l4 = v.l4&maskLow51Bits + c3
+	v.L0 = v.L0&maskLow51Bits + c4*19
+	v.L1 = v.L1&maskLow51Bits + c0
+	v.L2 = v.L2&maskLow51Bits + c1
+	v.L3 = v.L3&maskLow51Bits + c2
+	v.L4 = v.L4&maskLow51Bits + c3
 
 	return v
 }

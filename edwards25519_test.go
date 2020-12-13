@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 	"testing/quick"
+
+	"filippo.io/edwards25519/internal/field"
 )
 
 var B = NewGeneratorPoint()
@@ -17,7 +19,7 @@ var I = NewIdentityPoint()
 func checkOnCurve(t *testing.T, points ...*Point) {
 	t.Helper()
 	for i, p := range points {
-		var XX, YY, ZZ, ZZZZ fieldElement
+		var XX, YY, ZZ, ZZZZ field.Element
 		XX.Square(&p.x)
 		YY.Square(&p.y)
 		ZZ.Square(&p.z)
@@ -26,7 +28,7 @@ func checkOnCurve(t *testing.T, points ...*Point) {
 		// -(X/Z)² + (Y/Z)² = 1 + d(X/Z)²(Y/Z)²
 		// (-X² + Y²)/Z² = 1 + (dX²Y²)/Z⁴
 		// (-X² + Y²)*Z² = Z⁴ + dX²Y²
-		var lhs, rhs fieldElement
+		var lhs, rhs field.Element
 		lhs.Subtract(&YY, &XX).Multiply(&lhs, &ZZ)
 		rhs.Multiply(d, &XX).Multiply(&rhs, &YY).Add(&rhs, &ZZZZ)
 		if lhs.Equal(&rhs) != 1 {

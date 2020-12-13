@@ -4,7 +4,7 @@
 
 // +build !go1.13
 
-package edwards25519
+package field
 
 import "unsafe"
 

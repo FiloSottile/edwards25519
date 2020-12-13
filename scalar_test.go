@@ -14,6 +14,10 @@ import (
 	"testing/quick"
 )
 
+// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
+// times. The default value of -quickchecks is 100.
+var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
+
 // Generate returns a valid (reduced modulo l) Scalar with a distribution
 // weighted towards high, low, and edge values.
 func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {

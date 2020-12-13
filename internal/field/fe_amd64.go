@@ -4,14 +4,14 @@
 
 // +build amd64,gc,!purego
 
-package edwards25519
+package field
 
 //go:noescape
-func feMul(out, a, b *fieldElement)
+func feMul(out, a, b *Element)
 
 //go:noescape
-func feSquare(out, x *fieldElement)
+func feSquare(out, x *Element)
 
-func (v *fieldElement) carryPropagate() *fieldElement {
+func (v *Element) carryPropagate() *Element {
 	return v.carryPropagateGeneric()
 }

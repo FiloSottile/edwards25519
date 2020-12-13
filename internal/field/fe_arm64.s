@@ -6,7 +6,7 @@
 
 #include "textflag.h"
 
-// func carryPropagate(v *fieldElement)
+// func carryPropagate(v *Element)
 TEXT ·carryPropagate(SB),NOFRAME|NOSPLIT,$0-8
 	MOVD v+0(FP), R20
 

@@ -4,12 +4,12 @@
 
 // +build !amd64,!arm64 !gc purego
 
-package edwards25519
+package field
 
-func feMul(v, x, y *fieldElement) { feMulGeneric(v, x, y) }
+func feMul(v, x, y *Element) { feMulGeneric(v, x, y) }
 
-func feSquare(v, x *fieldElement) { feSquareGeneric(v, x) }
+func feSquare(v, x *Element) { feSquareGeneric(v, x) }
 
-func (v *fieldElement) carryPropagate() *fieldElement {
+func (v *Element) carryPropagate() *Element {
 	return v.carryPropagateGeneric()
 }
