@@ -45,6 +45,14 @@ type Point struct {
 	_ [0]func()
 }
 
+func checkInitialized(points ...*Point) {
+	for _, p := range points {
+		if p.x == (fieldElement{}) && p.y == (fieldElement{}) {
+			panic("edwards25519: use of uninitialized Point")
+		}
+	}
+}
+
 type projCached struct {
 	YplusX, YminusX, Z, T2d fieldElement
 }
@@ -120,6 +128,8 @@ func (v *Point) Bytes() []byte {
 }
 
 func (v *Point) bytes(buf *[32]byte) []byte {
+	checkInitialized(v)
+
 	var recip, x, y fieldElement
 	recip.Invert(&v.z)
 	x.Multiply(&v.x, &recip) // x = X / Z
@@ -196,6 +206,8 @@ func (v *Point) BytesMontgomery() []byte {
 }
 
 func (v *Point) bytesMontgomery(buf *[32]byte) []byte {
+	checkInitialized(v)
+
 	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
 	// Montgomery u-coordinate
 	//
@@ -280,6 +292,7 @@ func (v *affineCached) FromP3(p *Point) *affineCached {
 
 // Add sets v = p + q, and returns v.
 func (v *Point) Add(p, q *Point) *Point {
+	checkInitialized(p, q)
 	qCached := (&projCached{}).FromP3(q)
 	result := (&projP1xP1{}).Add(p, qCached)
 	return v.fromP1xP1(result)
@@ -287,6 +300,7 @@ func (v *Point) Add(p, q *Point) *Point {
 
 // Subtract sets v = p - q, and returns v.
 func (v *Point) Subtract(p, q *Point) *Point {
+	checkInitialized(p, q)
 	qCached := (&projCached{}).FromP3(q)
 	result := (&projP1xP1{}).Sub(p, qCached)
 	return v.fromP1xP1(result)
@@ -392,6 +406,7 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 
 // MultByCofactor sets v = 8 * p, and returns v.
 func (v *Point) MultByCofactor(p *Point) *Point {
+	checkInitialized(p)
 	result := projP1xP1{}
 	pp := (&projP2{}).FromP3(p)
 	result.Double(pp)
@@ -406,6 +421,7 @@ func (v *Point) MultByCofactor(p *Point) *Point {
 
 // Negate sets v = -p, and returns v.
 func (v *Point) Negate(p *Point) *Point {
+	checkInitialized(p)
 	v.x.Negate(&p.x)
 	v.y.Set(&p.y)
 	v.z.Set(&p.z)
@@ -415,6 +431,8 @@ func (v *Point) Negate(p *Point) *Point {
 
 // Equal returns 1 if v is equivalent to u, and 0 otherwise.
 func (v *Point) Equal(u *Point) int {
+	checkInitialized(v, u)
+
 	var t1, t2, t3, t4 fieldElement
 	t1.Multiply(&v.x, &u.z)
 	t2.Multiply(&u.x, &v.z)

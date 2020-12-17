@@ -59,6 +59,8 @@ func (v *Point) ScalarBaseMult(x *Scalar) *Point {
 //
 // The scalar multiplication is done in constant time.
 func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
+	checkInitialized(q)
+
 	var table projLookupTable
 	table.FromP3(q)
 
@@ -101,6 +103,7 @@ func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	if len(scalars) != len(points) {
 		panic("edwards25519: called MultiScalarMult with different size inputs")
 	}
+	checkInitialized(points...)
 
 	// Proceed as in the single-base case, but share doublings
 	// between each point in the multiscalar equation.
@@ -152,6 +155,8 @@ func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 //
 // Execution time depends on the inputs.
 func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Point {
+	checkInitialized(A)
+
 	// Similarly to the single variable-base approach, we compute
 	// digits and use them with a lookup table.  However, because
 	// we are allowed to do variable-time operations, we don't
@@ -228,6 +233,7 @@ func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Poin
 	if len(scalars) != len(points) {
 		panic("edwards25519: called VarTimeMultiScalarMult with different size inputs")
 	}
+	checkInitialized(points...)
 
 	// Generalize double-base NAF computation to arbitrary sizes.
 	// Here all the points are dynamic, so we only use the smaller
