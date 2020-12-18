@@ -393,12 +393,10 @@ var sqrtM1 = &fieldElement{1718705420411056, 234908883556509,
 func (r *fieldElement) SqrtRatio(u, v *fieldElement) (rr *fieldElement, wasSquare int) {
 	var a, b fieldElement
 
-	v3 := a.Multiply(a.Square(v), v)  // v^3 = v^2 * v
-	v7 := b.Multiply(b.Square(v3), v) // v^7 = (v^3)^2 * v
-
 	// r = (u * v3) * (u * v7)^((p-5)/8)
-	uv3 := a.Multiply(u, v3) // (u * v3)
-	uv7 := b.Multiply(u, v7) // (u * v7)
+	v2 := a.Square(v)
+	uv3 := b.Multiply(u, b.Multiply(v2, v))
+	uv7 := a.Multiply(uv3, a.Square(v2))
 	r.Multiply(uv3, r.Pow22523(uv7))
 
 	check := a.Multiply(v, a.Square(r)) // check = v * r^2
