@@ -259,8 +259,13 @@ func TestNonCanonicalPoints(t *testing.T) {
 }
 
 // TestBytesMontgomery tests the SetBytesWithClamping+BytesMontgomery path
-// equivalence to X25519. (Note that you intentionally can't actually implement
-// full X25519 with this package because there is no SetBytesMontgomery.)
+// equivalence to curve25519.X25519 for basepoint scalar multiplications.
+//
+// Note that you can't actually implement X25519 with this package because
+// there is no SetBytesMontgomery, and it would not be possible to implement
+// it properly: points on the twist would get rejected, and the Scalar returned
+// by SetBytesWithClamping does not preserve its cofactor-clearing properties.
+//
 // Disabled to avoid the golang.org/x/crypto module dependency.
 /* func TestBytesMontgomery(t *testing.T) {
 	f := func(scalar [32]byte) bool {
