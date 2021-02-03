@@ -93,6 +93,28 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 	}
 }
 
+func TestScalarMulNonIdentityPoint(t *testing.T) {
+	// Check whether p.ScalarMult and q.ScalaBaseMult give the same,
+	// when p and q are originally set to the base point.
+
+	scalarMulNonIdentityPoint := func(x Scalar) bool {
+		var p, q Point
+		p.Set(B)
+		q.Set(B)
+
+		p.ScalarMult(&x, B)
+		q.ScalarBaseMult(&x)
+
+		checkOnCurve(t, &p, &q)
+
+		return p.Equal(&q) == 1
+	}
+
+	if err := quick.Check(scalarMulNonIdentityPoint, quickCheckConfig32); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestBasepointTableGeneration(t *testing.T) {
 	// The basepoint table is 32 affineLookupTables,
 	// corresponding to (16^2i)*B for table i.

@@ -78,6 +78,8 @@ func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	tmp1 := &projP1xP1{}
 	tmp2 := &projP2{}
 	table.SelectInto(multiple, digits[63])
+
+	v.Set(NewIdentityPoint())
 	tmp1.Add(v, multiple) // tmp1 = x_63*Q in P1xP1 coords
 	for i := 62; i >= 0; i-- {
 		tmp2.FromP1xP1(tmp1) // tmp2 =    (prev) in P2 coords
