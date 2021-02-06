@@ -10,7 +10,6 @@ TEXT ·feMul(SB),$0-24
 	// feMulGeneric, which was originally based on the amd64-51-30k
 	// assembly in SUPERCOP.
 
-	MOVQ out+0(FP), DI
 	MOVQ a+8(FP), BX
 	MOVQ b+16(FP), CX
 
@@ -18,31 +17,31 @@ TEXT ·feMul(SB),$0-24
 	MOVQ 0(BX), AX     // rax <-- x0
 	MULQ 0(CX)         // rdx, rax <-- x0*y0
 	MOVQ AX, SI        // r00 = rax
-	MOVQ DX, BP        // r01 = rdx
+	MOVQ DX, DI        // r01 = rdx
 
 	MOVQ 8(BX), DX     // rdx <-- x1
 	IMUL3Q $19, DX, AX // rax <-- x1*19
 	MULQ 32(CX)        // rdx, rax <-- x1_19*y4
 	ADDQ AX, SI        // r00 += rax
-	ADCQ DX, BP        // r01 += rdx
+	ADCQ DX, DI        // r01 += rdx
 
 	MOVQ 16(BX), DX    // rdx <-- x2
 	IMUL3Q $19, DX, AX // rax <-- x2*19
 	MULQ 24(CX)        // rdx, rax <-- x2_19*y3
 	ADDQ AX, SI        // r00 += rax
-	ADCQ DX, BP        // r01 += rdx
+	ADCQ DX, DI        // r01 += rdx
 
 	MOVQ 24(BX), DX    // rdx <-- x3
 	IMUL3Q $19, DX, AX // rax <-- x3*19
 	MULQ 16(CX)        // rdx, rax <-- x3_19 * y2
 	ADDQ AX, SI        // r00 += rax
-	ADCQ DX, BP        // r01 += rdx
+	ADCQ DX, DI        // r01 += rdx
 
 	MOVQ 32(BX), DX    // rdx <-- x4
 	IMUL3Q $19, DX, AX // rax <-- x4*19
 	MULQ 8(CX)         // rdx rax <-- x4_19*y1
 	ADDQ AX, SI        // r00 += rax
-	ADCQ DX, BP        // r01 += rdx
+	ADCQ DX, DI        // r01 += rdx
 
 	// Calculate r1
 	MOVQ 0(BX), AX
@@ -156,11 +155,11 @@ TEXT ·feMul(SB),$0-24
 
 
 	MOVQ $2251799813685247, AX // (1<<51) - 1
-	SHLQ $13, SI, BP     // r01 = shld with r00
+	SHLQ $13, SI, DI     // r01 = shld with r00
 	ANDQ AX, SI          // r00 &= mask51
 	SHLQ $13, R8, R9     // r11 = shld with r10
 	ANDQ AX, R8          // r10 &= mask51
-	ADDQ BP, R8          // r10 += r01
+	ADDQ DI, R8          // r10 += r01
 	SHLQ $13, R10, R11   // r21 = shld with r20
 	ANDQ AX, R10         // r20 &= mask51
 	ADDQ R9, R10         // r20 += r11
@@ -195,6 +194,7 @@ TEXT ·feMul(SB),$0-24
 	ADDQ DX, SI          // r00 += (r40 >> 51) *19
 	ANDQ AX, R14         // r40 &= mask51
 
+	MOVQ out+0(FP), DI
 	MOVQ SI, 0(DI)
 	MOVQ R8, 8(DI)
 	MOVQ R10, 16(DI)
