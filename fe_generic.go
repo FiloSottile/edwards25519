@@ -6,192 +6,247 @@ package edwards25519
 
 import "math/bits"
 
-func feMulGeneric(v, x, y *fieldElement) {
-	x0 := x.l0
-	x1 := x.l1
-	x2 := x.l2
-	x3 := x.l3
-	x4 := x.l4
+// uint128 holds a 128-bit number as two 64-bit limbs, for use with the
+// bits.Mul64 and bits.Add64 intrinsics.
+type uint128 struct {
+	lo, hi uint64
+}
 
-	y0 := y.l0
-	y1 := y.l1
-	y2 := y.l2
-	y3 := y.l3
-	y4 := y.l4
+// mul64 returns a * b.
+func mul64(a, b uint64) uint128 {
+	hi, lo := bits.Mul64(a, b)
+	return uint128{lo, hi}
+}
 
+// addMul64 returns v + a * b.
+func addMul64(v uint128, a, b uint64) uint128 {
+	hi, lo := bits.Mul64(a, b)
+	lo, c := bits.Add64(lo, v.lo, 0)
+	hi, _ = bits.Add64(hi, v.hi, c)
+	return uint128{lo, hi}
+}
+
+// shiftRightBy51 returns a >> 51. a is assumed to be at most 115 bits.
+func shiftRightBy51(a uint128) uint64 {
+	return (a.hi << (64 - 51)) | (a.lo >> 51)
+}
+
+func feMulGeneric(v, a, b *fieldElement) {
+	a0 := a.l0
+	a1 := a.l1
+	a2 := a.l2
+	a3 := a.l3
+	a4 := a.l4
+
+	b0 := b.l0
+	b1 := b.l1
+	b2 := b.l2
+	b3 := b.l3
+	b4 := b.l4
+
+	// Limb multiplication works like pen-and-paper columnar multiplication, but
+	// with 51-bit limbs instead of digits.
+	//
+	//                          a4   a3   a2   a1   a0  x
+	//                          b4   b3   b2   b1   b0  =
+	//                         ------------------------
+	//                        a4b0 a3b0 a2b0 a1b0 a0b0  +
+	//                   a4b1 a3b1 a2b1 a1b1 a0b1       +
+	//              a4b2 a3b2 a2b2 a1b2 a0b2            +
+	//         a4b3 a3b3 a2b3 a1b3 a0b3                 +
+	//    a4b4 a3b4 a2b4 a1b4 a0b4                      =
+	//   ----------------------------------------------
+	//      r8   r7   r6   r5   r4   r3   r2   r1   r0
+	//
+	// We can then use the reduction identity (a * 2²⁵⁵ + b = a * 19 + b) to
+	// reduce the limbs that would overflow 255 bits. r5 * 2²⁵⁵ becomes 19 * r5,
+	// r6 * 2³⁰⁶ becomes 19 * r6 * 2⁵¹, etc.
+	//
 	// Reduction can be carried out simultaneously to multiplication. For
-	// example, we do not compute a coefficient r_5 . Whenever the result of a
-	// mul instruction belongs to r_5 , for example in the multiplication of
-	// x_3*y_2 , we multiply one of the inputs by 19 and add the result to r_0.
+	// example, we do not compute r5: whenever the result of a multiplication
+	// belongs to r5, like a1b4, we multiply it by 19 and add the result to r0.
+	//
+	//            a4b0    a3b0    a2b0    a1b0    a0b0  +
+	//            a3b1    a2b1    a1b1    a0b1 19×a4b1  +
+	//            a2b2    a1b2    a0b2 19×a4b2 19×a3b2  +
+	//            a1b3    a0b3 19×a4b3 19×a3b3 19×a2b3  +
+	//            a0b4 19×a4b4 19×a3b4 19×a2b4 19×a1b4  =
+	//           --------------------------------------
+	//              r4      r3      r2      r1      r0
+	//
+	// Finally we add up the columns into wide, overlapping limbs.
 
-	x1_19 := x1 * 19
-	x2_19 := x2 * 19
-	x3_19 := x3 * 19
-	x4_19 := x4 * 19
+	a1_19 := a1 * 19
+	a2_19 := a2 * 19
+	a3_19 := a3 * 19
+	a4_19 := a4 * 19
 
-	// calculate r0 = x0*y0 + 19*(x1*y4 + x2*y3 + x3*y2 + x4*y1)
-	r00, r01 := madd64(0, 0, x0, y0)
-	r00, r01 = madd64(r00, r01, x1_19, y4)
-	r00, r01 = madd64(r00, r01, x2_19, y3)
-	r00, r01 = madd64(r00, r01, x3_19, y2)
-	r00, r01 = madd64(r00, r01, x4_19, y1)
+	// r0 = a0×b0 + 19×(a1×b4 + a2×b3 + a3×b2 + a4×b1)
+	r0 := mul64(a0, b0)
+	r0 = addMul64(r0, a1_19, b4)
+	r0 = addMul64(r0, a2_19, b3)
+	r0 = addMul64(r0, a3_19, b2)
+	r0 = addMul64(r0, a4_19, b1)
 
-	// calculate r1 = x0*y1 + x1*y0 + 19*(x2*y4 + x3*y3 + x4*y2)
-	r10, r11 := madd64(0, 0, x0, y1)
-	r10, r11 = madd64(r10, r11, x1, y0)
-	r10, r11 = madd64(r10, r11, x2_19, y4)
-	r10, r11 = madd64(r10, r11, x3_19, y3)
-	r10, r11 = madd64(r10, r11, x4_19, y2)
+	// r1 = a0×b1 + a1×b0 + 19×(a2×b4 + a3×b3 + a4×b2)
+	r1 := mul64(a0, b1)
+	r1 = addMul64(r1, a1, b0)
+	r1 = addMul64(r1, a2_19, b4)
+	r1 = addMul64(r1, a3_19, b3)
+	r1 = addMul64(r1, a4_19, b2)
 
-	// calculate r2 = x0*y2 + x1*y1 + x2*y0 + 19*(x3*y4 + x4*y3)
-	r20, r21 := madd64(0, 0, x0, y2)
-	r20, r21 = madd64(r20, r21, x1, y1)
-	r20, r21 = madd64(r20, r21, x2, y0)
-	r20, r21 = madd64(r20, r21, x3_19, y4)
-	r20, r21 = madd64(r20, r21, x4_19, y3)
+	// r2 = a0×b2 + a1×b1 + a2×b0 + 19×(a3×b4 + a4×b3)
+	r2 := mul64(a0, b2)
+	r2 = addMul64(r2, a1, b1)
+	r2 = addMul64(r2, a2, b0)
+	r2 = addMul64(r2, a3_19, b4)
+	r2 = addMul64(r2, a4_19, b3)
 
-	// calculate r3 = x0*y3 + x1*y2 + x2*y1 + x3*y0 + 19*x4*y4
-	r30, r31 := madd64(0, 0, x0, y3)
-	r30, r31 = madd64(r30, r31, x1, y2)
-	r30, r31 = madd64(r30, r31, x2, y1)
-	r30, r31 = madd64(r30, r31, x3, y0)
-	r30, r31 = madd64(r30, r31, x4_19, y4)
+	// r3 = a0×b3 + a1×b2 + a2×b1 + a3×b0 + 19×a4×b4
+	r3 := mul64(a0, b3)
+	r3 = addMul64(r3, a1, b2)
+	r3 = addMul64(r3, a2, b1)
+	r3 = addMul64(r3, a3, b0)
+	r3 = addMul64(r3, a4_19, b4)
 
-	// calculate r4 = x0*y4 + x1*y3 + x2*y2 + x3*y1 + x4*y0
-	r40, r41 := madd64(0, 0, x0, y4)
-	r40, r41 = madd64(r40, r41, x1, y3)
-	r40, r41 = madd64(r40, r41, x2, y2)
-	r40, r41 = madd64(r40, r41, x3, y1)
-	r40, r41 = madd64(r40, r41, x4, y0)
+	// r4 = a0×b4 + a1×b3 + a2×b2 + a3×b1 + a4×b0
+	r4 := mul64(a0, b4)
+	r4 = addMul64(r4, a1, b3)
+	r4 = addMul64(r4, a2, b2)
+	r4 = addMul64(r4, a3, b1)
+	r4 = addMul64(r4, a4, b0)
 
-	// After the multiplication we need to reduce (carry) the 5 coefficients to
-	// obtain a result with coefficients that are at most slightly larger than
-	// 2^51 . Denote the two registers holding coefficient r_0 as r_00 and r_01
-	// with r_0 = 2^64*r_01 + r_00 . Similarly denote the two registers holding
-	// coefficient r_1 as r_10 and r_11 . We first shift r_01 left by 13, while
-	// shifting in the most significant bits of r_00 (shld instruction) and
-	// then compute the logical and of r_00 with 2^51 − 1. We do the same with
-	// r_10 and r_11 and add r_01 into r_10 after the logical and with 2^51 −
-	// 1. We proceed this way for coefficients r_2,...,r_4; register r_41 is
-	// multiplied by 19 before adding it to r_00 .
+	// After the multiplication, we need to reduce (carry) the five coefficients
+	// to obtain a result with limbs that are at most slightly larger than 2⁵¹,
+	// to respect the fieldElement invariant.
+	//
+	// Overall, the reduction works the same as carryPropagate, except with
+	// wider inputs: we take the carry for each coefficient by shifting it right
+	// by 51, and add it to the limb above it. The top carry is multiplied by 19
+	// according to the reduction identity and added to the lowest limb.
+	//
+	// The largest coefficient (r0) will be at most 111 bits, which guarantees
+	// that all carries are at most 111 - 51 = 60 bits, which fits in a uint64.
+	//
+	//     r0 = a0×b0 + 19×(a1×b4 + a2×b3 + a3×b2 + a4×b1)
+	//     r0 < 2⁵²×2⁵² + 19×(2⁵²×2⁵² + 2⁵²×2⁵² + 2⁵²×2⁵² + 2⁵²×2⁵²)
+	//     r0 < (1 + 19 × 4) × 2⁵² × 2⁵²
+	//     r0 < 2⁷ × 2⁵² × 2⁵²
+	//     r0 < 2¹¹¹
+	//
+	// Moreover, the top coefficient (r4) is at most 107 bits, so c4 is at most
+	// 56 bits, and c4 * 19 is at most 61 bits, which again fits in a uint64 and
+	// allows us to easily apply the reduction identity.
+	//
+	//     r4 = a0×b4 + a1×b3 + a2×b2 + a3×b1 + a4×b0
+	//     r4 < 5 × 2⁵² × 2⁵²
+	//     r4 < 2¹⁰⁷
+	//
 
-	r01 = (r01 << 13) | (r00 >> 51)
-	r00 &= maskLow51Bits
+	c0 := shiftRightBy51(r0)
+	c1 := shiftRightBy51(r1)
+	c2 := shiftRightBy51(r2)
+	c3 := shiftRightBy51(r3)
+	c4 := shiftRightBy51(r4)
 
-	r11 = (r11 << 13) | (r10 >> 51)
-	r10 &= maskLow51Bits
-	r10 += r01
+	rr0 := r0.lo&maskLow51Bits + c4*19
+	rr1 := r1.lo&maskLow51Bits + c0
+	rr2 := r2.lo&maskLow51Bits + c1
+	rr3 := r3.lo&maskLow51Bits + c2
+	rr4 := r4.lo&maskLow51Bits + c3
 
-	r21 = (r21 << 13) | (r20 >> 51)
-	r20 &= maskLow51Bits
-	r20 += r11
-
-	r31 = (r31 << 13) | (r30 >> 51)
-	r30 &= maskLow51Bits
-	r30 += r21
-
-	r41 = (r41 << 13) | (r40 >> 51)
-	r40 &= maskLow51Bits
-	r40 += r31
-
-	r41 *= 19
-	r00 += r41
-
-	// Now all 5 coefficients fit into 64-bit registers but are still too large
-	// to be used as input to another multiplication. We therefore carry from
-	// r_0 to r_1 , from r_1 to r_2 , from r_2 to r_3 , from r_3 to r_4 , and
-	// finally from r_4 to r_0 . Each of these carries is done as one copy, one
-	// right shift by 51, one logical and with 2^51 − 1, and one addition.
-	*v = fieldElement{r00, r10, r20, r30, r40}
+	// Now all coefficients fit into 64-bit registers but are still too large to
+	// be passed around as a fieldElement. We therefore do one last carry chain,
+	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
+	*v = fieldElement{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
 }
 
-func feSquareGeneric(v, x *fieldElement) {
-	// Squaring needs only 15 mul instructions. Some inputs are multiplied by 2;
-	// this is combined with multiplication by 19 where possible. The coefficient
-	// reduction after squaring is the same as for multiplication.
+func feSquareGeneric(v, a *fieldElement) {
+	l0 := a.l0
+	l1 := a.l1
+	l2 := a.l2
+	l3 := a.l3
+	l4 := a.l4
 
-	x0 := x.l0
-	x1 := x.l1
-	x2 := x.l2
-	x3 := x.l3
-	x4 := x.l4
+	// Squaring works precisely like multiplication above, but thanks to its
+	// symmetry we get to group a few terms together.
+	//
+	//                          l4   l3   l2   l1   l0  x
+	//                          l4   l3   l2   l1   l0  =
+	//                         ------------------------
+	//                        l4l0 l3l0 l2l0 l1l0 l0l0  +
+	//                   l4l1 l3l1 l2l1 l1l1 l0l1       +
+	//              l4l2 l3l2 l2l2 l1l2 l0l2            +
+	//         l4l3 l3l3 l2l3 l1l3 l0l3                 +
+	//    l4l4 l3l4 l2l4 l1l4 l0l4                      =
+	//   ----------------------------------------------
+	//      r8   r7   r6   r5   r4   r3   r2   r1   r0
+	//
+	//            l4l0    l3l0    l2l0    l1l0    l0l0  +
+	//            l3l1    l2l1    l1l1    l0l1 19×l4l1  +
+	//            l2l2    l1l2    l0l2 19×l4l2 19×l3l2  +
+	//            l1l3    l0l3 19×l4l3 19×l3l3 19×l2l3  +
+	//            l0l4 19×l4l4 19×l3l4 19×l2l4 19×l1l4  =
+	//           --------------------------------------
+	//              r4      r3      r2      r1      r0
+	//
+	// With precomputed 2×, 19×, and 2×19× terms, we can compute each limb with
+	// only three Mul64 and four Add64, instead of five and eight.
 
-	x0_2 := x0 << 1
-	x1_2 := x1 << 1
+	l0_2 := l0 * 2
+	l1_2 := l1 * 2
 
-	x1_38 := x1 * 38
-	x2_38 := x2 * 38
-	x3_38 := x3 * 38
+	l1_38 := l1 * 38
+	l2_38 := l2 * 38
+	l3_38 := l3 * 38
 
-	x3_19 := x3 * 19
-	x4_19 := x4 * 19
+	l3_19 := l3 * 19
+	l4_19 := l4 * 19
 
-	// r0 = x0*x0 + x1*38*x4 + x2*38*x3
-	r00, r01 := madd64(0, 0, x0, x0)
-	r00, r01 = madd64(r00, r01, x1_38, x4)
-	r00, r01 = madd64(r00, r01, x2_38, x3)
+	// r0 = l0×l0 + 19×(l1×l4 + l2×l3 + l3×l2 + l4×l1) = l0×l0 + 19×2×(l1×l4 + l2×l3)
+	r0 := mul64(l0, l0)
+	r0 = addMul64(r0, l1_38, l4)
+	r0 = addMul64(r0, l2_38, l3)
 
-	// r1 = x0*2*x1 + x2*38*x4 + x3*19*x3
-	r10, r11 := madd64(0, 0, x0_2, x1)
-	r10, r11 = madd64(r10, r11, x2_38, x4)
-	r10, r11 = madd64(r10, r11, x3_19, x3)
+	// r1 = l0×l1 + l1×l0 + 19×(l2×l4 + l3×l3 + l4×l2) = 2×l0×l1 + 19×2×l2×l4 + 19×l3×l3
+	r1 := mul64(l0_2, l1)
+	r1 = addMul64(r1, l2_38, l4)
+	r1 = addMul64(r1, l3_19, l3)
 
-	// r2 = x0*2*x2 + x1*x1 + x3*38*x4
-	r20, r21 := madd64(0, 0, x0_2, x2)
-	r20, r21 = madd64(r20, r21, x1, x1)
-	r20, r21 = madd64(r20, r21, x3_38, x4)
+	// r2 = l0×l2 + l1×l1 + l2×l0 + 19×(l3×l4 + l4×l3) = 2×l0×l2 + l1×l1 + 19×2×l3×l4
+	r2 := mul64(l0_2, l2)
+	r2 = addMul64(r2, l1, l1)
+	r2 = addMul64(r2, l3_38, l4)
 
-	// r3 = x0*2*x3 + x1*2*x2 + x4*19*x4
-	r30, r31 := madd64(0, 0, x0_2, x3)
-	r30, r31 = madd64(r30, r31, x1_2, x2)
-	r30, r31 = madd64(r30, r31, x4_19, x4)
+	// r3 = l0×l3 + l1×l2 + l2×l1 + l3×l0 + 19×l4×l4 = 2×l0×l3 + 2×l1×l2 + 19×l4×l4
+	r3 := mul64(l0_2, l3)
+	r3 = addMul64(r3, l1_2, l2)
+	r3 = addMul64(r3, l4_19, l4)
 
-	// r4 = x0*2*x4 + x1*2*x3 + x2*x2
-	r40, r41 := madd64(0, 0, x0_2, x4)
-	r40, r41 = madd64(r40, r41, x1_2, x3)
-	r40, r41 = madd64(r40, r41, x2, x2)
+	// r4 = l0×l4 + l1×l3 + l2×l2 + l3×l1 + l4×l0 = 2×l0×l4 + 2×l1×l3 + l2×l2
+	r4 := mul64(l0_2, l4)
+	r4 = addMul64(r4, l1_2, l3)
+	r4 = addMul64(r4, l2, l2)
 
-	// Same reduction
+	c0 := shiftRightBy51(r0)
+	c1 := shiftRightBy51(r1)
+	c2 := shiftRightBy51(r2)
+	c3 := shiftRightBy51(r3)
+	c4 := shiftRightBy51(r4)
 
-	r01 = (r01 << 13) | (r00 >> 51)
-	r00 &= maskLow51Bits
+	rr0 := r0.lo&maskLow51Bits + c4*19
+	rr1 := r1.lo&maskLow51Bits + c0
+	rr2 := r2.lo&maskLow51Bits + c1
+	rr3 := r3.lo&maskLow51Bits + c2
+	rr4 := r4.lo&maskLow51Bits + c3
 
-	r11 = (r11 << 13) | (r10 >> 51)
-	r10 &= maskLow51Bits
-	r10 += r01
-
-	r21 = (r21 << 13) | (r20 >> 51)
-	r20 &= maskLow51Bits
-	r20 += r11
-
-	r31 = (r31 << 13) | (r30 >> 51)
-	r30 &= maskLow51Bits
-	r30 += r21
-
-	r41 = (r41 << 13) | (r40 >> 51)
-	r40 &= maskLow51Bits
-	r40 += r31
-
-	r41 *= 19
-	r00 += r41
-
-	*v = fieldElement{r00, r10, r20, r30, r40}
+	*v = fieldElement{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
-}
-
-// madd64 returns ol + oh * 2⁶⁴ = lo + hi * 2⁶⁴ + a * b. That is, it multiplies
-// a and b, and adds the result to the split uint128 [lo,hi].
-func madd64(lo, hi, a, b uint64) (ol uint64, oh uint64) {
-	oh, ol = bits.Mul64(a, b)
-	var c uint64
-	ol, c = bits.Add64(ol, lo, 0)
-	oh, _ = bits.Add64(oh, hi, c)
-	return
 }
 
 // carryPropagate brings the limbs below 52 bits by applying the reduction
-// identity to the l4 carry.
+// identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
 func (v *fieldElement) carryPropagateGeneric() *fieldElement {
 	c0 := v.l0 >> 51
 	c1 := v.l1 >> 51

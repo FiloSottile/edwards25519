@@ -124,38 +124,27 @@ func TestMulDistributesOverAdd(t *testing.T) {
 func TestMul64to128(t *testing.T) {
 	a := uint64(5)
 	b := uint64(5)
-	r0, r1 := madd64(0, 0, a, b)
-	if r0 != 0x19 || r1 != 0 {
-		t.Errorf("lo-range wide mult failed, got %d + %d*(2**64)", r0, r1)
+	r := mul64(a, b)
+	if r.lo != 0x19 || r.hi != 0 {
+		t.Errorf("lo-range wide mult failed, got %d + %d*(2**64)", r.lo, r.hi)
 	}
 
 	a = uint64(18014398509481983) // 2^54 - 1
 	b = uint64(18014398509481983) // 2^54 - 1
-	r0, r1 = madd64(0, 0, a, b)
-	if r0 != 0xff80000000000001 || r1 != 0xfffffffffff {
-		t.Errorf("hi-range wide mult failed, got %d + %d*(2**64)", r0, r1)
+	r = mul64(a, b)
+	if r.lo != 0xff80000000000001 || r.hi != 0xfffffffffff {
+		t.Errorf("hi-range wide mult failed, got %d + %d*(2**64)", r.lo, r.hi)
 	}
 
 	a = uint64(1125899906842661)
 	b = uint64(2097155)
-	r0, r1 = madd64(0, 0, a, b)
-	r0, r1 = madd64(r0, r1, a, b)
-	r0, r1 = madd64(r0, r1, a, b)
-	r0, r1 = madd64(r0, r1, a, b)
-	r0, r1 = madd64(r0, r1, a, b)
-	if r0 != 16888498990613035 || r1 != 640 {
-		t.Errorf("wrong answer: %d + %d*(2**64)", r0, r1)
-	}
-}
-
-var r0, r1 uint64
-
-func BenchmarkWideMultCall(t *testing.B) {
-	a := uint64(18014398509481983)
-	b := uint64(18014398509481983)
-
-	for i := 0; i < t.N; i++ {
-		r0, r1 = madd64(r0, r1, a, b)
+	r = mul64(a, b)
+	r = addMul64(r, a, b)
+	r = addMul64(r, a, b)
+	r = addMul64(r, a, b)
+	r = addMul64(r, a, b)
+	if r.lo != 16888498990613035 || r.hi != 640 {
+		t.Errorf("wrong answer: %d + %d*(2**64)", r.lo, r.hi)
 	}
 }
 

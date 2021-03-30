@@ -6,6 +6,12 @@
 
 #include "textflag.h"
 
+// carryPropagate works exactly like carryPropagateGeneric and uses the
+// same AND, ADD, and LSR+MADD instructions emitted by the compiler, but
+// avoids loading R0-R4 twice and uses LDP and STP.
+//
+// See https://golang.org/issues/43145 for the main compiler issue.
+//
 // func carryPropagate(v *fieldElement)
 TEXT ·carryPropagate(SB),NOFRAME|NOSPLIT,$0-8
 	MOVD v+0(FP), R20
