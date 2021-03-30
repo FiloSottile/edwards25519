@@ -7,6 +7,7 @@ package edwards25519
 import (
 	"crypto/subtle"
 	"encoding/binary"
+	"math/bits"
 )
 
 // fieldElement represents an element of the field GF(2^255-19). Note that this
@@ -328,6 +329,14 @@ func (v *fieldElement) Mult32(x *fieldElement, y uint32) *fieldElement {
 	// The hi portions are going to be only 32 bits, plus any previous excess,
 	// so we can skip the carry propagation.
 	return v
+}
+
+// mul51 returns lo + hi * 2⁵¹ = a * b.
+func mul51(a uint64, b uint32) (lo uint64, hi uint64) {
+	mh, ml := bits.Mul64(a, uint64(b))
+	lo = ml & maskLow51Bits
+	hi = (mh << 13) | (ml >> 51)
+	return
 }
 
 // Pow22523 set v = x^((p-5)/8), and returns v. (p-5)/8 is 2^252-3.
