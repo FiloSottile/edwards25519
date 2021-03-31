@@ -26,15 +26,13 @@ func (v fieldElement) String() string {
 var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
 
 func generateFieldElement(rand *mathrand.Rand) fieldElement {
-	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
-	// bits, like the ones returned by lightReduce.
 	const maskLow52Bits = (1 << 52) - 1
 	return fieldElement{
 		rand.Uint64() & maskLow52Bits,
-		rand.Uint64() & maskLow51Bits,
-		rand.Uint64() & maskLow51Bits,
-		rand.Uint64() & maskLow51Bits,
-		rand.Uint64() & maskLow51Bits,
+		rand.Uint64() & maskLow52Bits,
+		rand.Uint64() & maskLow52Bits,
+		rand.Uint64() & maskLow52Bits,
+		rand.Uint64() & maskLow52Bits,
 	}
 }
 
@@ -522,5 +520,49 @@ func TestCarryPropagate(t *testing.T) {
 
 	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
 		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
+	}
+}
+
+func TestFeSquare(t *testing.T) {
+	asmLikeGeneric := func(a fieldElement) bool {
+		t1 := a
+		t2 := a
+
+		feSquareGeneric(&t1, &t1)
+		feSquare(&t2, &t2)
+
+		if t1 != t2 {
+			t.Logf("got: %#v,\nexpected: %#v", t1, t2)
+		}
+
+		return t1 == t2 && isInBounds(&t2)
+	}
+
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFeMul(t *testing.T) {
+	asmLikeGeneric := func(a, b fieldElement) bool {
+		a1 := a
+		a2 := a
+		b1 := b
+		b2 := b
+
+		feMulGeneric(&a1, &a1, &b1)
+		feMul(&a2, &a2, &b2)
+
+		if a1 != a2 || b1 != b2 {
+			t.Logf("got: %#v,\nexpected: %#v", a1, a2)
+			t.Logf("got: %#v,\nexpected: %#v", b1, b2)
+		}
+
+		return a1 == a2 && isInBounds(&a2) &&
+			b1 == b2 && isInBounds(&b2)
+	}
+
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
+		t.Error(err)
 	}
 }

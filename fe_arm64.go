@@ -6,10 +6,6 @@
 
 package edwards25519
 
-func feMul(v, x, y *fieldElement) { feMulGeneric(v, x, y) }
-
-func feSquare(v, x *fieldElement) { feSquareGeneric(v, x) }
-
 //go:noescape
 func carryPropagate(v *fieldElement)
 
