@@ -2,31 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package edwards25519 implements group logic for the twisted Edwards curve
-//
-//     -x^2 + y^2 = 1 + -(121665/121666)*x^2*y^2
-//
-// This is better known as the Edwards curve equivalent to Curve25519, and is
-// the curve used by the Ed25519 signature scheme.
-//
-// Most users don't need this package, and should instead use crypto/ed25519 for
-// signatures, golang.org/x/crypto/curve25519 for Diffie-Hellman, or
-// github.com/gtank/ristretto255 for prime order group logic. However, for
-// anyone currently using a fork of crypto/ed25519/internal/edwards25519 or
-// github.com/agl/edwards25519, this package should be a safer, faster, and more
-// powerful alternative.
 package edwards25519
 
-import "errors"
+import (
+	"errors"
+
+	"filippo.io/edwards25519/field"
+)
 
 // Point types.
 
 type projP1xP1 struct {
-	X, Y, Z, T fieldElement
+	X, Y, Z, T field.Element
 }
 
 type projP2 struct {
-	X, Y, Z fieldElement
+	X, Y, Z field.Element
 }
 
 // Point represents a point on the edwards25519 curve.
@@ -38,27 +29,29 @@ type projP2 struct {
 type Point struct {
 	// The point is internally represented in extended coordinates (X, Y, Z, T)
 	// where x = X/Z, y = Y/Z, and xy = T/Z per https://eprint.iacr.org/2008/522.
-	x, y, z, t fieldElement
+	x, y, z, t field.Element
 
-	// Make the type not comparable with bradfitz's device, since equal points
-	// can be represented by different Go values.
-	_ [0]func()
+	// Make the type not comparable (i.e. used with == or as a map key), as
+	// equivalent points can be represented by different Go values.
+	_ incomparable
 }
+
+type incomparable [0]func()
 
 func checkInitialized(points ...*Point) {
 	for _, p := range points {
-		if p.x == (fieldElement{}) && p.y == (fieldElement{}) {
+		if p.x == (field.Element{}) && p.y == (field.Element{}) {
 			panic("edwards25519: use of uninitialized Point")
 		}
 	}
 }
 
 type projCached struct {
-	YplusX, YminusX, Z, T2d fieldElement
+	YplusX, YminusX, Z, T2d field.Element
 }
 
 type affineCached struct {
-	YplusX, YminusX, T2d fieldElement
+	YplusX, YminusX, T2d field.Element
 }
 
 // Constructors.
@@ -70,27 +63,27 @@ func (v *projP2) Zero() *projP2 {
 	return v
 }
 
+// identity is the point at infinity.
+var identity, _ = new(Point).SetBytes([]byte{
+	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
 // NewIdentityPoint returns a new Point set to the identity.
 func NewIdentityPoint() *Point {
-	return &Point{
-		x: fieldElement{0, 0, 0, 0, 0},
-		y: fieldElement{1, 0, 0, 0, 0},
-		z: fieldElement{1, 0, 0, 0, 0},
-		t: fieldElement{0, 0, 0, 0, 0},
-	}
+	return new(Point).Set(identity)
 }
+
+// generator is the canonical curve basepoint. See TestGenerator for the
+// correspondence of this encoding with the values in RFC 8032.
+var generator, _ = new(Point).SetBytes([]byte{
+	0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66})
 
 // NewGeneratorPoint returns a new Point set to the canonical generator.
 func NewGeneratorPoint() *Point {
-	return &Point{
-		x: fieldElement{1738742601995546, 1146398526822698,
-			2070867633025821, 562264141797630, 587772402128613},
-		y: fieldElement{1801439850948184, 1351079888211148,
-			450359962737049, 900719925474099, 1801439850948198},
-		z: fieldElement{1, 0, 0, 0, 0},
-		t: fieldElement{1841354044333475, 16398895984059,
-			755974180946558, 900171276175154, 1821297809914039},
-	}
+	return new(Point).Set(generator)
 }
 
 func (v *projCached) Zero() *projCached {
@@ -118,7 +111,7 @@ func (v *Point) Set(u *Point) *Point {
 
 // Encoding.
 
-// Bytes returns the canonical 32 bytes encoding of v, according to RFC 8032,
+// Bytes returns the canonical 32-byte encoding of v, according to RFC 8032,
 // Section 5.1.2.
 func (v *Point) Bytes() []byte {
 	// This function is outlined to make the allocations inline in the caller
@@ -130,17 +123,19 @@ func (v *Point) Bytes() []byte {
 func (v *Point) bytes(buf *[32]byte) []byte {
 	checkInitialized(v)
 
-	var recip, x, y fieldElement
-	recip.Invert(&v.z)
-	x.Multiply(&v.x, &recip) // x = X / Z
-	y.Multiply(&v.y, &recip) // y = Y / Z
+	var zInv, x, y field.Element
+	zInv.Invert(&v.z)       // zInv = 1 / Z
+	x.Multiply(&v.x, &zInv) // x = X / Z
+	y.Multiply(&v.y, &zInv) // y = Y / Z
 
 	out := copyFieldElement(buf, &y)
 	out[31] |= byte(x.IsNegative() << 7)
 	return out
 }
 
-// SetBytes sets v = x, where x is a 32 bytes encoding of v. If x does not
+var feOne = new(field.Element).One()
+
+// SetBytes sets v = x, where x is a 32-byte encoding of v. If x does not
 // represent a valid point on the curve, SetBytes returns nil and an error and
 // the receiver is unchanged. Otherwise, SetBytes returns v.
 //
@@ -150,7 +145,7 @@ func (v *Point) bytes(buf *[32]byte) []byte {
 func (v *Point) SetBytes(x []byte) (*Point, error) {
 	// Specifically, the non-canonical encodings that are accepted are
 	//   1) the ones where the field element is not reduced (see the
-	//      (*fieldElement).SetBytes docs) and
+	//      (*field.Element).SetBytes docs) and
 	//   2) the ones where the x-coordinate is zero and the sign bit is set.
 	//
 	// This is consistent with crypto/ed25519/internal/edwards25519. Read more
@@ -160,28 +155,29 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	if len(x) != 32 {
 		return nil, errors.New("edwards25519: invalid point encoding length")
 	}
-	y := (&fieldElement{}).SetBytes(x)
+	y := new(field.Element).SetBytes(x)
 
 	// -x² + y² = 1 + dx²y²
 	// x² + dx²y² = x²(dy² + 1) = y² - 1
 	// x² = (y² - 1) / (dy² + 1)
 
 	// u = y² - 1
-	y2 := (&fieldElement{}).Square(y)
-	u := (&fieldElement{}).Subtract(y2, feOne)
+	y2 := new(field.Element).Square(y)
+	u := new(field.Element).Subtract(y2, feOne)
 
 	// v = dy² + 1
-	vv := (&fieldElement{}).Multiply(y2, d)
+	vv := new(field.Element).Multiply(y2, d)
 	vv = vv.Add(vv, feOne)
 
 	// x = +√(u/v)
-	xx, wasSquare := (&fieldElement{}).SqrtRatio(u, vv)
+	xx, wasSquare := new(field.Element).SqrtRatio(u, vv)
 	if wasSquare == 0 {
 		return nil, errors.New("edwards25519: invalid point encoding")
 	}
 
 	// Select the negative square root if the sign bit is set.
-	xx = xx.condNeg(xx, int(x[31]>>7))
+	xxNeg := new(field.Element).Negate(xx)
+	xx = xx.Select(xxNeg, xx, int(x[31]>>7))
 
 	v.x.Set(xx)
 	v.y.Set(y)
@@ -191,42 +187,8 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
 	return v, nil
 }
 
-// BytesMontgomery converts v to a point on the birationally-equivalent
-// Curve25519 Montgomery curve, and returns its canonical 32 bytes encoding
-// according to RFC 7748.
-//
-// Note that BytesMontgomery only encodes the u-coordinate, so v and -v encode
-// to the same value. If v is the identity point, BytesMontgomery returns 32
-// zero bytes, analogously to the X25519 function.
-func (v *Point) BytesMontgomery() []byte {
-	// This function is outlined to make the allocations inline in the caller
-	// rather than happen on the heap.
-	var buf [32]byte
-	return v.bytesMontgomery(&buf)
-}
-
-func (v *Point) bytesMontgomery(buf *[32]byte) []byte {
-	checkInitialized(v)
-
-	// RFC 7748, Section 4.1 provides the bilinear map to calculate the
-	// Montgomery u-coordinate
-	//
-	// 		u = (1 + y) / (1 - y)
-	//
-	// where y = Y / Z.
-
-	var y, recip, u fieldElement
-
-	y.Multiply(&v.y, y.Invert(&v.z))        // y = Y / Z
-	recip.Invert(recip.Subtract(feOne, &y)) // r = 1/(1 - y)
-	u.Multiply(u.Add(feOne, &y), &recip)    // u = (1 + y)*r
-
-	return copyFieldElement(buf, &u)
-}
-
-func copyFieldElement(buf *[32]byte, v *fieldElement) []byte {
-	out := v.Bytes()
-	copy(buf[:], out)
+func copyFieldElement(buf *[32]byte, v *field.Element) []byte {
+	copy(buf[:], v.Bytes())
 	return buf[:]
 }
 
@@ -263,9 +225,12 @@ func (v *Point) fromP2(p *projP2) *Point {
 }
 
 // d is a constant in the curve equation.
-var d = &fieldElement{929955233495203, 466365720129213,
-	1662059464998953, 2033849074728123, 1442794654840575}
-var d2 = new(fieldElement).Add(d, d)
+var d = new(field.Element).SetBytes([]byte{
+	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75,
+	0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
+	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c,
+	0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52})
+var d2 = new(field.Element).Add(d, d)
 
 func (v *projCached) FromP3(p *Point) *projCached {
 	v.YplusX.Add(&p.y, &p.x)
@@ -280,7 +245,7 @@ func (v *affineCached) FromP3(p *Point) *affineCached {
 	v.YminusX.Subtract(&p.y, &p.x)
 	v.T2d.Multiply(&p.t, d2)
 
-	var invZ fieldElement
+	var invZ field.Element
 	invZ.Invert(&p.z)
 	v.YplusX.Multiply(&v.YplusX, &invZ)
 	v.YminusX.Multiply(&v.YminusX, &invZ)
@@ -293,21 +258,21 @@ func (v *affineCached) FromP3(p *Point) *affineCached {
 // Add sets v = p + q, and returns v.
 func (v *Point) Add(p, q *Point) *Point {
 	checkInitialized(p, q)
-	qCached := (&projCached{}).FromP3(q)
-	result := (&projP1xP1{}).Add(p, qCached)
+	qCached := new(projCached).FromP3(q)
+	result := new(projP1xP1).Add(p, qCached)
 	return v.fromP1xP1(result)
 }
 
 // Subtract sets v = p - q, and returns v.
 func (v *Point) Subtract(p, q *Point) *Point {
 	checkInitialized(p, q)
-	qCached := (&projCached{}).FromP3(q)
-	result := (&projP1xP1{}).Sub(p, qCached)
+	qCached := new(projCached).FromP3(q)
+	result := new(projP1xP1).Sub(p, qCached)
 	return v.fromP1xP1(result)
 }
 
 func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 fieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 field.Element
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -327,7 +292,7 @@ func (v *projP1xP1) Add(p *Point, q *projCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, ZZ2 fieldElement
+	var YplusX, YminusX, PP, MM, TT2d, ZZ2 field.Element
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -347,7 +312,7 @@ func (v *projP1xP1) Sub(p *Point, q *projCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 fieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 field.Element
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -366,7 +331,7 @@ func (v *projP1xP1) AddAffine(p *Point, q *affineCached) *projP1xP1 {
 }
 
 func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
-	var YplusX, YminusX, PP, MM, TT2d, Z2 fieldElement
+	var YplusX, YminusX, PP, MM, TT2d, Z2 field.Element
 
 	YplusX.Add(&p.y, &p.x)
 	YminusX.Subtract(&p.y, &p.x)
@@ -387,7 +352,7 @@ func (v *projP1xP1) SubAffine(p *Point, q *affineCached) *projP1xP1 {
 // Doubling.
 
 func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
-	var XX, YY, ZZ2, XplusYsq fieldElement
+	var XX, YY, ZZ2, XplusYsq field.Element
 
 	XX.Square(&p.X)
 	YY.Square(&p.Y)
@@ -402,19 +367,6 @@ func (v *projP1xP1) Double(p *projP2) *projP1xP1 {
 	v.X.Subtract(&XplusYsq, &v.Y)
 	v.T.Subtract(&ZZ2, &v.Z)
 	return v
-}
-
-// MultByCofactor sets v = 8 * p, and returns v.
-func (v *Point) MultByCofactor(p *Point) *Point {
-	checkInitialized(p)
-	result := projP1xP1{}
-	pp := (&projP2{}).FromP3(p)
-	result.Double(pp)
-	pp.FromP1xP1(&result)
-	result.Double(pp)
-	pp.FromP1xP1(&result)
-	result.Double(pp)
-	return v.fromP1xP1(&result)
 }
 
 // Negation.
@@ -433,7 +385,7 @@ func (v *Point) Negate(p *Point) *Point {
 func (v *Point) Equal(u *Point) int {
 	checkInitialized(v, u)
 
-	var t1, t2, t3, t4 fieldElement
+	var t1, t2, t3, t4 field.Element
 	t1.Multiply(&v.x, &u.z)
 	t2.Multiply(&u.x, &v.z)
 	t3.Multiply(&v.y, &u.z)
@@ -464,13 +416,13 @@ func (v *affineCached) Select(a, b *affineCached, cond int) *affineCached {
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *projCached) CondNeg(cond int) *projCached {
 	v.YplusX.Swap(&v.YminusX, cond)
-	v.T2d.condNeg(&v.T2d, cond)
+	v.T2d.Select(new(field.Element).Negate(&v.T2d), &v.T2d, cond)
 	return v
 }
 
 // CondNeg negates v if cond == 1 and leaves it unchanged if cond == 0.
 func (v *affineCached) CondNeg(cond int) *affineCached {
 	v.YplusX.Swap(&v.YminusX, cond)
-	v.T2d.condNeg(&v.T2d, cond)
+	v.T2d.Select(new(field.Element).Negate(&v.T2d), &v.T2d, cond)
 	return v
 }

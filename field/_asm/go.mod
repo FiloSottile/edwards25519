@@ -1,4 +1,4 @@
-module filippo.io/edwards25519/asm
+module asm
 
 go 1.16
 
@@ -7,4 +7,4 @@ require (
 	github.com/mmcloughlin/avo v0.2.0
 )
 
-replace filippo.io/edwards25519 => ../
+replace filippo.io/edwards25519 v0.0.0 => ../..

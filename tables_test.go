@@ -29,7 +29,7 @@ func TestProjLookupTable(t *testing.T) {
 	accP3.fromP1xP1(&accP1xP1)
 
 	if accP3.Equal(I) != 1 {
-		t.Errorf("Sanity check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
+		t.Errorf("Consistency check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestAffineLookupTable(t *testing.T) {
 	accP3.fromP1xP1(&accP1xP1)
 
 	if accP3.Equal(I) != 1 {
-		t.Errorf("Sanity check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
+		t.Errorf("Consistency check on ProjLookupTable.SelectInto failed!  %x %x %x", tmp1, tmp2, tmp3)
 	}
 }
 
@@ -84,7 +84,7 @@ func TestNafLookupTable5(t *testing.T) {
 	rhs.fromP1xP1(&accP1xP1)
 
 	if lhs.Equal(rhs) != 1 {
-		t.Errorf("Sanity check on nafLookupTable5 failed")
+		t.Errorf("Consistency check on nafLookupTable5 failed")
 	}
 }
 
@@ -114,6 +114,6 @@ func TestNafLookupTable8(t *testing.T) {
 	rhs.fromP1xP1(&accP1xP1)
 
 	if lhs.Equal(rhs) != 1 {
-		t.Errorf("Sanity check on nafLookupTable8 failed")
+		t.Errorf("Consistency check on nafLookupTable8 failed")
 	}
 }

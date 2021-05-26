@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !arm64 || !gc || purego
 // +build !arm64 !gc purego
 
-package edwards25519
+package field
 
-func (v *fieldElement) carryPropagate() *fieldElement {
+func (v *Element) carryPropagate() *Element {
 	return v.carryPropagateGeneric()
 }

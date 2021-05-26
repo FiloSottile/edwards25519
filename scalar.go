@@ -31,8 +31,6 @@ var (
 
 	scOne = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 
-	// sage: l = GF(2**252 + 27742317777372353535851937790883648493)
-	// sage: l(-1).lift().digits(256)
 	scMinusOne = Scalar{[32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}}
 )
 
@@ -50,25 +48,29 @@ func (s *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
 // Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
-	return s.MultiplyAdd(&scOne, x, y)
+	scMulAdd(&s.s, &scOne.s, &x.s, &y.s)
+	return s
 }
 
 // Subtract sets s = x - y mod l, and returns s.
 func (s *Scalar) Subtract(x, y *Scalar) *Scalar {
 	// s = -1 * y + x mod l
-	return s.MultiplyAdd(&scMinusOne, y, x)
+	scMulAdd(&s.s, &scMinusOne.s, &y.s, &x.s)
+	return s
 }
 
 // Negate sets s = -x mod l, and returns s.
 func (s *Scalar) Negate(x *Scalar) *Scalar {
 	// s = -1 * x + 0 mod l
-	return s.MultiplyAdd(&scMinusOne, x, &scZero)
+	scMulAdd(&s.s, &scMinusOne.s, &x.s, &scZero.s)
+	return s
 }
 
 // Multiply sets s = x * y mod l, and returns s.
 func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	// s = x * y + 0 mod l
-	return s.MultiplyAdd(x, y, &scZero)
+	scMulAdd(&s.s, &x.s, &y.s, &scZero.s)
+	return s
 }
 
 // Set sets s = x, and returns s.
@@ -89,9 +91,9 @@ func (s *Scalar) SetUniformBytes(x []byte) *Scalar {
 	return s
 }
 
-// SetCanonicalBytes sets s = x, where x is a 32 bytes little-endian encoding of
+// SetCanonicalBytes sets s = x, where x is a 32-byte little-endian encoding of
 // s, and returns s. If x is not a canonical encoding of s, SetCanonicalBytes
-// returns nil and an error and the receiver is unchanged.
+// returns nil and an error, and the receiver is unchanged.
 func (s *Scalar) SetCanonicalBytes(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
 		return nil, errors.New("invalid scalar length")
@@ -145,7 +147,7 @@ func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
 	return s
 }
 
-// Bytes returns the canonical 32 bytes little-endian encoding of s.
+// Bytes returns the canonical 32-byte little-endian encoding of s.
 func (s *Scalar) Bytes() []byte {
 	buf := make([]byte, 32)
 	copy(buf, s.s[:])
@@ -156,6 +158,9 @@ func (s *Scalar) Bytes() []byte {
 func (s *Scalar) Equal(t *Scalar) int {
 	return subtle.ConstantTimeCompare(s.s[:], t.s[:])
 }
+
+// scMulAdd and scReduce are ported from the public domain, “ref10”
+// implementation of ed25519 from SUPERCOP.
 
 func load3(in []byte) int64 {
 	r := int64(in[0])
@@ -1017,121 +1022,4 @@ func (s *Scalar) signedRadix16() [64]int8 {
 	}
 
 	return digits
-}
-
-// Given k > 0, set s = s**(2*i).
-func (s *Scalar) pow2k(k int) {
-	for i := 0; i < k; i++ {
-		s.Multiply(s, s)
-	}
-}
-
-// Invert sets s to the inverse of a nonzero scalar v, and returns s.
-//
-// If t is zero, Invert will panic.
-func (s *Scalar) Invert(t *Scalar) *Scalar {
-	if t.s == [32]byte{} {
-		panic("edwards25519: zero Scalar passed to Invert")
-	}
-
-	// Uses a hardcoded sliding window of width 4.
-	var table [8]Scalar
-	var tt Scalar
-	tt.Multiply(t, t)
-	table[0] = *t
-	for i := 0; i < 7; i++ {
-		table[i+1].Multiply(&table[i], &tt)
-	}
-	// Now table = [t**1, t**3, t**7, t**11, t**13, t**15]
-	// so t**k = t[k/2] for odd k
-
-	// To compute the sliding window digits, use the following Sage script:
-
-	// sage: import itertools
-	// sage: def sliding_window(w,k):
-	// ....:     digits = []
-	// ....:     while k > 0:
-	// ....:         if k % 2 == 1:
-	// ....:             kmod = k % (2**w)
-	// ....:             digits.append(kmod)
-	// ....:             k = k - kmod
-	// ....:         else:
-	// ....:             digits.append(0)
-	// ....:         k = k // 2
-	// ....:     return digits
-
-	// Now we can compute s roughly as follows:
-
-	// sage: s = 1
-	// sage: for coeff in reversed(sliding_window(4,l-2)):
-	// ....:     s = s*s
-	// ....:     if coeff > 0 :
-	// ....:         s = s*t**coeff
-
-	// This works on one bit at a time, with many runs of zeros.
-	// The digits can be collapsed into [(count, coeff)] as follows:
-
-	// sage: [(len(list(group)),d) for d,group in itertools.groupby(sliding_window(4,l-2))]
-
-	// Entries of the form (k, 0) turn into pow2k(k)
-	// Entries of the form (1, coeff) turn into a squaring and then a table lookup.
-	// We can fold the squaring into the previous pow2k(k) as pow2k(k+1).
-
-	*s = table[1/2]
-	s.pow2k(127 + 1)
-	s.Multiply(s, &table[1/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[9/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[11/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[13/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[15/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[7/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[15/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[5/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[1/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[15/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[15/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[7/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[3/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[11/2])
-	s.pow2k(5 + 1)
-	s.Multiply(s, &table[11/2])
-	s.pow2k(9 + 1)
-	s.Multiply(s, &table[9/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[3/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[3/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[3/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[9/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[7/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[3/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[13/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[7/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[9/2])
-	s.pow2k(3 + 1)
-	s.Multiply(s, &table[15/2])
-	s.pow2k(4 + 1)
-	s.Multiply(s, &table[11/2])
-
-	return s
 }

@@ -4,11 +4,35 @@
 
 package edwards25519
 
+import "sync"
+
+// basepointTable is a set of 32 affineLookupTables, where table i is generated
+// from 256i * basepoint. It is precomputed the first time it's used.
+func basepointTable() *[32]affineLookupTable {
+	basepointTablePrecomp.initOnce.Do(func() {
+		p := NewGeneratorPoint()
+		for i := 0; i < 32; i++ {
+			basepointTablePrecomp.table[i].FromP3(p)
+			for j := 0; j < 8; j++ {
+				p.Add(p, p)
+			}
+		}
+	})
+	return &basepointTablePrecomp.table
+}
+
+var basepointTablePrecomp struct {
+	table    [32]affineLookupTable
+	initOnce sync.Once
+}
+
 // ScalarBaseMult sets v = x * B, where B is the canonical generator, and
 // returns v.
 //
 // The scalar multiplication is done in constant time.
 func (v *Point) ScalarBaseMult(x *Scalar) *Point {
+	basepointTable := basepointTable()
+
 	// Write x = sum(x_i * 16^i) so  x*B = sum( B*x_i*16^i )
 	// as described in the Ed25519 paper
 	//
@@ -98,58 +122,18 @@ func (v *Point) ScalarMult(x *Scalar, q *Point) *Point {
 	return v
 }
 
-// MultiScalarMult sets v = sum(scalars[i] * points[i]), and returns v.
-//
-// Execution time depends only on the lengths of the two slices, which must match.
-func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
-	if len(scalars) != len(points) {
-		panic("edwards25519: called MultiScalarMult with different size inputs")
-	}
-	checkInitialized(points...)
+// basepointNafTable is the nafLookupTable8 for the basepoint.
+// It is precomputed the first time it's used.
+func basepointNafTable() *nafLookupTable8 {
+	basepointNafTablePrecomp.initOnce.Do(func() {
+		basepointNafTablePrecomp.table.FromP3(NewGeneratorPoint())
+	})
+	return &basepointNafTablePrecomp.table
+}
 
-	// Proceed as in the single-base case, but share doublings
-	// between each point in the multiscalar equation.
-
-	// Build lookup tables for each point
-	tables := make([]projLookupTable, len(points))
-	for i := range tables {
-		tables[i].FromP3(points[i])
-	}
-	// Compute signed radix-16 digits for each scalar
-	digits := make([][64]int8, len(scalars))
-	for i := range digits {
-		digits[i] = scalars[i].signedRadix16()
-	}
-
-	// Unwrap first loop iteration to save computing 16*identity
-	multiple := &projCached{}
-	tmp1 := &projP1xP1{}
-	tmp2 := &projP2{}
-	// Lookup-and-add the appropriate multiple of each input point
-	for j := range tables {
-		tables[j].SelectInto(multiple, digits[j][63])
-		tmp1.Add(v, multiple) // tmp1 = v + x_(j,63)*Q in P1xP1 coords
-		v.fromP1xP1(tmp1)     // update v
-	}
-	tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
-	for i := 62; i >= 0; i-- {
-		tmp1.Double(tmp2)    // tmp1 =  2*(prev) in P1xP1 coords
-		tmp2.FromP1xP1(tmp1) // tmp2 =  2*(prev) in P2 coords
-		tmp1.Double(tmp2)    // tmp1 =  4*(prev) in P1xP1 coords
-		tmp2.FromP1xP1(tmp1) // tmp2 =  4*(prev) in P2 coords
-		tmp1.Double(tmp2)    // tmp1 =  8*(prev) in P1xP1 coords
-		tmp2.FromP1xP1(tmp1) // tmp2 =  8*(prev) in P2 coords
-		tmp1.Double(tmp2)    // tmp1 = 16*(prev) in P1xP1 coords
-		v.fromP1xP1(tmp1)    //    v = 16*(prev) in P3 coords
-		// Lookup-and-add the appropriate multiple of each input point
-		for j := range tables {
-			tables[j].SelectInto(multiple, digits[j][i])
-			tmp1.Add(v, multiple) // tmp1 = v + x_(j,i)*Q in P1xP1 coords
-			v.fromP1xP1(tmp1)     // update v
-		}
-		tmp2.FromP3(v) // set up tmp2 = v in P2 coords for next iteration
-	}
-	return v
+var basepointNafTablePrecomp struct {
+	table    nafLookupTable8
+	initOnce sync.Once
 }
 
 // VarTimeDoubleScalarBaseMult sets v = a * A + b * B, where B is the canonical
@@ -173,6 +157,7 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 	// "mass" of the scalar onto sparse coefficients (meaning
 	// fewer additions).
 
+	basepointNafTable := basepointNafTable()
 	var aTable nafLookupTable5
 	aTable.FromP3(A)
 	// Because the basepoint is fixed, we can use a wider NAF
@@ -219,63 +204,6 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 			v.fromP1xP1(tmp1)
 			basepointNafTable.SelectInto(multB, -bNaf[i])
 			tmp1.SubAffine(v, multB)
-		}
-
-		tmp2.FromP1xP1(tmp1)
-	}
-
-	v.fromP2(tmp2)
-	return v
-}
-
-// VarTimeMultiScalarMult sets v = sum(scalars[i] * points[i]), and returns v.
-//
-// Execution time depends on the inputs.
-func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Point {
-	if len(scalars) != len(points) {
-		panic("edwards25519: called VarTimeMultiScalarMult with different size inputs")
-	}
-	checkInitialized(points...)
-
-	// Generalize double-base NAF computation to arbitrary sizes.
-	// Here all the points are dynamic, so we only use the smaller
-	// tables.
-
-	// Build lookup tables for each point
-	tables := make([]nafLookupTable5, len(points))
-	for i := range tables {
-		tables[i].FromP3(points[i])
-	}
-	// Compute a NAF for each scalar
-	nafs := make([][256]int8, len(scalars))
-	for i := range nafs {
-		nafs[i] = scalars[i].nonAdjacentForm(5)
-	}
-
-	multiple := &projCached{}
-	tmp1 := &projP1xP1{}
-	tmp2 := &projP2{}
-	tmp2.Zero()
-
-	// Move from high to low bits, doubling the accumulator
-	// at each iteration and checking whether there is a nonzero
-	// coefficient to look up a multiple of.
-	//
-	// Skip trying to find the first nonzero coefficent, because
-	// searching might be more work than a few extra doublings.
-	for i := 255; i >= 0; i-- {
-		tmp1.Double(tmp2)
-
-		for j := range nafs {
-			if nafs[j][i] > 0 {
-				v.fromP1xP1(tmp1)
-				tables[j].SelectInto(multiple, nafs[j][i])
-				tmp1.Add(v, multiple)
-			} else if nafs[j][i] < 0 {
-				v.fromP1xP1(tmp1)
-				tables[j].SelectInto(multiple, -nafs[j][i])
-				tmp1.Sub(v, multiple)
-			}
 		}
 
 		tmp2.FromP1xP1(tmp1)

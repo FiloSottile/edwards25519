@@ -44,6 +44,10 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(s)
 }
 
+// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
+// times. The default value of -quickchecks is 100.
+var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
+
 func TestScalarGenerate(t *testing.T) {
 	f := func(sc Scalar) bool {
 		return isReduced(&sc)
@@ -109,24 +113,24 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
 	// Generated with libsodium.js 1.0.18 crypto_scalarmult_ed25519_base.
 
 	random := "633d368491364dc9cd4c1bf891b1d59460face1644813240a313e61f2c88216e"
-	s := (&Scalar{}).SetBytesWithClamping(decodeHex(random))
-	p := (&Point{}).ScalarBaseMult(s)
+	s := new(Scalar).SetBytesWithClamping(decodeHex(random))
+	p := new(Point).ScalarBaseMult(s)
 	want := "1d87a9026fd0126a5736fe1628c95dd419172b5b618457e041c9c861b2494a94"
 	if got := hex.EncodeToString(p.Bytes()); got != want {
 		t.Errorf("random: got %q, want %q", got, want)
 	}
 
 	zero := "0000000000000000000000000000000000000000000000000000000000000000"
-	s = (&Scalar{}).SetBytesWithClamping(decodeHex(zero))
-	p = (&Point{}).ScalarBaseMult(s)
+	s = new(Scalar).SetBytesWithClamping(decodeHex(zero))
+	p = new(Point).ScalarBaseMult(s)
 	want = "693e47972caf527c7883ad1b39822f026f47db2ab0e1919955b8993aa04411d1"
 	if got := hex.EncodeToString(p.Bytes()); got != want {
 		t.Errorf("zero: got %q, want %q", got, want)
 	}
 
 	one := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	s = (&Scalar{}).SetBytesWithClamping(decodeHex(one))
-	p = (&Point{}).ScalarBaseMult(s)
+	s = new(Scalar).SetBytesWithClamping(decodeHex(one))
+	p = new(Point).ScalarBaseMult(s)
 	want = "12e9a68b73fd5aacdbcaf3e88c46fea6ebedb1aa84eed1842f07f8edab65e3a7"
 	if got := hex.EncodeToString(p.Bytes()); got != want {
 		t.Errorf("one: got %q, want %q", got, want)
@@ -141,8 +145,8 @@ func bigIntFromLittleEndianBytes(b []byte) *big.Int {
 	return new(big.Int).SetBytes(bb)
 }
 
-func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
-	mulDistributesOverAdd := func(x, y, z Scalar) bool {
+func TestScalarMultiplyDistributesOverAdd(t *testing.T) {
+	multiplyDistributesOverAdd := func(x, y, z Scalar) bool {
 		// Compute t1 = (x+y)*z
 		var t1 Scalar
 		t1.Add(&x, &y)
@@ -158,7 +162,7 @@ func TestScalarMulDistributesOverScalarAdd(t *testing.T) {
 		return t1 == t2 && isReduced(&t1) && isReduced(&t3)
 	}
 
-	if err := quick.Check(mulDistributesOverAdd, quickCheckConfig1024); err != nil {
+	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig1024); err != nil {
 		t.Error(err)
 	}
 }
@@ -217,19 +221,6 @@ func (notZeroScalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 		s = Scalar{}.Generate(rand, size).Interface().(Scalar)
 	}
 	return reflect.ValueOf(notZeroScalar(s))
-}
-
-func TestScalarInvert(t *testing.T) {
-	invertWorks := func(xInv Scalar, x notZeroScalar) bool {
-		xInv.Invert((*Scalar)(&x))
-		var check Scalar
-		check.Multiply((*Scalar)(&x), &xInv)
-		return check == scOne && isReduced(&xInv)
-	}
-
-	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
-		t.Error(err)
-	}
 }
 
 func TestScalarEqual(t *testing.T) {

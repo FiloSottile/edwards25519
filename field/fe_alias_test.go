@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package edwards25519
+package field
 
 import (
 	"testing"
 	"testing/quick"
 )
 
-func checkAliasingOneArg(f func(v, x *fieldElement) *fieldElement) func(v, x fieldElement) bool {
-	return func(v, x fieldElement) bool {
+func checkAliasingOneArg(f func(v, x *Element) *Element) func(v, x Element) bool {
+	return func(v, x Element) bool {
 		x1, v1 := x, x
 
 		// Calculate a reference f(x) without aliasing.
@@ -28,9 +28,9 @@ func checkAliasingOneArg(f func(v, x *fieldElement) *fieldElement) func(v, x fie
 	}
 }
 
-func checkAliasingTwoArgs(f func(v, x, y *fieldElement) *fieldElement) func(v, x, y fieldElement) bool {
-	return func(v, x, y fieldElement) bool {
-		x1, y1, v1 := x, y, fieldElement{}
+func checkAliasingTwoArgs(f func(v, x, y *Element) *Element) func(v, x, y Element) bool {
+	return func(v, x, y Element) bool {
+		x1, y1, v1 := x, y, Element{}
 
 		// Calculate a reference f(x, y) without aliasing.
 		if out := f(&v, &x, &y); out != &v && isInBounds(out) {
@@ -74,43 +74,41 @@ func checkAliasingTwoArgs(f func(v, x, y *fieldElement) *fieldElement) func(v, x
 	}
 }
 
+// TestAliasing checks that receivers and arguments can alias each other without
+// leading to incorrect results. That is, it ensures that it's safe to write
+//
+//     v.Invert(v)
+//
+// or
+//
+//     v.Add(v, v)
+//
+// without any of the inputs getting clobbered by the output being written.
 func TestAliasing(t *testing.T) {
 	type target struct {
 		name     string
-		oneArgF  func(v, x *fieldElement) *fieldElement
-		twoArgsF func(v, x, y *fieldElement) *fieldElement
+		oneArgF  func(v, x *Element) *Element
+		twoArgsF func(v, x, y *Element) *Element
 	}
 	for _, tt := range []target{
-		{name: "Abs", oneArgF: (*fieldElement).Absolute},
-		{name: "Invert", oneArgF: (*fieldElement).Invert},
-		{name: "Neg", oneArgF: (*fieldElement).Negate},
-		{name: "Set", oneArgF: (*fieldElement).Set},
-		{name: "Square", oneArgF: (*fieldElement).Square},
-		{
-			name: "CondNeg0",
-			oneArgF: func(v, x *fieldElement) *fieldElement {
-				return (*fieldElement).condNeg(v, x, 0)
-			},
-		},
-		{
-			name: "CondNeg1",
-			oneArgF: func(v, x *fieldElement) *fieldElement {
-				return (*fieldElement).condNeg(v, x, 1)
-			},
-		},
-		{name: "Mul", twoArgsF: (*fieldElement).Multiply},
-		{name: "Add", twoArgsF: (*fieldElement).Add},
-		{name: "Sub", twoArgsF: (*fieldElement).Subtract},
+		{name: "Absolute", oneArgF: (*Element).Absolute},
+		{name: "Invert", oneArgF: (*Element).Invert},
+		{name: "Negate", oneArgF: (*Element).Negate},
+		{name: "Set", oneArgF: (*Element).Set},
+		{name: "Square", oneArgF: (*Element).Square},
+		{name: "Multiply", twoArgsF: (*Element).Multiply},
+		{name: "Add", twoArgsF: (*Element).Add},
+		{name: "Subtract", twoArgsF: (*Element).Subtract},
 		{
 			name: "Select0",
-			twoArgsF: func(v, x, y *fieldElement) *fieldElement {
-				return (*fieldElement).Select(v, x, y, 0)
+			twoArgsF: func(v, x, y *Element) *Element {
+				return (*Element).Select(v, x, y, 0)
 			},
 		},
 		{
 			name: "Select1",
-			twoArgsF: func(v, x, y *fieldElement) *fieldElement {
-				return (*fieldElement).Select(v, x, y, 1)
+			twoArgsF: func(v, x, y *Element) *Element {
+				return (*Element).Select(v, x, y, 1)
 			},
 		},
 	} {

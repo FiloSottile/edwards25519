@@ -12,13 +12,13 @@ import (
 	. "github.com/mmcloughlin/avo/operand"
 	. "github.com/mmcloughlin/avo/reg"
 
-	_ "filippo.io/edwards25519"
+	_ "filippo.io/edwards25519/field"
 )
 
-//go:generate go run fe_amd64_asm.go -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg edwards25519
+//go:generate go run . -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field
 
 func main() {
-	Package("filippo.io/edwards25519")
+	Package("filippo.io/edwards25519/field")
 	ConstraintExpr("amd64,gc,!purego")
 	feMul()
 	feSquare()
@@ -40,7 +40,7 @@ type uint128 struct {
 func (c uint128) String() string { return c.name }
 
 func feSquare() {
-	TEXT("feSquare", NOSPLIT, "func(out, a *fieldElement)")
+	TEXT("feSquare", NOSPLIT, "func(out, a *Element)")
 	Doc("feSquare sets out = a * a. It works like feSquareGeneric.")
 	Pragma("noescape")
 
@@ -129,7 +129,7 @@ func feSquare() {
 }
 
 func feMul() {
-	TEXT("feMul", NOSPLIT, "func(out, a, b *fieldElement)")
+	TEXT("feMul", NOSPLIT, "func(out, a, b *Element)")
 	Doc("feMul sets out = a * b. It works like feMulGeneric.")
 	Pragma("noescape")
 

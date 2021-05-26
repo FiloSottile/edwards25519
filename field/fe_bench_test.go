@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package edwards25519
+package field
 
 import "testing"
 
 func BenchmarkAdd(b *testing.B) {
-	var x, y fieldElement
+	var x, y Element
 	x.One()
 	y.Add(feOne, feOne)
 	b.ResetTimer()
@@ -16,8 +16,8 @@ func BenchmarkAdd(b *testing.B) {
 	}
 }
 
-func BenchmarkMul(b *testing.B) {
-	var x, y fieldElement
+func BenchmarkMultiply(b *testing.B) {
+	var x, y Element
 	x.One()
 	y.Add(feOne, feOne)
 	b.ResetTimer()
@@ -26,8 +26,8 @@ func BenchmarkMul(b *testing.B) {
 	}
 }
 
-func BenchmarkMul32(b *testing.B) {
-	var x fieldElement
+func BenchmarkMult32(b *testing.B) {
+	var x Element
 	x.One()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -17,12 +17,7 @@ var (
 	// a random scalar generated using dalek.
 	dalekScalar = Scalar{[32]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4}}
 	// the above, times the edwards25519 basepoint.
-	dalekScalarBasepoint = Point{
-		x: fieldElement{778774234987948, 1589187156384239, 1213330452914652, 186161118421127, 2186284806803213},
-		y: fieldElement{1241255309069369, 1115278942994853, 1016511918109334, 1303231926552315, 1801448517689873},
-		z: fieldElement{353337085654440, 1327844406437681, 2207296012811921, 707394926933424, 917408459573183},
-		t: fieldElement{585487439439725, 1792815221887900, 946062846079052, 1954901232609667, 1418300670001780},
-	}
+	dalekScalarBasepoint, _ = new(Point).SetBytes([]byte{0xf4, 0xef, 0x7c, 0xa, 0x34, 0x55, 0x7b, 0x9f, 0x72, 0x3b, 0xb6, 0x1e, 0xf9, 0x46, 0x9, 0x91, 0x1c, 0xb9, 0xc0, 0x6c, 0x17, 0x28, 0x2d, 0x8b, 0x43, 0x2b, 0x5, 0x18, 0x6a, 0x54, 0x3e, 0x48})
 )
 
 func TestScalarMultSmallScalars(t *testing.T) {
@@ -51,7 +46,7 @@ func TestScalarMultVsDalek(t *testing.T) {
 	checkOnCurve(t, &p)
 }
 
-func TestBasepointMulVsDalek(t *testing.T) {
+func TestBaseMultVsDalek(t *testing.T) {
 	var p Point
 	p.ScalarBaseMult(&dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
@@ -60,23 +55,23 @@ func TestBasepointMulVsDalek(t *testing.T) {
 	checkOnCurve(t, &p)
 }
 
-func TestVartimeDoubleBaseMulVsDalek(t *testing.T) {
+func TestVarTimeDoubleBaseMultVsDalek(t *testing.T) {
 	var p Point
 	var z Scalar
 	p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &z)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
-		t.Error("VartimeDoubleBaseMul fails with b=0")
+		t.Error("VarTimeDoubleScalarBaseMult fails with b=0")
 	}
 	checkOnCurve(t, &p)
 	p.VarTimeDoubleScalarBaseMult(&z, B, &dalekScalar)
 	if dalekScalarBasepoint.Equal(&p) != 1 {
-		t.Error("VartimeDoubleBaseMul fails with a=0")
+		t.Error("VarTimeDoubleScalarBaseMult fails with a=0")
 	}
 	checkOnCurve(t, &p)
 }
 
-func TestScalarMulDistributesOverAdd(t *testing.T) {
-	scalarMulDistributesOverAdd := func(x, y Scalar) bool {
+func TestScalarMultDistributesOverAdd(t *testing.T) {
+	scalarMultDistributesOverAdd := func(x, y Scalar) bool {
 		var z Scalar
 		z.Add(&x, &y)
 		var p, q, r, check Point
@@ -88,16 +83,16 @@ func TestScalarMulDistributesOverAdd(t *testing.T) {
 		return check.Equal(&r) == 1
 	}
 
-	if err := quick.Check(scalarMulDistributesOverAdd, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
 
-func TestScalarMulNonIdentityPoint(t *testing.T) {
+func TestScalarMultNonIdentityPoint(t *testing.T) {
 	// Check whether p.ScalarMult and q.ScalaBaseMult give the same,
 	// when p and q are originally set to the base point.
 
-	scalarMulNonIdentityPoint := func(x Scalar) bool {
+	scalarMultNonIdentityPoint := func(x Scalar) bool {
 		var p, q Point
 		p.Set(B)
 		q.Set(B)
@@ -110,7 +105,7 @@ func TestScalarMulNonIdentityPoint(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMulNonIdentityPoint, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -118,6 +113,7 @@ func TestScalarMulNonIdentityPoint(t *testing.T) {
 func TestBasepointTableGeneration(t *testing.T) {
 	// The basepoint table is 32 affineLookupTables,
 	// corresponding to (16^2i)*B for table i.
+	basepointTable := basepointTable()
 
 	tmp1 := &projP1xP1{}
 	tmp2 := &projP2{}
@@ -144,8 +140,8 @@ func TestBasepointTableGeneration(t *testing.T) {
 	}
 }
 
-func TestScalarMulMatchesBasepointMul(t *testing.T) {
-	scalarMulMatchesBasepointMul := func(x Scalar) bool {
+func TestScalarMultMatchesBaseMult(t *testing.T) {
+	scalarMultMatchesBaseMult := func(x Scalar) bool {
 		var p, q Point
 		p.ScalarMult(&x, B)
 		q.ScalarBaseMult(&x)
@@ -153,27 +149,7 @@ func TestScalarMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMultiScalarMulMatchesBasepointMul(t *testing.T) {
-	multiScalarMulMatchesBasepointMul := func(x, y, z Scalar) bool {
-		var p, q1, q2, q3, check Point
-
-		p.MultiScalarMult([]*Scalar{&x, &y, &z}, []*Point{B, B, B})
-
-		q1.ScalarBaseMult(&x)
-		q2.ScalarBaseMult(&y)
-		q3.ScalarBaseMult(&z)
-		check.Add(&q1, &q2).Add(&check, &q3)
-
-		checkOnCurve(t, &p, &check, &q1, &q2, &q3)
-		return p.Equal(&check) == 1
-	}
-
-	if err := quick.Check(multiScalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
@@ -182,13 +158,13 @@ func TestBasepointNafTableGeneration(t *testing.T) {
 	var table nafLookupTable8
 	table.FromP3(B)
 
-	if table != basepointNafTable {
+	if table != *basepointNafTable() {
 		t.Error("BasepointNafTable does not match")
 	}
 }
 
-func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
-	vartimeDoubleBaseMulMatchesBasepointMul := func(x, y Scalar) bool {
+func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
+	varTimeDoubleBaseMultMatchesBaseMult := func(x, y Scalar) bool {
 		var p, q1, q2, check Point
 
 		p.VarTimeDoubleScalarBaseMult(&x, B, &y)
@@ -201,34 +177,14 @@ func TestVartimeDoubleBaseMulMatchesBasepointMul(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(vartimeDoubleBaseMulMatchesBasepointMul, quickCheckConfig32); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestVartimeMultiScalarMulMatchesBasepointMul(t *testing.T) {
-	vartimeMultiScalarMulMatchesBasepointMul := func(x, y, z Scalar) bool {
-		var p, q1, q2, q3, check Point
-
-		p.VarTimeMultiScalarMult([]*Scalar{&x, &y, &z}, []*Point{B, B, B})
-
-		q1.ScalarBaseMult(&x)
-		q2.ScalarBaseMult(&y)
-		q3.ScalarBaseMult(&z)
-		check.Add(&q1, &q2).Add(&check, &q3)
-
-		checkOnCurve(t, &p, &check, &q1, &q2, &q3)
-		return p.Equal(&check) == 1
-	}
-
-	if err := quick.Check(vartimeMultiScalarMulMatchesBasepointMul, quickCheckConfig32); err != nil {
+	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
 }
 
 // Benchmarks.
 
-func BenchmarkBasepointMul(t *testing.B) {
+func BenchmarkScalarBaseMult(t *testing.B) {
 	var p Point
 
 	for i := 0; i < t.N; i++ {
@@ -236,7 +192,7 @@ func BenchmarkBasepointMul(t *testing.B) {
 	}
 }
 
-func BenchmarkScalarMul(t *testing.B) {
+func BenchmarkScalarMult(t *testing.B) {
 	var p Point
 
 	for i := 0; i < t.N; i++ {
@@ -244,22 +200,10 @@ func BenchmarkScalarMul(t *testing.B) {
 	}
 }
 
-func BenchmarkVartimeDoubleBaseMul(t *testing.B) {
+func BenchmarkVarTimeDoubleScalarBaseMult(t *testing.B) {
 	var p Point
 
 	for i := 0; i < t.N; i++ {
 		p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &dalekScalar)
 	}
 }
-
-func BenchmarkMultiscalarMulSize8(t *testing.B) {
-	var p Point
-	x := dalekScalar
-
-	for i := 0; i < t.N; i++ {
-		p.MultiScalarMult([]*Scalar{&x, &x, &x, &x, &x, &x, &x, &x}, []*Point{B, B, B, B, B, B, B, B})
-	}
-}
-
-// TODO: add BenchmarkVartimeMultiscalarMulSize8 (need to have
-// different scalars & points to measure cache effects).

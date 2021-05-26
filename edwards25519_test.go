@@ -6,9 +6,12 @@ package edwards25519
 
 import (
 	"encoding/hex"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
-	"testing/quick"
+
+	"filippo.io/edwards25519/field"
 )
 
 var B = NewGeneratorPoint()
@@ -17,7 +20,7 @@ var I = NewIdentityPoint()
 func checkOnCurve(t *testing.T, points ...*Point) {
 	t.Helper()
 	for i, p := range points {
-		var XX, YY, ZZ, ZZZZ fieldElement
+		var XX, YY, ZZ, ZZZZ field.Element
 		XX.Square(&p.x)
 		YY.Square(&p.y)
 		ZZ.Square(&p.z)
@@ -26,7 +29,7 @@ func checkOnCurve(t *testing.T, points ...*Point) {
 		// -(X/Z)² + (Y/Z)² = 1 + d(X/Z)²(Y/Z)²
 		// (-X² + Y²)/Z² = 1 + (dX²Y²)/Z⁴
 		// (-X² + Y²)*Z² = Z⁴ + dX²Y²
-		var lhs, rhs fieldElement
+		var lhs, rhs field.Element
 		lhs.Subtract(&YY, &XX).Multiply(&lhs, &ZZ)
 		rhs.Multiply(d, &XX).Multiply(&rhs, &YY).Add(&rhs, &ZZZZ)
 		if lhs.Equal(&rhs) != 1 {
@@ -41,12 +44,30 @@ func checkOnCurve(t *testing.T, points ...*Point) {
 	}
 }
 
+func TestGenerator(t *testing.T) {
+	// These are the coordinates of B from RFC 8032, Section 5.1, converted to
+	// little endian hex.
+	x := "1ad5258f602d56c9b2a7259560c72c695cdcd6fd31e2a4c0fe536ecdd3366921"
+	y := "5866666666666666666666666666666666666666666666666666666666666666"
+	if got := hex.EncodeToString(B.x.Bytes()); got != x {
+		t.Errorf("wrong B.x: got %s, expected %s", got, x)
+	}
+	if got := hex.EncodeToString(B.y.Bytes()); got != y {
+		t.Errorf("wrong B.y: got %s, expected %s", got, y)
+	}
+	if B.z.Equal(feOne) != 1 {
+		t.Errorf("wrong B.z: got %v, expected 1", B.z)
+	}
+	// Check that t is correct.
+	checkOnCurve(t, B)
+}
+
 func TestAddSubNegOnBasePoint(t *testing.T) {
 	checkLhs, checkRhs := &Point{}, &Point{}
 
 	checkLhs.Add(B, B)
-	tmpP2 := (&projP2{}).FromP3(B)
-	tmpP1xP1 := (&projP1xP1{}).Double(tmpP2)
+	tmpP2 := new(projP2).FromP3(B)
+	tmpP1xP1 := new(projP1xP1).Double(tmpP2)
 	checkRhs.fromP1xP1(tmpP1xP1)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B + B != [2]B")
@@ -54,7 +75,7 @@ func TestAddSubNegOnBasePoint(t *testing.T) {
 	checkOnCurve(t, checkLhs, checkRhs)
 
 	checkLhs.Subtract(B, B)
-	Bneg := (&Point{}).Negate(B)
+	Bneg := new(Point).Negate(B)
 	checkRhs.Add(B, Bneg)
 	if checkLhs.Equal(checkRhs) != 1 {
 		t.Error("B - B != B + (-B)")
@@ -239,11 +260,11 @@ func TestNonCanonicalPoints(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p1, err := (&Point{}).SetBytes(decodeHex(tt.encoding))
+			p1, err := new(Point).SetBytes(decodeHex(tt.encoding))
 			if err != nil {
 				t.Fatalf("error decoding non-canonical point: %v", err)
 			}
-			p2, err := (&Point{}).SetBytes(decodeHex(tt.canonical))
+			p2, err := new(Point).SetBytes(decodeHex(tt.canonical))
 			if err != nil {
 				t.Fatalf("error decoding canonical point: %v", err)
 			}
@@ -258,107 +279,20 @@ func TestNonCanonicalPoints(t *testing.T) {
 	}
 }
 
-// TestBytesMontgomery tests the SetBytesWithClamping+BytesMontgomery path
-// equivalence to curve25519.X25519 for basepoint scalar multiplications.
-//
-// Note that you can't actually implement X25519 with this package because
-// there is no SetBytesMontgomery, and it would not be possible to implement
-// it properly: points on the twist would get rejected, and the Scalar returned
-// by SetBytesWithClamping does not preserve its cofactor-clearing properties.
-//
-// Disabled to avoid the golang.org/x/crypto module dependency.
-/* func TestBytesMontgomery(t *testing.T) {
-	f := func(scalar [32]byte) bool {
-		s := NewScalar().SetBytesWithClamping(scalar[:])
-		p := (&Point{}).ScalarBaseMult(s)
-		got := p.BytesMontgomery()
-		want, _ := curve25519.X25519(scalar[:], curve25519.Basepoint)
-		return bytes.Equal(got, want)
-	}
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-} */
-
-func TestBytesMontgomerySodium(t *testing.T) {
-	// Generated with libsodium.js 1.0.18
-	// crypto_sign_keypair().publicKey
-	publicKey := "3bf918ffc2c955dc895bf145f566fb96623c1cadbe040091175764b5fde322c0"
-	p, err := (&Point{}).SetBytes(decodeHex(publicKey))
-	if err != nil {
-		t.Fatal(err)
-	}
-	// crypto_sign_ed25519_pk_to_curve25519(publicKey)
-	want := "efc6c9d0738e9ea18d738ad4a2653631558931b0f1fde4dd58c436d19686dc28"
-	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
-func TestBytesMontgomeryInfinity(t *testing.T) {
-	p := NewIdentityPoint()
-	want := "0000000000000000000000000000000000000000000000000000000000000000"
-	if got := hex.EncodeToString(p.BytesMontgomery()); got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
-func TestMultByCofactor(t *testing.T) {
-	lowOrderBytes := "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85"
-	lowOrder, err := (&Point{}).SetBytes(decodeHex(lowOrderBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if p := (&Point{}).MultByCofactor(lowOrder); p.Equal(NewIdentityPoint()) != 1 {
-		t.Errorf("expected low order point * cofactor to be the identity")
-	}
-
-	f := func(scalar [64]byte) bool {
-		s := NewScalar().SetUniformBytes(scalar[:])
-		p := (&Point{}).ScalarBaseMult(s)
-		p8 := (&Point{}).MultByCofactor(p)
-		checkOnCurve(t, p8)
-
-		// 8 * p == (8 * s) * B
-		s.Multiply(s, &Scalar{[32]byte{8}})
-		pp := (&Point{}).ScalarBaseMult(s)
-		if p8.Equal(pp) != 1 {
-			return false
-		}
-
-		// 8 * p == 8 * (lowOrder + p)
-		pp.Add(p, lowOrder)
-		pp.MultByCofactor(pp)
-		if p8.Equal(pp) != 1 {
-			return false
-		}
-
-		// 8 * p == p + p + p + p + p + p + p + p
-		pp.Set(NewIdentityPoint())
-		for i := 0; i < 8; i++ {
-			pp.Add(pp, p)
-		}
-		return p8.Equal(pp) == 1
-	}
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-}
-
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
-	allocs := testing.AllocsPerRun(100, func() {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+		t.Skip("skipping allocations test without relevant optimizations")
+	}
+	if allocs := testing.AllocsPerRun(100, func() {
 		p := NewIdentityPoint()
 		p.Add(p, NewGeneratorPoint())
 		s := NewScalar()
 		testAllocationsSink ^= s.Bytes()[0]
 		testAllocationsSink ^= p.Bytes()[0]
-		testAllocationsSink ^= p.BytesMontgomery()[0]
-	})
-	if allocs := int(allocs); allocs != 0 {
-		t.Errorf("expected zero allocations, got %d", allocs)
+	}); allocs > 0 {
+		t.Errorf("expected zero allocations, got %0.1v", allocs)
 	}
 }
 

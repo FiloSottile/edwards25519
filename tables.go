@@ -45,7 +45,7 @@ func (v *projLookupTable) FromP3(q *Point) {
 	}
 }
 
-// This is not optimised for speed; affine tables should be precomputed.
+// This is not optimised for speed; fixed-base tables should be precomputed.
 func (v *affineLookupTable) FromP3(q *Point) {
 	// Goal: v.points[i] = (i+1)*Q, i.e., Q, 2Q, ..., 8Q
 	// This allows lookup of -8Q, ..., -Q, 0, Q, ..., 8Q
@@ -72,7 +72,7 @@ func (v *nafLookupTable5) FromP3(q *Point) {
 	}
 }
 
-// This is not optimised for speed; affine tables should be precomputed.
+// This is not optimised for speed; fixed-base tables should be precomputed.
 func (v *nafLookupTable8) FromP3(q *Point) {
 	v.points[0].FromP3(q)
 	q2 := Point{}

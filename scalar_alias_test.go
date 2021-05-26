@@ -72,9 +72,6 @@ func TestScalarAliasing(t *testing.T) {
 	}
 
 	for name, f := range map[string]interface{}{
-		"Invert": func(v Scalar, x notZeroScalar) bool {
-			return checkAliasingOneArg((*Scalar).Invert, v, Scalar(x))
-		},
 		"Negate": func(v, x Scalar) bool {
 			return checkAliasingOneArg((*Scalar).Negate, v, x)
 		},

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package edwards25519
+package field
 
 import "math/bits"
 
@@ -31,7 +31,7 @@ func shiftRightBy51(a uint128) uint64 {
 	return (a.hi << (64 - 51)) | (a.lo >> 51)
 }
 
-func feMulGeneric(v, a, b *fieldElement) {
+func feMulGeneric(v, a, b *Element) {
 	a0 := a.l0
 	a1 := a.l1
 	a2 := a.l2
@@ -118,7 +118,7 @@ func feMulGeneric(v, a, b *fieldElement) {
 
 	// After the multiplication, we need to reduce (carry) the five coefficients
 	// to obtain a result with limbs that are at most slightly larger than 2⁵¹,
-	// to respect the fieldElement invariant.
+	// to respect the Element invariant.
 	//
 	// Overall, the reduction works the same as carryPropagate, except with
 	// wider inputs: we take the carry for each coefficient by shifting it right
@@ -156,13 +156,13 @@ func feMulGeneric(v, a, b *fieldElement) {
 	rr4 := r4.lo&maskLow51Bits + c3
 
 	// Now all coefficients fit into 64-bit registers but are still too large to
-	// be passed around as a fieldElement. We therefore do one last carry chain,
+	// be passed around as a Element. We therefore do one last carry chain,
 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
-	*v = fieldElement{rr0, rr1, rr2, rr3, rr4}
+	*v = Element{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
 }
 
-func feSquareGeneric(v, a *fieldElement) {
+func feSquareGeneric(v, a *Element) {
 	l0 := a.l0
 	l1 := a.l1
 	l2 := a.l2
@@ -241,13 +241,13 @@ func feSquareGeneric(v, a *fieldElement) {
 	rr3 := r3.lo&maskLow51Bits + c2
 	rr4 := r4.lo&maskLow51Bits + c3
 
-	*v = fieldElement{rr0, rr1, rr2, rr3, rr4}
+	*v = Element{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
 }
 
 // carryPropagate brings the limbs below 52 bits by applying the reduction
 // identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
-func (v *fieldElement) carryPropagateGeneric() *fieldElement {
+func (v *Element) carryPropagateGeneric() *Element {
 	c0 := v.l0 >> 51
 	c1 := v.l1 >> 51
 	c2 := v.l2 >> 51
