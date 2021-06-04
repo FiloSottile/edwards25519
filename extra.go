@@ -7,7 +7,70 @@ package edwards25519
 // This file contains additional functionality that is not included in the
 // upstream crypto/ed25519/internal/edwards25519 package.
 
-import "filippo.io/edwards25519/field"
+import (
+	"errors"
+
+	"filippo.io/edwards25519/field"
+)
+
+// ExtendedCoordinates returns v in extended coordinates (X:Y:Z:T) where
+// x = X/Z, y = Y/Z, and xy = T/Z as in https://eprint.iacr.org/2008/522.
+func (v *Point) ExtendedCoordinates() (X, Y, Z, T *field.Element) {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap. Don't change the style without making
+	// sure it doesn't increase the inliner cost.
+	var e [4]field.Element
+	X, Y, Z, T = v.extendedCoordinates(&e)
+	return
+}
+
+func (v *Point) extendedCoordinates(e *[4]field.Element) (X, Y, Z, T *field.Element) {
+	checkInitialized(v)
+	X = e[0].Set(&v.x)
+	Y = e[1].Set(&v.y)
+	Z = e[2].Set(&v.z)
+	T = e[3].Set(&v.t)
+	return
+}
+
+// SetExtendedCoordinates sets v = (X:Y:Z:T) in extended coordinates where
+// x = X/Z, y = Y/Z, and xy = T/Z as in https://eprint.iacr.org/2008/522.
+//
+// If the coordinates are invalid or don't represent a valid point on the curve,
+// SetExtendedCoordinates returns nil and an error and the receiver is
+// unchanged. Otherwise, SetExtendedCoordinates returns v.
+func (v *Point) SetExtendedCoordinates(X, Y, Z, T *field.Element) (*Point, error) {
+	if !isOnCurve(X, Y, Z, T) {
+		return nil, errors.New("edwards25519: invalid point coordinates")
+	}
+	v.x.Set(X)
+	v.y.Set(Y)
+	v.z.Set(Z)
+	v.t.Set(T)
+	return v, nil
+}
+
+func isOnCurve(X, Y, Z, T *field.Element) bool {
+	var lhs, rhs field.Element
+	XX := new(field.Element).Square(X)
+	YY := new(field.Element).Square(Y)
+	ZZ := new(field.Element).Square(Z)
+	TT := new(field.Element).Square(T)
+	// -x² + y² = 1 + dx²y²
+	// -(X/Z)² + (Y/Z)² = 1 + d(T/Z)²
+	// -X² + Y² = Z² + dT²
+	lhs.Subtract(YY, XX)
+	rhs.Multiply(d, TT).Add(&rhs, ZZ)
+	if lhs.Equal(&rhs) != 1 {
+		return false
+	}
+	// xy = T/Z
+	// XY/Z² = T/Z
+	// XY = TZ
+	lhs.Multiply(X, Y)
+	rhs.Multiply(T, Z)
+	return lhs.Equal(&rhs) == 1
+}
 
 // BytesMontgomery converts v to a point on the birationally-equivalent
 // Curve25519 Montgomery curve, and returns its canonical 32 bytes encoding
