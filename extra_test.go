@@ -109,6 +109,11 @@ func TestScalarInvert(t *testing.T) {
 	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
 		t.Error(err)
 	}
+
+	zero := NewScalar()
+	if xx := NewScalar().Invert(zero); xx.Equal(zero) != 1 {
+		t.Errorf("inverting zero did not return zero")
+	}
 }
 
 func TestMultiScalarMultMatchesBaseMult(t *testing.T) {

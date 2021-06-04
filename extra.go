@@ -64,12 +64,8 @@ func (s *Scalar) pow2k(k int) {
 
 // Invert sets s to the inverse of a nonzero scalar v, and returns s.
 //
-// If t is zero, Invert will panic.
+// If t is zero, Invert returns zero.
 func (s *Scalar) Invert(t *Scalar) *Scalar {
-	if t.s == [32]byte{} {
-		panic("edwards25519: zero Scalar passed to Invert")
-	}
-
 	// Uses a hardcoded sliding window of width 4.
 	var table [8]Scalar
 	var tt Scalar
