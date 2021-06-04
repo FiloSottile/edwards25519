@@ -8,6 +8,7 @@ package field
 import (
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"math/bits"
 )
 
@@ -186,14 +187,16 @@ func (v *Element) Set(a *Element) *Element {
 	return v
 }
 
-// SetBytes sets v to x, which must be a 32-byte little-endian encoding.
+// SetBytes sets v to x, where x is a 32-byte little-endian encoding. If x is
+// not of the right length, SetUniformBytes returns nil and an error, and the
+// receiver is unchanged.
 //
 // Consistent with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
 // are accepted. Note that this is laxer than specified by RFC 8032.
-func (v *Element) SetBytes(x []byte) *Element {
+func (v *Element) SetBytes(x []byte) (*Element, error) {
 	if len(x) != 32 {
-		panic("edwards25519: invalid field element input size")
+		return nil, errors.New("edwards25519: invalid field element input size")
 	}
 
 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
@@ -213,7 +216,7 @@ func (v *Element) SetBytes(x []byte) *Element {
 	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
 	v.l4 &= maskLow51Bits
 
-	return v
+	return v, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of v.

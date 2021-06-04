@@ -67,7 +67,7 @@ func TestMultByCofactor(t *testing.T) {
 	}
 
 	f := func(scalar [64]byte) bool {
-		s := NewScalar().SetUniformBytes(scalar[:])
+		s, _ := NewScalar().SetUniformBytes(scalar[:])
 		p := (&Point{}).ScalarBaseMult(s)
 		p8 := (&Point{}).MultByCofactor(p)
 		checkOnCurve(t, p8)
