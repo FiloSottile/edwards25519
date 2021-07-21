@@ -193,7 +193,8 @@ func (v *Element) Set(a *Element) *Element {
 //
 // Consistent with RFC 7748, the most significant bit (the high bit of the
 // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
-// are accepted. Note that this is laxer than specified by RFC 8032.
+// are accepted. Note that this is laxer than specified by RFC 8032, but
+// consistent with most Ed25519 implementations.
 func (v *Element) SetBytes(x []byte) (*Element, error) {
 	if len(x) != 32 {
 		return nil, errors.New("edwards25519: invalid field element input size")
@@ -211,7 +212,7 @@ func (v *Element) SetBytes(x []byte) (*Element, error) {
 	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
 	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
 	v.l3 &= maskLow51Bits
-	// Bits 204:251 (bytes 24:32, bits 192:256, shift 12, mask 51).
+	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
 	// Note: not bytes 25:33, shift 4, to avoid overread.
 	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
 	v.l4 &= maskLow51Bits
