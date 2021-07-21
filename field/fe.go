@@ -395,25 +395,25 @@ var sqrtM1 = &Element{1718705420411056, 234908883556509,
 // sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
 // and returns r and 0.
 func (r *Element) SqrtRatio(u, v *Element) (rr *Element, wasSquare int) {
-	var a, b Element
+	t0 := new(Element)
 
 	// r = (u * v3) * (u * v7)^((p-5)/8)
-	v2 := a.Square(v)
-	uv3 := b.Multiply(u, b.Multiply(v2, v))
-	uv7 := a.Multiply(uv3, a.Square(v2))
-	r.Multiply(uv3, r.Pow22523(uv7))
+	v2 := new(Element).Square(v)
+	uv3 := new(Element).Multiply(u, t0.Multiply(v2, v))
+	uv7 := new(Element).Multiply(uv3, t0.Square(v2))
+	rr = new(Element).Multiply(uv3, t0.Pow22523(uv7))
 
-	check := a.Multiply(v, a.Square(r)) // check = v * r^2
+	check := new(Element).Multiply(v, t0.Square(rr)) // check = v * r^2
 
-	uNeg := b.Negate(u)
+	uNeg := new(Element).Negate(u)
 	correctSignSqrt := check.Equal(u)
 	flippedSignSqrt := check.Equal(uNeg)
-	flippedSignSqrtI := check.Equal(uNeg.Multiply(uNeg, sqrtM1))
+	flippedSignSqrtI := check.Equal(t0.Multiply(uNeg, sqrtM1))
 
-	rPrime := b.Multiply(r, sqrtM1) // r_prime = SQRT_M1 * r
+	rPrime := new(Element).Multiply(rr, sqrtM1) // r_prime = SQRT_M1 * r
 	// r = CT_SELECT(r_prime IF flipped_sign_sqrt | flipped_sign_sqrt_i ELSE r)
-	r.Select(rPrime, r, flippedSignSqrt|flippedSignSqrtI)
+	rr.Select(rPrime, rr, flippedSignSqrt|flippedSignSqrtI)
 
-	r.Absolute(r) // Choose the nonnegative square root.
+	r.Absolute(rr) // Choose the nonnegative square root.
 	return r, correctSignSqrt | flippedSignSqrt
 }
