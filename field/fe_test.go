@@ -218,8 +218,8 @@ func TestBytesBigEquivalence(t *testing.T) {
 			return false
 		}
 
-		buf := make([]byte, 32) // pad with zeroes
-		copy(buf, swapEndianness(fe1.toBig().Bytes()))
+		buf := make([]byte, 32)
+		buf = swapEndianness(fe1.toBig().FillBytes(buf))
 
 		return bytes.Equal(fe.Bytes(), buf) && isInBounds(&fe) && isInBounds(&fe1)
 	}
