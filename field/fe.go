@@ -188,7 +188,7 @@ func (v *Element) Set(a *Element) *Element {
 }
 
 // SetBytes sets v to x, where x is a 32-byte little-endian encoding. If x is
-// not of the right length, SetUniformBytes returns nil and an error, and the
+// not of the right length, SetBytes returns nil and an error, and the
 // receiver is unchanged.
 //
 // Consistent with RFC 7748, the most significant bit (the high bit of the
