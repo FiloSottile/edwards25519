@@ -7,9 +7,9 @@ package field
 
 import (
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
-	"math/bits"
+
+	fiat "github.com/mit-plv/fiat-crypto/fiat-go/64/curve25519"
 )
 
 // Element represents an element of the field GF(2^255-19). Note that this
@@ -21,20 +21,16 @@ import (
 //
 // The zero value is a valid zero element.
 type Element struct {
-	// An element t represents the integer
-	//     t.l0 + t.l1*2^51 + t.l2*2^102 + t.l3*2^153 + t.l4*2^204
-	//
-	// Between operations, all limbs are expected to be lower than 2^52.
-	l0 uint64
-	l1 uint64
-	l2 uint64
-	l3 uint64
-	l4 uint64
+	limbs fiat.TightFieldElement
 }
 
-const maskLow51Bits uint64 = (1 << 51) - 1
+func newElementFromLimbs(l0, l1, l2, l3, l4 uint64) *Element {
+	e := new(Element)
+	fiat.Carry(&e.limbs, &fiat.LooseFieldElement{l0, l1, l2, l3, l4})
+	return e
+}
 
-var feZero = &Element{0, 0, 0, 0, 0}
+var feZero = newElementFromLimbs(0, 0, 0, 0, 0)
 
 // Zero sets v = 0, and returns v.
 func (v *Element) Zero() *Element {
@@ -42,7 +38,7 @@ func (v *Element) Zero() *Element {
 	return v
 }
 
-var feOne = &Element{1, 0, 0, 0, 0}
+var feOne = newElementFromLimbs(1, 0, 0, 0, 0)
 
 // One sets v = 1, and returns v.
 func (v *Element) One() *Element {
@@ -50,68 +46,22 @@ func (v *Element) One() *Element {
 	return v
 }
 
-// reduce reduces v modulo 2^255 - 19 and returns it.
-func (v *Element) reduce() *Element {
-	v.carryPropagate()
-
-	// After the light reduction we now have a field element representation
-	// v < 2^255 + 2^13 * 19, but need v < 2^255 - 19.
-
-	// If v >= 2^255 - 19, then v + 19 >= 2^255, which would overflow 2^255 - 1,
-	// generating a carry. That is, c will be 0 if v < 2^255 - 19, and 1 otherwise.
-	c := (v.l0 + 19) >> 51
-	c = (v.l1 + c) >> 51
-	c = (v.l2 + c) >> 51
-	c = (v.l3 + c) >> 51
-	c = (v.l4 + c) >> 51
-
-	// If v < 2^255 - 19 and c = 0, this will be a no-op. Otherwise, it's
-	// effectively applying the reduction identity to the carry.
-	v.l0 += 19 * c
-
-	v.l1 += v.l0 >> 51
-	v.l0 = v.l0 & maskLow51Bits
-	v.l2 += v.l1 >> 51
-	v.l1 = v.l1 & maskLow51Bits
-	v.l3 += v.l2 >> 51
-	v.l2 = v.l2 & maskLow51Bits
-	v.l4 += v.l3 >> 51
-	v.l3 = v.l3 & maskLow51Bits
-	// no additional carry
-	v.l4 = v.l4 & maskLow51Bits
-
-	return v
-}
-
 // Add sets v = a + b, and returns v.
 func (v *Element) Add(a, b *Element) *Element {
-	v.l0 = a.l0 + b.l0
-	v.l1 = a.l1 + b.l1
-	v.l2 = a.l2 + b.l2
-	v.l3 = a.l3 + b.l3
-	v.l4 = a.l4 + b.l4
-	// Using the generic implementation here is actually faster than the
-	// assembly. Probably because the body of this function is so simple that
-	// the compiler can figure out better optimizations by inlining the carry
-	// propagation.
-	return v.carryPropagateGeneric()
+	fiat.CarryAdd(&v.limbs, &a.limbs, &b.limbs)
+	return v
 }
 
 // Subtract sets v = a - b, and returns v.
 func (v *Element) Subtract(a, b *Element) *Element {
-	// We first add 2 * p, to guarantee the subtraction won't underflow, and
-	// then subtract b (which can be up to 2^255 + 2^13 * 19).
-	v.l0 = (a.l0 + 0xFFFFFFFFFFFDA) - b.l0
-	v.l1 = (a.l1 + 0xFFFFFFFFFFFFE) - b.l1
-	v.l2 = (a.l2 + 0xFFFFFFFFFFFFE) - b.l2
-	v.l3 = (a.l3 + 0xFFFFFFFFFFFFE) - b.l3
-	v.l4 = (a.l4 + 0xFFFFFFFFFFFFE) - b.l4
-	return v.carryPropagate()
+	fiat.CarrySub(&v.limbs, &a.limbs, &b.limbs)
+	return v
 }
 
 // Negate sets v = -a, and returns v.
 func (v *Element) Negate(a *Element) *Element {
-	return v.Subtract(feZero, a)
+	fiat.CarryOpp(&v.limbs, &a.limbs)
+	return v
 }
 
 // Invert sets v = 1/z mod p, and returns v.
@@ -200,51 +150,19 @@ func (v *Element) SetBytes(x []byte) (*Element, error) {
 		return nil, errors.New("edwards25519: invalid field element input size")
 	}
 
-	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
-	v.l0 = binary.LittleEndian.Uint64(x[0:8])
-	v.l0 &= maskLow51Bits
-	// Bits 51:102 (bytes 6:14, bits 48:112, shift 3, mask 51).
-	v.l1 = binary.LittleEndian.Uint64(x[6:14]) >> 3
-	v.l1 &= maskLow51Bits
-	// Bits 102:153 (bytes 12:20, bits 96:160, shift 6, mask 51).
-	v.l2 = binary.LittleEndian.Uint64(x[12:20]) >> 6
-	v.l2 &= maskLow51Bits
-	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
-	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
-	v.l3 &= maskLow51Bits
-	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
-	// Note: not bytes 25:33, shift 4, to avoid overread.
-	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
-	v.l4 &= maskLow51Bits
+	var xCopy [32]byte
+	copy(xCopy[:], x)
+	xCopy[31] &= 127 // Ignore the MSB
+
+	fiat.FromBytes(&v.limbs, &xCopy)
 
 	return v, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of v.
 func (v *Element) Bytes() []byte {
-	// This function is outlined to make the allocations inline in the caller
-	// rather than happen on the heap.
 	var out [32]byte
-	return v.bytes(&out)
-}
-
-func (v *Element) bytes(out *[32]byte) []byte {
-	t := *v
-	t.reduce()
-
-	var buf [8]byte
-	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
-		bitsOffset := i * 51
-		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
-		for i, bb := range buf {
-			off := bitsOffset/8 + i
-			if off >= len(out) {
-				break
-			}
-			out[off] |= bb
-		}
-	}
-
+	fiat.ToBytes(&out, &v.limbs)
 	return out[:]
 }
 
@@ -259,33 +177,35 @@ func mask64Bits(cond int) uint64 { return ^(uint64(cond) - 1) }
 
 // Select sets v to a if cond == 1, and to b if cond == 0.
 func (v *Element) Select(a, b *Element, cond int) *Element {
+	// fiat.Selectznz is unusable, due to the function prototype taking
+	// an unexported type.  Performance isn't amazing either.
 	m := mask64Bits(cond)
-	v.l0 = (m & a.l0) | (^m & b.l0)
-	v.l1 = (m & a.l1) | (^m & b.l1)
-	v.l2 = (m & a.l2) | (^m & b.l2)
-	v.l3 = (m & a.l3) | (^m & b.l3)
-	v.l4 = (m & a.l4) | (^m & b.l4)
+	v.limbs[0] = (m & a.limbs[0]) | (^m & b.limbs[0])
+	v.limbs[1] = (m & a.limbs[1]) | (^m & b.limbs[1])
+	v.limbs[2] = (m & a.limbs[2]) | (^m & b.limbs[2])
+	v.limbs[3] = (m & a.limbs[3]) | (^m & b.limbs[3])
+	v.limbs[4] = (m & a.limbs[4]) | (^m & b.limbs[4])
 	return v
 }
 
 // Swap swaps v and u if cond == 1 or leaves them unchanged if cond == 0, and returns v.
 func (v *Element) Swap(u *Element, cond int) {
 	m := mask64Bits(cond)
-	t := m & (v.l0 ^ u.l0)
-	v.l0 ^= t
-	u.l0 ^= t
-	t = m & (v.l1 ^ u.l1)
-	v.l1 ^= t
-	u.l1 ^= t
-	t = m & (v.l2 ^ u.l2)
-	v.l2 ^= t
-	u.l2 ^= t
-	t = m & (v.l3 ^ u.l3)
-	v.l3 ^= t
-	u.l3 ^= t
-	t = m & (v.l4 ^ u.l4)
-	v.l4 ^= t
-	u.l4 ^= t
+	t := m & (v.limbs[0] ^ u.limbs[0])
+	v.limbs[0] ^= t
+	u.limbs[0] ^= t
+	t = m & (v.limbs[1] ^ u.limbs[1])
+	v.limbs[1] ^= t
+	u.limbs[1] ^= t
+	t = m & (v.limbs[2] ^ u.limbs[2])
+	v.limbs[2] ^= t
+	u.limbs[2] ^= t
+	t = m & (v.limbs[3] ^ u.limbs[3])
+	v.limbs[3] ^= t
+	u.limbs[3] ^= t
+	t = m & (v.limbs[4] ^ u.limbs[4])
+	v.limbs[4] ^= t
+	u.limbs[4] ^= t
 }
 
 // IsNegative returns 1 if v is negative, and 0 otherwise.
@@ -300,39 +220,24 @@ func (v *Element) Absolute(u *Element) *Element {
 
 // Multiply sets v = x * y, and returns v.
 func (v *Element) Multiply(x, y *Element) *Element {
-	feMul(v, x, y)
+	fiat.CarryMul(&v.limbs, (*fiat.LooseFieldElement)(&x.limbs), (*fiat.LooseFieldElement)(&y.limbs))
 	return v
 }
 
 // Square sets v = x * x, and returns v.
 func (v *Element) Square(x *Element) *Element {
-	feSquare(v, x)
+	fiat.CarrySquare(&v.limbs, (*fiat.LooseFieldElement)(&x.limbs))
 	return v
 }
 
 // Mult32 sets v = x * y, and returns v.
 func (v *Element) Mult32(x *Element, y uint32) *Element {
-	x0lo, x0hi := mul51(x.l0, y)
-	x1lo, x1hi := mul51(x.l1, y)
-	x2lo, x2hi := mul51(x.l2, y)
-	x3lo, x3hi := mul51(x.l3, y)
-	x4lo, x4hi := mul51(x.l4, y)
-	v.l0 = x0lo + 19*x4hi // carried over per the reduction identity
-	v.l1 = x1lo + x0hi
-	v.l2 = x2lo + x1hi
-	v.l3 = x3lo + x2hi
-	v.l4 = x4lo + x3hi
-	// The hi portions are going to be only 32 bits, plus any previous excess,
-	// so we can skip the carry propagation.
+	// fiat has CarryScmul121666 but nothing generic, do this the slow way
+	// since the fast way + Carry voilates the bounds specified for
+	// LooseFieldElement.
+	yLimbs := fiat.LooseFieldElement{uint64(y), 0, 0, 0, 0}
+	fiat.CarryMul(&v.limbs, (*fiat.LooseFieldElement)(&x.limbs), &yLimbs)
 	return v
-}
-
-// mul51 returns lo + hi * 2⁵¹ = a * b.
-func mul51(a uint64, b uint32) (lo uint64, hi uint64) {
-	mh, ml := bits.Mul64(a, uint64(b))
-	lo = ml & maskLow51Bits
-	hi = (mh << 13) | (ml >> 51)
-	return
 }
 
 // Pow22523 set v = x^((p-5)/8), and returns v. (p-5)/8 is 2^252-3.
@@ -387,8 +292,8 @@ func (v *Element) Pow22523(x *Element) *Element {
 }
 
 // sqrtM1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
-var sqrtM1 = &Element{1718705420411056, 234908883556509,
-	2233514472574048, 2117202627021982, 765476049583133}
+var sqrtM1 = newElementFromLimbs(1718705420411056, 234908883556509,
+	2233514472574048, 2117202627021982, 765476049583133)
 
 // SqrtRatio sets r to the non-negative square root of the ratio of u and v.
 //
