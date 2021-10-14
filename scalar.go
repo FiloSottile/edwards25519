@@ -153,12 +153,12 @@ func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
 }
 
 // SetBytes directly sets the contents of the scalar. Use with caution.
-func (s *Scalar) SetBytes(x []byte) *Scalar {
+func (s *Scalar) SetBytes(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
-		panic("edwards25519: invalid SetBytes input length")
+		return nil, errors.New("edwards25519: invalid SetBytes input length")
 	}
 	copy(s.s[:], x[:])
-	return s
+	return s, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of s.
