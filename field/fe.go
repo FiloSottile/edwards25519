@@ -395,14 +395,14 @@ var sqrtM1 = &Element{1718705420411056, 234908883556509,
 // If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
 // sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
 // and returns r and 0.
-func (r *Element) SqrtRatio(u, v *Element) (rr *Element, wasSquare int) {
+func (r *Element) SqrtRatio(u, v *Element) (R *Element, wasSquare int) {
 	t0 := new(Element)
 
 	// r = (u * v3) * (u * v7)^((p-5)/8)
 	v2 := new(Element).Square(v)
 	uv3 := new(Element).Multiply(u, t0.Multiply(v2, v))
 	uv7 := new(Element).Multiply(uv3, t0.Square(v2))
-	rr = new(Element).Multiply(uv3, t0.Pow22523(uv7))
+	rr := new(Element).Multiply(uv3, t0.Pow22523(uv7))
 
 	check := new(Element).Multiply(v, t0.Square(rr)) // check = v * r^2
 
