@@ -35,16 +35,12 @@ func (v *Element) SetWideBytes(x []byte) (*Element, error) {
 	// which applying the reduction identity comes out to
 	//
 	//   v = lo + loMSB * 19 + hi * 2 * 19 + hiMSB * 2 * 19²
-	//
-	// l0 will be the sum of a 52 bits value (lo.l0), plus a 5 bits value
-	// (loMSB * 19), a 6 bits value (hi.l0 * 2 * 19), and a 10 bits value
-	// (hiMSB * 2 * 19²), so it fits in a uint64.
+	carry := newElementFromLimbs(
+		loMSB*19+hiMSB*19*19, 0, 0, 0, 0,
+	)
+	lo.Add(lo, carry)
+	hi.Mult32(hi, 2*19)
+	v.Add(lo, hi)
 
-	v.l0 = lo.l0 + loMSB*19 + hi.l0*2*19 + hiMSB*2*19*19
-	v.l1 = lo.l1 + hi.l1*2*19
-	v.l2 = lo.l2 + hi.l2*2*19
-	v.l3 = lo.l3 + hi.l3*2*19
-	v.l4 = lo.l4 + hi.l4*2*19
-
-	return v.carryPropagate(), nil
+	return v, nil
 }
