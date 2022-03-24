@@ -74,7 +74,9 @@ func TestMultByCofactor(t *testing.T) {
 		checkOnCurve(t, p8)
 
 		// 8 * p == (8 * s) * B
-		s.Multiply(s, &Scalar{[32]byte{8}})
+		reprEight := [32]byte{8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		scEight, _ := (&Scalar{}).SetCanonicalBytes(reprEight[:])
+		s.Multiply(s, scEight)
 		pp := (&Point{}).ScalarBaseMult(s)
 		if p8.Equal(pp) != 1 {
 			return false
@@ -104,11 +106,21 @@ func TestScalarInvert(t *testing.T) {
 		xInv.Invert((*Scalar)(&x))
 		var check Scalar
 		check.Multiply((*Scalar)(&x), &xInv)
-		return check == scOne && isReduced(&xInv)
+
+		return check.Equal(&scOne) == 1 && isReduced(xInv.Bytes())
 	}
 
 	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
 		t.Error(err)
+	}
+
+	randomScalar := *dalekScalar
+	randomInverse := NewScalar().Invert(&randomScalar)
+	var check Scalar
+	check.Multiply(&randomScalar, randomInverse)
+
+	if check.Equal(&scOne) == 0 || !isReduced(randomInverse.Bytes()) {
+		t.Error("inversion did not work")
 	}
 
 	zero := NewScalar()
@@ -162,7 +174,7 @@ func BenchmarkMultiScalarMultSize8(t *testing.B) {
 	x := dalekScalar
 
 	for i := 0; i < t.N; i++ {
-		p.MultiScalarMult([]*Scalar{&x, &x, &x, &x, &x, &x, &x, &x},
+		p.MultiScalarMult([]*Scalar{x, x, x, x, x, x, x, x},
 			[]*Point{B, B, B, B, B, B, B, B})
 	}
 }
