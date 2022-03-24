@@ -21,17 +21,18 @@ import (
 //
 // The zero value is a valid zero element.
 type Scalar struct {
-	// s is the Scalar value in little-endian. The value is always reduced
-	// modulo l between operations.
-	s [32]byte
+	// A Scalar is an integer modulo l = 2^252 + 27742317777372353535851937790883648493.
+	// Internally, this implementation keeps the scalar in the Montgomery domain.
+	s [4]uint64
 }
 
 var (
-	scZero = Scalar{[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+	scZeroBytes     = [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	scOneBytes      = [32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	scMinusOneBytes = [32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}
 
-	scOne = Scalar{[32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
-
-	scMinusOne = Scalar{[32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}}
+	scOne      = Scalar{[4]uint64{0xd6ec31748d98951d, 0xc6ef5bf4737dcf70, 0xfffffffffffffffe, 0xfffffffffffffff}}
+	scMinusOne = Scalar{[4]uint64{0x812631a5cf5d3ed0, 0x4def9dea2f79cd65, 1, 0}}
 )
 
 // NewScalar returns a new zero Scalar.
@@ -39,37 +40,53 @@ func NewScalar() *Scalar {
 	return &Scalar{}
 }
 
-// MultiplyAdd sets s = x * y + z mod l, and returns s.
+// MultiplyAdd sets s = x * y + z mod l, and returns s. DEPRECATED. Use the individual Add and Multiply methods instead.
 func (s *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
-	scMulAdd(&s.s, &x.s, &y.s, &z.s)
+	var tempFieldElement [4]uint64
+	var xRepr, yRepr, zRepr, tempResult [32]byte
+
+	fiat_sc255_from_montgomery(&tempFieldElement, (*[4]uint64)(&x.s))
+	fiat_sc255_to_bytes(&xRepr, &tempFieldElement)
+
+	fiat_sc255_from_montgomery(&tempFieldElement, (*[4]uint64)(&y.s))
+	fiat_sc255_to_bytes(&yRepr, &tempFieldElement)
+
+	fiat_sc255_from_montgomery(&tempFieldElement, (*[4]uint64)(&z.s))
+	fiat_sc255_to_bytes(&zRepr, &tempFieldElement)
+
+	scMulAdd(&tempResult, &xRepr, &yRepr, &zRepr)
+
+	fiat_sc255_from_bytes(&tempFieldElement, &tempResult)
+	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), &tempFieldElement)
+
 	return s
 }
 
 // Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
-	scMulAdd(&s.s, &scOne.s, &x.s, &y.s)
+	fiat_sc255_add((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
 	return s
 }
 
 // Subtract sets s = x - y mod l, and returns s.
 func (s *Scalar) Subtract(x, y *Scalar) *Scalar {
 	// s = -1 * y + x mod l
-	scMulAdd(&s.s, &scMinusOne.s, &y.s, &x.s)
+	fiat_sc255_sub((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
 	return s
 }
 
 // Negate sets s = -x mod l, and returns s.
 func (s *Scalar) Negate(x *Scalar) *Scalar {
 	// s = -1 * x + 0 mod l
-	scMulAdd(&s.s, &scMinusOne.s, &x.s, &scZero.s)
+	fiat_sc255_opp((*[4]uint64)(&s.s), (*[4]uint64)(&x.s))
 	return s
 }
 
 // Multiply sets s = x * y mod l, and returns s.
 func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	// s = x * y + 0 mod l
-	scMulAdd(&s.s, &x.s, &y.s, &scZero.s)
+	fiat_sc255_mul((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
 	return s
 }
 
@@ -91,7 +108,14 @@ func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 	}
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
-	scReduce(&s.s, &wideBytes)
+
+	// TODO: We should deprecate scReduce as well, but we retain it here for consistent behavior
+	var reduced [32]byte
+	scReduce(&reduced, &wideBytes)
+
+	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
+	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
+
 	return s, nil
 }
 
@@ -102,22 +126,31 @@ func (s *Scalar) SetCanonicalBytes(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
 		return nil, errors.New("invalid scalar length")
 	}
-	ss := &Scalar{}
-	copy(ss.s[:], x)
-	if !isReduced(ss) {
+
+	// Use bytes here because the original logic assumed the old 32-byte LE representation
+	ss := [32]byte{}
+	copy(ss[:], x)
+	if !isReduced(ss[:]) {
 		return nil, errors.New("invalid scalar encoding")
 	}
-	s.s = ss.s
+
+	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &ss)
+	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
+
 	return s, nil
 }
 
-// isReduced returns whether the given scalar is reduced modulo l.
-func isReduced(s *Scalar) bool {
-	for i := len(s.s) - 1; i >= 0; i-- {
+// isReduced returns whether the given scalar in 32-byte little endian encoded form is reduced modulo l.
+func isReduced(s []byte) bool {
+	if len(s) != 32 {
+		return false
+	}
+
+	for i := len(s) - 1; i >= 0; i-- {
 		switch {
-		case s.s[i] > scMinusOne.s[i]:
+		case s[i] > scMinusOneBytes[i]:
 			return false
-		case s.s[i] < scMinusOne.s[i]:
+		case s[i] < scMinusOneBytes[i]:
 			return true
 		}
 	}
@@ -148,20 +181,34 @@ func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
 	wideBytes[0] &= 248
 	wideBytes[31] &= 63
 	wideBytes[31] |= 64
-	scReduce(&s.s, &wideBytes)
+	var reduced [32]byte
+	scReduce(&reduced, &wideBytes)
+	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
+	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
 	return s, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of s.
 func (s *Scalar) Bytes() []byte {
-	buf := make([]byte, 32)
-	copy(buf, s.s[:])
-	return buf
+	// This pattern, called "outlining", allows this function to inline so the
+	// allocations can occur on the caller stack rather than escaping to the heap.
+	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner for more details.
+	var encoded [32]byte
+	return s.bytes(&encoded)
+}
+
+func (s *Scalar) bytes(out *[32]byte) []byte {
+	var limbs [4]uint64
+	fiat_sc255_from_montgomery(&limbs, (*[4]uint64)(&s.s))
+	fiat_sc255_to_bytes(out, &limbs)
+	return out[:]
 }
 
 // Equal returns 1 if s and t are equal, and 0 otherwise.
 func (s *Scalar) Equal(t *Scalar) int {
-	return subtle.ConstantTimeCompare(s.s[:], t.s[:])
+	st := t.Bytes()
+	ss := s.Bytes()
+	return subtle.ConstantTimeCompare(ss[:], st[:])
 }
 
 // scMulAdd and scReduce are ported from the public domain, “ref10”
@@ -950,7 +997,8 @@ func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
 	// This implementation is adapted from the one
 	// in curve25519-dalek and is documented there:
 	// https://github.com/dalek-cryptography/curve25519-dalek/blob/f630041af28e9a405255f98a8a93adca18e4315b/src/scalar.rs#L800-L871
-	if s.s[31] > 127 {
+	b := s.Bytes()
+	if b[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 	if w < 2 {
@@ -963,7 +1011,7 @@ func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
 	var digits [5]uint64
 
 	for i := 0; i < 4; i++ {
-		digits[i] = binary.LittleEndian.Uint64(s.s[i*8:])
+		digits[i] = binary.LittleEndian.Uint64(b[i*8:])
 	}
 
 	width := uint64(1 << w)
@@ -1011,7 +1059,8 @@ func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
 }
 
 func (s *Scalar) signedRadix16() [64]int8 {
-	if s.s[31] > 127 {
+	b := s.Bytes()
+	if b[31] > 127 {
 		panic("scalar has high bit set illegally")
 	}
 
@@ -1019,8 +1068,8 @@ func (s *Scalar) signedRadix16() [64]int8 {
 
 	// Compute unsigned radix-16 digits:
 	for i := 0; i < 32; i++ {
-		digits[2*i] = int8(s.s[i] & 15)
-		digits[2*i+1] = int8((s.s[i] >> 4) & 15)
+		digits[2*i] = int8(b[i] & 15)
+		digits[2*i+1] = int8((b[i] >> 4) & 15)
 	}
 
 	// Recenter coefficients:

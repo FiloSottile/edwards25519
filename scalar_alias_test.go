@@ -14,12 +14,12 @@ func TestScalarAliasing(t *testing.T) {
 		x1, v1 := x, x
 
 		// Calculate a reference f(x) without aliasing.
-		if out := f(&v, &x); out != &v || !isReduced(out) {
+		if out := f(&v, &x); out != &v || !isReduced(out.Bytes()) {
 			return false
 		}
 
 		// Test aliasing the argument and the receiver.
-		if out := f(&v1, &v1); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &v1); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 
@@ -31,39 +31,39 @@ func TestScalarAliasing(t *testing.T) {
 		x1, y1, v1 := x, y, Scalar{}
 
 		// Calculate a reference f(x, y) without aliasing.
-		if out := f(&v, &x, &y); out != &v || !isReduced(out) {
+		if out := f(&v, &x, &y); out != &v || !isReduced(out.Bytes()) {
 			return false
 		}
 
 		// Test aliasing the first argument and the receiver.
 		v1 = x
-		if out := f(&v1, &v1, &y); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &v1, &y); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 		// Test aliasing the second argument and the receiver.
 		v1 = y
-		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 
 		// Calculate a reference f(x, x) without aliasing.
-		if out := f(&v, &x, &x); out != &v || !isReduced(out) {
+		if out := f(&v, &x, &x); out != &v || !isReduced(out.Bytes()) {
 			return false
 		}
 
 		// Test aliasing the first argument and the receiver.
 		v1 = x
-		if out := f(&v1, &v1, &x); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &v1, &x); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 		// Test aliasing the second argument and the receiver.
 		v1 = x
-		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &x, &v1); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 		// Test aliasing both arguments and the receiver.
 		v1 = x
-		if out := f(&v1, &v1, &v1); out != &v1 || v1 != v || !isReduced(out) {
+		if out := f(&v1, &v1, &v1); out != &v1 || v1 != v || !isReduced(out.Bytes()) {
 			return false
 		}
 
