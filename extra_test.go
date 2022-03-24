@@ -5,6 +5,7 @@
 package edwards25519
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"testing"
 	"testing/quick"
@@ -163,5 +164,45 @@ func BenchmarkMultiScalarMultSize8(t *testing.B) {
 	for i := 0; i < t.N; i++ {
 		p.MultiScalarMult([]*Scalar{&x, &x, &x, &x, &x, &x, &x, &x},
 			[]*Point{B, B, B, B, B, B, B, B})
+	}
+}
+
+func BenchmarkScalarAddition(b *testing.B) {
+	var rnd [128]byte
+	rand.Read(rnd[:])
+	s1, _ := (&Scalar{}).SetUniformBytes(rnd[0:64])
+	s2, _ := (&Scalar{}).SetUniformBytes(rnd[64:128])
+	t := &Scalar{}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		t.Add(s1, s2)
+	}
+}
+
+func BenchmarkScalarMultiplication(b *testing.B) {
+	var rnd [128]byte
+	rand.Read(rnd[:])
+	s1, _ := (&Scalar{}).SetUniformBytes(rnd[0:64])
+	s2, _ := (&Scalar{}).SetUniformBytes(rnd[64:128])
+	t := &Scalar{}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		t.Multiply(s1, s2)
+	}
+}
+
+func BenchmarkScalarInversion(b *testing.B) {
+	var rnd [64]byte
+	rand.Read(rnd[:])
+	s1, _ := (&Scalar{}).SetUniformBytes(rnd[0:64])
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		s1.Invert(s1)
 	}
 }
