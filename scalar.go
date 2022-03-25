@@ -23,7 +23,7 @@ import (
 type Scalar struct {
 	// A Scalar is an integer modulo l = 2^252 + 27742317777372353535851937790883648493.
 	// Internally, this implementation keeps the scalar in the Montgomery domain.
-	s [4]uint64
+	s fiat_sc255_montgomery_domain_field_element
 }
 
 var (
@@ -48,28 +48,28 @@ func (s *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
 // Add sets s = x + y mod l, and returns s.
 func (s *Scalar) Add(x, y *Scalar) *Scalar {
 	// s = 1 * x + y mod l
-	fiat_sc255_add((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
+	fiat_sc255_add(&s.s, &x.s, &y.s)
 	return s
 }
 
 // Subtract sets s = x - y mod l, and returns s.
 func (s *Scalar) Subtract(x, y *Scalar) *Scalar {
 	// s = -1 * y + x mod l
-	fiat_sc255_sub((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
+	fiat_sc255_sub(&s.s, &x.s, &y.s)
 	return s
 }
 
 // Negate sets s = -x mod l, and returns s.
 func (s *Scalar) Negate(x *Scalar) *Scalar {
 	// s = -1 * x + 0 mod l
-	fiat_sc255_opp((*[4]uint64)(&s.s), (*[4]uint64)(&x.s))
+	fiat_sc255_opp(&s.s, &x.s)
 	return s
 }
 
 // Multiply sets s = x * y mod l, and returns s.
 func (s *Scalar) Multiply(x, y *Scalar) *Scalar {
 	// s = x * y + 0 mod l
-	fiat_sc255_mul((*[4]uint64)(&s.s), (*[4]uint64)(&x.s), (*[4]uint64)(&y.s))
+	fiat_sc255_mul(&s.s, &x.s, &y.s)
 	return s
 }
 
@@ -97,7 +97,7 @@ func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 	scReduce(&reduced, &wideBytes)
 
 	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
-	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
+	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
 
 	return s, nil
 }
@@ -118,7 +118,7 @@ func (s *Scalar) SetCanonicalBytes(x []byte) (*Scalar, error) {
 	}
 
 	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &ss)
-	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
+	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
 
 	return s, nil
 }
@@ -167,7 +167,7 @@ func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
 	var reduced [32]byte
 	scReduce(&reduced, &wideBytes)
 	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
-	fiat_sc255_to_montgomery((*[4]uint64)(&s.s), (*[4]uint64)(&s.s))
+	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
 	return s, nil
 }
 
@@ -181,9 +181,9 @@ func (s *Scalar) Bytes() []byte {
 }
 
 func (s *Scalar) bytes(out *[32]byte) []byte {
-	var limbs [4]uint64
-	fiat_sc255_from_montgomery(&limbs, (*[4]uint64)(&s.s))
-	fiat_sc255_to_bytes(out, &limbs)
+	var limbs fiat_sc255_non_montgomery_domain_field_element
+	fiat_sc255_from_montgomery(&limbs, &s.s)
+	fiat_sc255_to_bytes(out, (*[4]uint64)(&limbs))
 	return out[:]
 }
 
