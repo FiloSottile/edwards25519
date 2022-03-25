@@ -228,8 +228,9 @@ type notZeroScalar Scalar
 func (notZeroScalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	var s Scalar
 	var isNonZero uint64
-	for fiat_sc255_nonzero(&isNonZero, (*[4]uint64)(&s.s)); isNonZero == 0; {
+	for isNonZero == 0 {
 		s = Scalar{}.Generate(rand, size).Interface().(Scalar)
+		fiat_sc255_nonzero(&isNonZero, (*[4]uint64)(&s.s))
 	}
 	return reflect.ValueOf(notZeroScalar(s))
 }
