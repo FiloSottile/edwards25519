@@ -43,8 +43,8 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	}
 
 	val := Scalar{}
-	fiat_sc255_from_bytes(&val.s, &s)
-	fiat_sc255_to_montgomery(&val.s, &val.s)
+	fiat_sc255_from_bytes((*[4]uint64)(&val.s), &s)
+	fiat_sc255_to_montgomery(&val.s, (*fiat_sc255_non_montgomery_domain_field_element)(&val.s))
 
 	return reflect.ValueOf(val)
 }
