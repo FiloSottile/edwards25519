@@ -5,7 +5,7 @@
 package edwards25519
 
 // This file contains additional functionality that is not included in the
-// upstream crypto/ed25519/internal/edwards25519 package.
+// upstream crypto/internal/edwards25519 package.
 
 import (
 	"errors"
