@@ -79,6 +79,12 @@ func isOnCurve(X, Y, Z, T *field.Element) bool {
 // Note that BytesMontgomery only encodes the u-coordinate, so v and -v encode
 // to the same value. If v is the identity point, BytesMontgomery returns 32
 // zero bytes, analogously to the X25519 function.
+//
+// The lack of an inverse operation (such as SetMontgomeryBytes) is deliberate:
+// while every valid edwards25519 point has a unique u-coordinate Montgomery
+// encoding, X25519 accepts inputs on the quadratic twist, which don't correspond
+// to any edwards25519 point, and every other X25519 input corresponds to two
+// edwards25519 points.
 func (v *Point) BytesMontgomery() []byte {
 	// This function is outlined to make the allocations inline in the caller
 	// rather than happen on the heap.
