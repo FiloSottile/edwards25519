@@ -40,9 +40,12 @@ func NewScalar() *Scalar {
 	return &Scalar{}
 }
 
-// MultiplyAdd sets s = x * y + z mod l, and returns s. DEPRECATED. Use the individual Add and Multiply methods instead.
+// MultiplyAdd sets s = x * y + z mod l, and returns s. It is equivalent to
+// using Multiply and then Add.
 func (s *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
-	return s.Multiply(x, y).Add(s, z)
+	// Make a copy of z in case it aliases s.
+	zCopy := new(Scalar).Set(z)
+	return s.Multiply(x, y).Add(s, zCopy)
 }
 
 // Add sets s = x + y mod l, and returns s.
