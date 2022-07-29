@@ -75,6 +75,9 @@ func TestScalarAliasing(t *testing.T) {
 		"Negate": func(v, x Scalar) bool {
 			return checkAliasingOneArg((*Scalar).Negate, v, x)
 		},
+		"Invert": func(v, x Scalar) bool {
+			return checkAliasingOneArg((*Scalar).Invert, v, x)
+		},
 		"Multiply": func(v, x, y Scalar) bool {
 			return checkAliasingTwoArgs((*Scalar).Multiply, v, x, y)
 		},
@@ -83,6 +86,21 @@ func TestScalarAliasing(t *testing.T) {
 		},
 		"Subtract": func(v, x, y Scalar) bool {
 			return checkAliasingTwoArgs((*Scalar).Subtract, v, x, y)
+		},
+		"MultiplyAdd1": func(v, x, y, fixed Scalar) bool {
+			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
+				return v.MultiplyAdd(&fixed, x, y)
+			}, v, x, y)
+		},
+		"MultiplyAdd2": func(v, x, y, fixed Scalar) bool {
+			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
+				return v.MultiplyAdd(x, &fixed, y)
+			}, v, x, y)
+		},
+		"MultiplyAdd3": func(v, x, y, fixed Scalar) bool {
+			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
+				return v.MultiplyAdd(x, y, &fixed)
+			}, v, x, y)
 		},
 	} {
 		err := quick.Check(f, &quick.Config{MaxCountScale: 1 << 5})
