@@ -107,7 +107,7 @@ func TestScalarInvert(t *testing.T) {
 		var check Scalar
 		check.Multiply((*Scalar)(&x), &xInv)
 
-		return check.Equal(&scOne) == 1 && isReduced(xInv.Bytes())
+		return check.Equal(scOne) == 1 && isReduced(xInv.Bytes())
 	}
 
 	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
@@ -119,7 +119,7 @@ func TestScalarInvert(t *testing.T) {
 	var check Scalar
 	check.Multiply(&randomScalar, randomInverse)
 
-	if check.Equal(&scOne) == 0 || !isReduced(randomInverse.Bytes()) {
+	if check.Equal(scOne) == 0 || !isReduced(randomInverse.Bytes()) {
 		t.Error("inversion did not work")
 	}
 

@@ -5,7 +5,6 @@
 package edwards25519
 
 import (
-	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 )
@@ -21,19 +20,10 @@ import (
 //
 // The zero value is a valid zero element.
 type Scalar struct {
-	// A Scalar is an integer modulo l = 2^252 + 27742317777372353535851937790883648493.
-	// Internally, this implementation keeps the scalar in the Montgomery domain.
+	// s is the scalar in the Montgomery domain, in the format of the
+	// fiat-crypto implementation.
 	s fiat_sc255_montgomery_domain_field_element
 }
-
-var (
-	scZeroBytes     = [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	scOneBytes      = [32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	scMinusOneBytes = [32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}
-
-	scOne      = Scalar{[4]uint64{0xd6ec31748d98951d, 0xc6ef5bf4737dcf70, 0xfffffffffffffffe, 0xfffffffffffffff}}
-	scMinusOne = Scalar{[4]uint64{0x812631a5cf5d3ed0, 0x4def9dea2f79cd65, 1, 0}}
-)
 
 // NewScalar returns a new zero Scalar.
 func NewScalar() *Scalar {
@@ -92,12 +82,10 @@ func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
 	if len(x) != 64 {
 		return nil, errors.New("edwards25519: invalid SetUniformBytes input length")
 	}
-	var wideBytes [64]byte
-	copy(wideBytes[:], x[:])
 
-	// TODO: We should deprecate scReduce as well, but we retain it here for consistent behavior
+	// TODO: replace scReduce with a limbed reduction.
 	var reduced [32]byte
-	scReduce(&reduced, &wideBytes)
+	scReduce(&reduced, (*[64]byte)(x))
 
 	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
 	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
@@ -112,21 +100,21 @@ func (s *Scalar) SetCanonicalBytes(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
 		return nil, errors.New("invalid scalar length")
 	}
-
-	// Use bytes here because the original logic assumed the old 32-byte LE representation
-	ss := [32]byte{}
-	copy(ss[:], x)
-	if !isReduced(ss[:]) {
+	if !isReduced(x) {
 		return nil, errors.New("invalid scalar encoding")
 	}
 
-	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &ss)
+	fiat_sc255_from_bytes((*[4]uint64)(&s.s), (*[32]byte)(x))
 	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
 
 	return s, nil
 }
 
-// isReduced returns whether the given scalar in 32-byte little endian encoded form is reduced modulo l.
+// scalarMinusOneBytes is l - 1 in little endian.
+var scalarMinusOneBytes = [32]byte{236, 211, 245, 92, 26, 99, 18, 88, 214, 156, 247, 162, 222, 249, 222, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16}
+
+// isReduced returns whether the given scalar in 32-byte little endian encoded
+// form is reduced modulo l.
 func isReduced(s []byte) bool {
 	if len(s) != 32 {
 		return false
@@ -134,9 +122,9 @@ func isReduced(s []byte) bool {
 
 	for i := len(s) - 1; i >= 0; i-- {
 		switch {
-		case s[i] > scMinusOneBytes[i]:
+		case s[i] > scalarMinusOneBytes[i]:
 			return false
-		case s[i] < scMinusOneBytes[i]:
+		case s[i] < scalarMinusOneBytes[i]:
 			return true
 		}
 	}
@@ -162,42 +150,54 @@ func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
 	if len(x) != 32 {
 		return nil, errors.New("edwards25519: invalid SetBytesWithClamping input length")
 	}
+
 	var wideBytes [64]byte
 	copy(wideBytes[:], x[:])
 	wideBytes[0] &= 248
 	wideBytes[31] &= 63
 	wideBytes[31] |= 64
+
+	// TODO: replace scReduce with a limbed reduction.
 	var reduced [32]byte
 	scReduce(&reduced, &wideBytes)
+
 	fiat_sc255_from_bytes((*[4]uint64)(&s.s), &reduced)
 	fiat_sc255_to_montgomery(&s.s, (*fiat_sc255_non_montgomery_domain_field_element)(&s.s))
+
 	return s, nil
 }
 
 // Bytes returns the canonical 32-byte little-endian encoding of s.
 func (s *Scalar) Bytes() []byte {
-	// This pattern, called "outlining", allows this function to inline so the
-	// allocations can occur on the caller stack rather than escaping to the heap.
-	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner for more details.
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
 	var encoded [32]byte
 	return s.bytes(&encoded)
 }
 
 func (s *Scalar) bytes(out *[32]byte) []byte {
-	var limbs fiat_sc255_non_montgomery_domain_field_element
-	fiat_sc255_from_montgomery(&limbs, &s.s)
-	fiat_sc255_to_bytes(out, (*[4]uint64)(&limbs))
+	var ss fiat_sc255_non_montgomery_domain_field_element
+	fiat_sc255_from_montgomery(&ss, &s.s)
+	fiat_sc255_to_bytes(out, (*[4]uint64)(&ss))
 	return out[:]
 }
 
 // Equal returns 1 if s and t are equal, and 0 otherwise.
 func (s *Scalar) Equal(t *Scalar) int {
-	st := t.Bytes()
-	ss := s.Bytes()
-	return subtle.ConstantTimeCompare(ss[:], st[:])
+	var diff fiat_sc255_montgomery_domain_field_element
+	fiat_sc255_sub(&diff, &s.s, &t.s)
+	var nonzero uint64
+	fiat_sc255_nonzero(&nonzero, (*[4]uint64)(&diff))
+	nonzero |= nonzero >> 32
+	nonzero |= nonzero >> 16
+	nonzero |= nonzero >> 8
+	nonzero |= nonzero >> 4
+	nonzero |= nonzero >> 2
+	nonzero |= nonzero >> 1
+	return int(^nonzero) & 1
 }
 
-// scMulAdd and scReduce are ported from the public domain, “ref10”
+// scReduce is ported from the public domain, “ref10”
 // implementation of ed25519 from SUPERCOP.
 
 func load3(in []byte) int64 {
