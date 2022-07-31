@@ -47,8 +47,8 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	}
 
 	val := Scalar{}
-	fiat_sc255_from_bytes((*[4]uint64)(&val.s), &s)
-	fiat_sc255_to_montgomery(&val.s, (*fiat_sc255_non_montgomery_domain_field_element)(&val.s))
+	fiatScalarFromBytes((*[4]uint64)(&val.s), &s)
+	fiatScalarToMontgomery(&val.s, (*fiatScalarNonMontgomeryDomainFieldElement)(&val.s))
 
 	return reflect.ValueOf(val)
 }
@@ -234,7 +234,7 @@ func (notZeroScalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	var isNonZero uint64
 	for isNonZero == 0 {
 		s = Scalar{}.Generate(rand, size).Interface().(Scalar)
-		fiat_sc255_nonzero(&isNonZero, (*[4]uint64)(&s.s))
+		fiatScalarNonzero(&isNonZero, (*[4]uint64)(&s.s))
 	}
 	return reflect.ValueOf(notZeroScalar(s))
 }
