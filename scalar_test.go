@@ -14,17 +14,21 @@ import (
 	"testing/quick"
 )
 
+var scOneBytes = [32]byte{1}
+var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
+var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
+
 // Generate returns a valid (reduced modulo l) Scalar with a distribution
 // weighted towards high, low, and edge values.
 func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
-	s := scZeroBytes
+	var s [32]byte
 	diceRoll := rand.Intn(100)
 	switch {
 	case diceRoll == 0:
 	case diceRoll == 1:
 		s = scOneBytes
 	case diceRoll == 2:
-		s = scMinusOneBytes
+		s = scalarMinusOneBytes
 	case diceRoll < 5:
 		// Generate a low scalar in [0, 2^125).
 		rand.Read(s[:16])
@@ -86,7 +90,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
 	}
 
-	b := scMinusOneBytes
+	b := scalarMinusOneBytes
 	b[31] += 1
 	s := scOne
 	if out, err := s.SetCanonicalBytes(b[:]); err == nil {
@@ -236,10 +240,10 @@ func (notZeroScalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 }
 
 func TestScalarEqual(t *testing.T) {
-	if scOne.Equal(&scMinusOne) == 1 {
+	if scOne.Equal(scMinusOne) == 1 {
 		t.Errorf("scOne.Equal(&scMinusOne) is true")
 	}
-	if scMinusOne.Equal(&scMinusOne) == 0 {
+	if scMinusOne.Equal(scMinusOne) == 0 {
 		t.Errorf("scMinusOne.Equal(&scMinusOne) is false")
 	}
 }
