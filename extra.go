@@ -178,8 +178,8 @@ func (s *Scalar) Invert(t *Scalar) *Scalar {
 	// Entries of the form (1, coeff) turn into a squaring and then a table lookup.
 	// We can fold the squaring into the previous pow2k(k) as pow2k(k+1).
 
-	*s = table[1/2]
-	s.pow2k(127 + 1)
+	*s = tt
+	s.pow2k(126 + 1)
 	s.Multiply(s, &table[1/2])
 	s.pow2k(4 + 1)
 	s.Multiply(s, &table[9/2])
