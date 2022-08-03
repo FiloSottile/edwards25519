@@ -143,7 +143,7 @@ func (s *Scalar) Invert(t *Scalar) *Scalar {
 	for i := 0; i < 7; i++ {
 		table[i+1].Multiply(&table[i], &tt)
 	}
-	// Now table = [t**1, t**3, t**7, t**11, t**13, t**15]
+	// Now table = [t**1, t**3, t**5, t**7, t**9, t**11, t**13, t**15]
 	// so t**k = t[k/2] for odd k
 
 	// To compute the sliding window digits, use the following Sage script:
