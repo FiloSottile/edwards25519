@@ -110,7 +110,7 @@ func TestScalarInvert(t *testing.T) {
 		return check.Equal(scOne) == 1 && isReduced(xInv.Bytes())
 	}
 
-	if err := quick.Check(invertWorks, quickCheckConfig32); err != nil {
+	if err := quick.Check(invertWorks, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 
@@ -144,7 +144,7 @@ func TestMultiScalarMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(multiScalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(multiScalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -164,7 +164,7 @@ func TestVarTimeMultiScalarMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(varTimeMultiScalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(varTimeMultiScalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
