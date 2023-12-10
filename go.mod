@@ -1,3 +1,3 @@
 module filippo.io/edwards25519
 
-go 1.17
+go 1.20

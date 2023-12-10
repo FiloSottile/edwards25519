@@ -1,6 +1,6 @@
 module std/crypto/internal/edwards25519/field/_asm
 
-go 1.18
+go 1.20
 
 require (
 	filippo.io/edwards25519 v0.0.0
