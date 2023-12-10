@@ -41,7 +41,7 @@ package edwards25519
 import "math/bits"
 
 type fiatScalarUint1 uint64 // We use uint64 instead of a more narrow type for performance reasons; see https://github.com/mit-plv/fiat-crypto/pull/1006#issuecomment-892625927
-type fiatScalarInt1 int64 // We use uint64 instead of a more narrow type for performance reasons; see https://github.com/mit-plv/fiat-crypto/pull/1006#issuecomment-892625927
+type fiatScalarInt1 int64   // We use uint64 instead of a more narrow type for performance reasons; see https://github.com/mit-plv/fiat-crypto/pull/1006#issuecomment-892625927
 
 // The type fiatScalarMontgomeryDomainFieldElement is a field element in the Montgomery domain.
 //
@@ -56,14 +56,18 @@ type fiatScalarNonMontgomeryDomainFieldElement [4]uint64
 // fiatScalarCmovznzU64 is a single-word conditional move.
 //
 // Postconditions:
-//   out1 = (if arg1 = 0 then arg2 else arg3)
+//
+//	out1 = (if arg1 = 0 then arg2 else arg3)
 //
 // Input Bounds:
-//   arg1: [0x0 ~> 0x1]
-//   arg2: [0x0 ~> 0xffffffffffffffff]
-//   arg3: [0x0 ~> 0xffffffffffffffff]
+//
+//	arg1: [0x0 ~> 0x1]
+//	arg2: [0x0 ~> 0xffffffffffffffff]
+//	arg3: [0x0 ~> 0xffffffffffffffff]
+//
 // Output Bounds:
-//   out1: [0x0 ~> 0xffffffffffffffff]
+//
+//	out1: [0x0 ~> 0xffffffffffffffff]
 func fiatScalarCmovznzU64(out1 *uint64, arg1 fiatScalarUint1, arg2 uint64, arg3 uint64) {
 	x1 := (uint64(arg1) * 0xffffffffffffffff)
 	x2 := ((x1 & arg3) | ((^x1) & arg2))
@@ -73,12 +77,14 @@ func fiatScalarCmovznzU64(out1 *uint64, arg1 fiatScalarUint1, arg2 uint64, arg3 
 // fiatScalarMul multiplies two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
-// Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
+// Postconditions:
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func fiatScalarMul(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScalarMontgomeryDomainFieldElement, arg2 *fiatScalarMontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -367,12 +373,14 @@ func fiatScalarMul(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScala
 // fiatScalarAdd adds two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
-// Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
+// Postconditions:
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func fiatScalarAdd(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScalarMontgomeryDomainFieldElement, arg2 *fiatScalarMontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -417,12 +425,14 @@ func fiatScalarAdd(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScala
 // fiatScalarSub subtracts two field elements in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-//   0 ≤ eval arg2 < m
-// Postconditions:
-//   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//	0 ≤ eval arg2 < m
+//
+// Postconditions:
+//
+//	eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
+//	0 ≤ eval out1 < m
 func fiatScalarSub(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScalarMontgomeryDomainFieldElement, arg2 *fiatScalarMontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -458,11 +468,13 @@ func fiatScalarSub(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScala
 // fiatScalarOpp negates a field element in the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-// Postconditions:
-//   eval (from_montgomery out1) mod m = -eval (from_montgomery arg1) mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//
+// Postconditions:
+//
+//	eval (from_montgomery out1) mod m = -eval (from_montgomery arg1) mod m
+//	0 ≤ eval out1 < m
 func fiatScalarOpp(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScalarMontgomeryDomainFieldElement) {
 	var x1 uint64
 	var x2 uint64
@@ -498,14 +510,20 @@ func fiatScalarOpp(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScala
 // fiatScalarNonzero outputs a single non-zero word if the input is non-zero and zero otherwise.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   out1 = 0 ↔ eval (from_montgomery arg1) mod m = 0
+//
+//	out1 = 0 ↔ eval (from_montgomery arg1) mod m = 0
 //
 // Input Bounds:
-//   arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//
+//	arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff]]
+//
 // Output Bounds:
-//   out1: [0x0 ~> 0xffffffffffffffff]
+//
+//	out1: [0x0 ~> 0xffffffffffffffff]
 func fiatScalarNonzero(out1 *uint64, arg1 *[4]uint64) {
 	x1 := (arg1[0] | (arg1[1] | (arg1[2] | arg1[3])))
 	*out1 = x1
@@ -514,11 +532,13 @@ func fiatScalarNonzero(out1 *uint64, arg1 *[4]uint64) {
 // fiatScalarFromMontgomery translates a field element out of the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-// Postconditions:
-//   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//
+// Postconditions:
+//
+//	eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
+//	0 ≤ eval out1 < m
 func fiatScalarFromMontgomery(out1 *fiatScalarNonMontgomeryDomainFieldElement, arg1 *fiatScalarMontgomeryDomainFieldElement) {
 	x1 := arg1[0]
 	var x2 uint64
@@ -668,11 +688,13 @@ func fiatScalarFromMontgomery(out1 *fiatScalarNonMontgomeryDomainFieldElement, a
 // fiatScalarToMontgomery translates a field element into the Montgomery domain.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
-// Postconditions:
-//   eval (from_montgomery out1) mod m = eval arg1 mod m
-//   0 ≤ eval out1 < m
 //
+//	0 ≤ eval arg1 < m
+//
+// Postconditions:
+//
+//	eval (from_montgomery out1) mod m = eval arg1 mod m
+//	0 ≤ eval out1 < m
 func fiatScalarToMontgomery(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *fiatScalarNonMontgomeryDomainFieldElement) {
 	x1 := arg1[1]
 	x2 := arg1[2]
@@ -930,14 +952,20 @@ func fiatScalarToMontgomery(out1 *fiatScalarMontgomeryDomainFieldElement, arg1 *
 // fiatScalarToBytes serializes a field element NOT in the Montgomery domain to bytes in little-endian order.
 //
 // Preconditions:
-//   0 ≤ eval arg1 < m
+//
+//	0 ≤ eval arg1 < m
+//
 // Postconditions:
-//   out1 = map (λ x, ⌊((eval arg1 mod m) mod 2^(8 * (x + 1))) / 2^(8 * x)⌋) [0..31]
+//
+//	out1 = map (λ x, ⌊((eval arg1 mod m) mod 2^(8 * (x + 1))) / 2^(8 * x)⌋) [0..31]
 //
 // Input Bounds:
-//   arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0x1fffffffffffffff]]
+//
+//	arg1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0x1fffffffffffffff]]
+//
 // Output Bounds:
-//   out1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0x1f]]
+//
+//	out1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0x1f]]
 func fiatScalarToBytes(out1 *[32]uint8, arg1 *[4]uint64) {
 	x1 := arg1[3]
 	x2 := arg1[2]
@@ -1036,15 +1064,21 @@ func fiatScalarToBytes(out1 *[32]uint8, arg1 *[4]uint64) {
 // fiatScalarFromBytes deserializes a field element NOT in the Montgomery domain from bytes in little-endian order.
 //
 // Preconditions:
-//   0 ≤ bytes_eval arg1 < m
+//
+//	0 ≤ bytes_eval arg1 < m
+//
 // Postconditions:
-//   eval out1 mod m = bytes_eval arg1 mod m
-//   0 ≤ eval out1 < m
+//
+//	eval out1 mod m = bytes_eval arg1 mod m
+//	0 ≤ eval out1 < m
 //
 // Input Bounds:
-//   arg1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0x1f]]
+//
+//	arg1: [[0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0xff], [0x0 ~> 0x1f]]
+//
 // Output Bounds:
-//   out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0x1fffffffffffffff]]
+//
+//	out1: [[0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0xffffffffffffffff], [0x0 ~> 0x1fffffffffffffff]]
 func fiatScalarFromBytes(out1 *[4]uint64, arg1 *[32]uint8) {
 	x1 := (uint64(arg1[31]) << 56)
 	x2 := (uint64(arg1[30]) << 48)
