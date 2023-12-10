@@ -124,7 +124,7 @@ func (v *Point) MultByCofactor(p *Point) *Point {
 	return v.fromP1xP1(&result)
 }
 
-// Given k > 0, set s = s**(2*i).
+// Given k > 0, set s = s**(2*k).
 func (s *Scalar) pow2k(k int) {
 	for i := 0; i < k; i++ {
 		s.Multiply(s, s)
