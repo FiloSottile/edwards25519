@@ -124,6 +124,129 @@ func (v *Point) MultByCofactor(p *Point) *Point {
 	return v.fromP1xP1(&result)
 }
 
+// MultByPrimeOrder sets v = l * p, where l is the order of the scalar field,
+// and returns v. If and only if p is the identity or a point on the prime-order
+// subgroup, v will be set to the identity. This can be used to check if p has a
+// low-order component.
+func (v *Point) MultByPrimeOrder(p *Point) *Point {
+	// The sequence of 34 multiplications and 248 squarings is derived from the
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
+	//
+	//	_10       = 2*1
+	//	_11       = 1 + _10
+	//	_100      = 1 + _11
+	//	_110      = _10 + _100
+	//	_1000     = _10 + _110
+	//	_1011     = _11 + _1000
+	//	_10000    = 2*_1000
+	//	_100000   = 2*_10000
+	//	_100110   = _110 + _100000
+	//	_1000000  = 2*_100000
+	//	_1010000  = _10000 + _1000000
+	//	_1010011  = _11 + _1010000
+	//	_1100011  = _10000 + _1010011
+	//	_1100111  = _100 + _1100011
+	//	_1101011  = _100 + _1100111
+	//	_10010011 = _1000000 + _1010011
+	//	_10010111 = _100 + _10010011
+	//	_10111101 = _100110 + _10010111
+	//	_11010011 = _1000000 + _10010011
+	//	_11100111 = _1010000 + _10010111
+	//	_11101101 = _110 + _11100111
+	//	_11110101 = _1000 + _11101101
+	//	i160      = ((_1011 + _11110101) << 126 + _1010011) << 9 + _10
+	//	i179      = ((_11110101 + i160) << 7 + _1100111) << 9 + _11110101
+	//	i209      = ((i179 << 11 + _10111101) << 8 + _11100111) << 9
+	//	i232      = ((_1101011 + i209) << 6 + _1011) << 14 + _10010011
+	//	i263      = ((i232 << 10 + _1100011) << 9 + _10010111) << 10
+	//	return      ((_11110101 + i263) << 8 + _11010011) << 8 + _11101101
+	//
+	var t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, tA, tB, tC = new(Point),
+		new(Point), new(Point), new(Point), new(Point), new(Point), new(Point),
+		new(Point), new(Point), new(Point), new(Point), new(Point), new(Point)
+
+	tA.Add(p, p)
+	t4.Add(p, tA)
+	t2.Add(p, t4)
+	p.Add(tA, t2)
+	t1.Add(tA, p)
+	t5.Add(t4, t1)
+	t3.Add(t1, t1)
+	t0.Add(t3, t3)
+	t8.Add(p, t0)
+	t0.Add(t0, t0)
+	t7.Add(t3, t0)
+	tB.Add(t4, t7)
+	t3.Add(t3, tB)
+	t9.Add(t2, t3)
+	t6.Add(t2, t9)
+	t4.Add(t0, tB)
+	t2.Add(t2, t4)
+	t8.Add(t8, t2)
+	t0.Add(t0, t4)
+	t7.Add(t7, t2)
+	p.Add(p, t7)
+	t1.Add(t1, p)
+	tC.Add(t5, t1)
+	for s := 0; s < 126; s++ {
+		tC.Add(tC, tC)
+	}
+	tB.Add(tB, tC)
+	for s := 0; s < 9; s++ {
+		tB.Add(tB, tB)
+	}
+	tA.Add(tA, tB)
+	tA.Add(t1, tA)
+	for s := 0; s < 7; s++ {
+		tA.Add(tA, tA)
+	}
+	t9.Add(t9, tA)
+	for s := 0; s < 9; s++ {
+		t9.Add(t9, t9)
+	}
+	t9.Add(t1, t9)
+	for s := 0; s < 11; s++ {
+		t9.Add(t9, t9)
+	}
+	t8.Add(t8, t9)
+	for s := 0; s < 8; s++ {
+		t8.Add(t8, t8)
+	}
+	t7.Add(t7, t8)
+	for s := 0; s < 9; s++ {
+		t7.Add(t7, t7)
+	}
+	t6.Add(t6, t7)
+	for s := 0; s < 6; s++ {
+		t6.Add(t6, t6)
+	}
+	t5.Add(t5, t6)
+	for s := 0; s < 14; s++ {
+		t5.Add(t5, t5)
+	}
+	t4.Add(t4, t5)
+	for s := 0; s < 10; s++ {
+		t4.Add(t4, t4)
+	}
+	t3.Add(t3, t4)
+	for s := 0; s < 9; s++ {
+		t3.Add(t3, t3)
+	}
+	t2.Add(t2, t3)
+	for s := 0; s < 10; s++ {
+		t2.Add(t2, t2)
+	}
+	t1.Add(t1, t2)
+	for s := 0; s < 8; s++ {
+		t1.Add(t1, t1)
+	}
+	t0.Add(t0, t1)
+	for s := 0; s < 8; s++ {
+		t0.Add(t0, t0)
+	}
+	return v.Add(p, t0)
+}
+
 // Given k > 0, set s = s**(2*i).
 func (s *Scalar) pow2k(k int) {
 	for i := 0; i < k; i++ {
