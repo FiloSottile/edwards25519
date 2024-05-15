@@ -46,6 +46,13 @@ func checkInitialized(points ...*Point) {
 	}
 }
 
+func (v *Point) CheckInitialized() bool {
+	if v.x == (field.Element{}) && v.y == (field.Element{}) {
+		return false
+	}
+	return true
+}
+
 type projCached struct {
 	YplusX, YminusX, Z, T2d field.Element
 }
