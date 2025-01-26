@@ -100,13 +100,15 @@ func (v *Point) bytesMontgomery(buf *[32]byte) []byte {
 	//
 	//              u = (1 + y) / (1 - y)
 	//
-	// where y = Y / Z.
+	// where y = Y / Z and therefore
+	//
+	//              u = (Z + Y) / (Z - Y)
 
-	var y, recip, u field.Element
+	var n, r, u field.Element
 
-	y.Multiply(&v.y, y.Invert(&v.z))        // y = Y / Z
-	recip.Invert(recip.Subtract(feOne, &y)) // r = 1/(1 - y)
-	u.Multiply(u.Add(feOne, &y), &recip)    // u = (1 + y)*r
+	n.Add(&v.z, &v.y)                // n = Z + Y
+	r.Invert(r.Subtract(&v.z, &v.y)) // r = 1 / (Z - Y)
+	u.Multiply(&n, &r)               // u = n * r
 
 	return copyFieldElement(buf, &u)
 }

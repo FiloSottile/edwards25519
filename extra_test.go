@@ -218,3 +218,17 @@ func BenchmarkScalarInversion(b *testing.B) {
 		s1.Invert(s1)
 	}
 }
+
+func BenchmarkBytesMontgomery(b *testing.B) {
+	publicKey := "3bf918ffc2c955dc895bf145f566fb96623c1cadbe040091175764b5fde322c0"
+	p, err := (&Point{}).SetBytes(decodeHex(publicKey))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = p.BytesMontgomery()
+	}
+}
