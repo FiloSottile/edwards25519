@@ -232,18 +232,22 @@ func (v *Element) bytes(out *[32]byte) []byte {
 	t := *v
 	t.reduce()
 
-	var buf [8]byte
-	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
-		bitsOffset := i * 51
-		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
-		for i, bb := range buf {
-			off := bitsOffset/8 + i
-			if off >= len(out) {
-				break
-			}
-			out[off] |= bb
-		}
-	}
+	// Pack five 51-bit limbs into four 64-bit words:
+	//
+	//  255    204    153    102     51      0
+	//    ├──l4──┼──l3──┼──l2──┼──l1──┼──l0──┤
+	//   ├───u3───┼───u2───┼───u1───┼───u0───┤
+	// 256      192      128       64        0
+
+	u0 := t.l1<<51 | t.l0
+	u1 := t.l2<<(102-64) | t.l1>>(64-51)
+	u2 := t.l3<<(153-128) | t.l2>>(128-102)
+	u3 := t.l4<<(204-192) | t.l3>>(192-153)
+
+	binary.LittleEndian.PutUint64(out[0*8:], u0)
+	binary.LittleEndian.PutUint64(out[1*8:], u1)
+	binary.LittleEndian.PutUint64(out[2*8:], u2)
+	binary.LittleEndian.PutUint64(out[3*8:], u3)
 
 	return out[:]
 }
