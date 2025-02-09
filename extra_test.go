@@ -169,6 +169,34 @@ func TestVarTimeMultiScalarMultMatchesBaseMult(t *testing.T) {
 	}
 }
 
+func TestScalarMultSlowMatchesMult(t *testing.T) {
+	scalarMultSlowMatchesMult := func(x, y Scalar) bool {
+		p := NewGeneratorPoint()
+		p.ScalarMultSlow(&x, p)
+		p.ScalarMultSlow(&y, p)
+
+		q := NewGeneratorPoint()
+		q.ScalarMult(&x, B)
+		q.ScalarMult(&y, q)
+
+		checkOnCurve(t, p, q)
+		return p.Equal(q) == 1
+	}
+
+	if err := quick.Check(scalarMultSlowMatchesMult, quickCheckConfig(32)); err != nil {
+		t.Error(err)
+	}
+}
+
+func BenchmarkScalarMultSlow(b *testing.B) {
+	var p Point
+	x := dalekScalar
+
+	for i := 0; i < b.N; i++ {
+		p.ScalarMultSlow(x, B)
+	}
+}
+
 func BenchmarkMultiScalarMultSize8(t *testing.B) {
 	var p Point
 	x := dalekScalar
