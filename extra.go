@@ -349,3 +349,48 @@ func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Poin
 	v.fromP2(tmp2)
 	return v
 }
+
+// Select sets v to a if cond == 1 and to b if cond == 0.
+func (v *Point) Select(a, b *Point, cond int) *Point {
+	v.x.Select(&a.x, &b.x, cond)
+	v.y.Select(&a.y, &b.y, cond)
+	v.z.Select(&a.z, &b.z, cond)
+	v.t.Select(&a.t, &b.t, cond)
+	return v
+}
+
+// Double sets v = p + p, and returns v.
+func (v *Point) Double(p *Point) *Point {
+	checkInitialized(p)
+
+	pp := new(projP2).FromP3(p)
+	p1 := new(projP1xP1).Double(pp)
+	return v.fromP1xP1(p1)
+}
+
+func (v *Point) addCached(p *Point, qCached *projCached) *Point {
+	result := new(projP1xP1).Add(p, qCached)
+	return v.fromP1xP1(result)
+}
+
+// ScalarMultSlow sets v = x * q, and returns v. It doesn't precompute a large
+// table, so it is considerably slower, but requires less memory.
+//
+// The scalar multiplication is done in constant time.
+func (v *Point) ScalarMultSlow(x *Scalar, q *Point) *Point {
+	checkInitialized(q)
+
+	s := x.Bytes()
+	qCached := new(projCached).FromP3(q)
+	v.Set(NewIdentityPoint())
+	t := new(Point)
+
+	for i := 255; i >= 0; i-- {
+		v.Double(v)
+		t.addCached(v, qCached)
+		cond := (s[i/8] >> (i % 8)) & 1
+		v.Select(t, v, int(cond))
+	}
+
+	return v
+}
