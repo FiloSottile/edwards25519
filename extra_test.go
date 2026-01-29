@@ -149,6 +149,52 @@ func TestMultiScalarMultMatchesBaseMult(t *testing.T) {
 	}
 }
 
+func TestMultiScalarMult2MatchesBaseMult(t *testing.T) {
+	multiScalarMult2MatchesBaseMult := func(x, y Scalar) bool {
+		var p, q1, q2, check Point
+
+		p.MultiScalarMult2(&x, &y, B, B)
+
+		q1.ScalarBaseMult(&x)
+		q2.ScalarBaseMult(&y)
+		check.Add(&q1, &q2)
+
+		checkOnCurve(t, &p, &check, &q1, &q2)
+		return p.Equal(&check) == 1
+	}
+
+	if err := quick.Check(multiScalarMult2MatchesBaseMult, quickCheckConfig(32)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMultiScalarMult2MatchesMultiScalarMult(t *testing.T) {
+	multiScalarMult2MatchesMultiScalarMult := func(x, y Scalar) bool {
+		var p1, p2 Point
+
+		p1.MultiScalarMult([]*Scalar{&x, &y}, []*Point{B, B})
+		p2.MultiScalarMult2(&x, &y, B, B)
+
+		checkOnCurve(t, &p1, &p2)
+		return p1.Equal(&p2) == 1
+	}
+
+	if err := quick.Check(multiScalarMult2MatchesMultiScalarMult, quickCheckConfig(32)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMultiScalarMult2NoAllocs(t *testing.T) {
+	var p Point
+
+	allocs := testing.AllocsPerRun(100, func() {
+		p.MultiScalarMult2(dalekScalar, dalekScalar, B, B)
+	})
+	if allocs != 0 {
+		t.Errorf("MultiScalarMult2 allocated %v times, expected 0", allocs)
+	}
+}
+
 func TestVarTimeMultiScalarMultMatchesBaseMult(t *testing.T) {
 	varTimeMultiScalarMultMatchesBaseMult := func(x, y, z Scalar) bool {
 		var p, q1, q2, q3, check Point
@@ -204,6 +250,23 @@ func BenchmarkMultiScalarMultSize8(t *testing.B) {
 	for i := 0; i < t.N; i++ {
 		p.MultiScalarMult([]*Scalar{x, x, x, x, x, x, x, x},
 			[]*Point{B, B, B, B, B, B, B, B})
+	}
+}
+
+func BenchmarkMultiScalarMult2(t *testing.B) {
+	var p Point
+
+	for i := 0; i < t.N; i++ {
+		p.MultiScalarMult2(dalekScalar, dalekScalar, B, B)
+	}
+}
+
+func BenchmarkMultiScalarMultSize2(t *testing.B) {
+	var p Point
+	x := dalekScalar
+
+	for i := 0; i < t.N; i++ {
+		p.MultiScalarMult([]*Scalar{x, x}, []*Point{B, B})
 	}
 }
 

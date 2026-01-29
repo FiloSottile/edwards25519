@@ -293,6 +293,57 @@ func (v *Point) MultiScalarMult(scalars []*Scalar, points []*Point) *Point {
 	return v
 }
 
+// MultiScalarMult2 sets v = s1*p1 + s2*p2, and returns v.
+//
+// Execution time is constant. This is a heap-allocation-free version of MultiScalarMult
+// for exactly 2 scalar-point pairs.
+func (v *Point) MultiScalarMult2(s1, s2 *Scalar, p1, p2 *Point) *Point {
+	checkInitialized(p1, p2)
+
+	var tables [2]projLookupTable
+	tables[0].FromP3(p1)
+	tables[1].FromP3(p2)
+
+	var digits [2][64]int8
+	digits[0] = s1.signedRadix16()
+	digits[1] = s2.signedRadix16()
+
+	var multiple projCached
+	var tmp1 projP1xP1
+	var tmp2 projP2
+
+	v.Set(identity)
+
+	tables[0].SelectInto(&multiple, digits[0][63])
+	tmp1.Add(v, &multiple)
+	v.fromP1xP1(&tmp1)
+	tables[1].SelectInto(&multiple, digits[1][63])
+	tmp1.Add(v, &multiple)
+	v.fromP1xP1(&tmp1)
+
+	tmp2.FromP3(v)
+	for i := 62; i >= 0; i-- {
+		tmp1.Double(&tmp2)
+		tmp2.FromP1xP1(&tmp1)
+		tmp1.Double(&tmp2)
+		tmp2.FromP1xP1(&tmp1)
+		tmp1.Double(&tmp2)
+		tmp2.FromP1xP1(&tmp1)
+		tmp1.Double(&tmp2)
+		v.fromP1xP1(&tmp1)
+
+		tables[0].SelectInto(&multiple, digits[0][i])
+		tmp1.Add(v, &multiple)
+		v.fromP1xP1(&tmp1)
+		tables[1].SelectInto(&multiple, digits[1][i])
+		tmp1.Add(v, &multiple)
+		v.fromP1xP1(&tmp1)
+
+		tmp2.FromP3(v)
+	}
+	return v
+}
+
 // VarTimeMultiScalarMult sets v = sum(scalars[i] * points[i]), and returns v.
 //
 // Execution time depends on the inputs.
