@@ -18,6 +18,9 @@ var I = NewIdentityPoint()
 func checkOnCurve(t *testing.T, points ...*Point) {
 	t.Helper()
 	for i, p := range points {
+		if p.z.Equal(new(field.Element)) == 1 {
+			t.Errorf("point %d has Z == 0 (degenerate projective point)", i)
+		}
 		var XX, YY, ZZ, ZZZZ field.Element
 		XX.Square(&p.x)
 		YY.Square(&p.y)

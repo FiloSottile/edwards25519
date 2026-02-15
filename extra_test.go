@@ -149,6 +149,36 @@ func TestMultiScalarMultMatchesBaseMult(t *testing.T) {
 	}
 }
 
+func TestMultiScalarMultZeroReceiver(t *testing.T) {
+	// A zero-value (uninitialized) receiver should be handled correctly,
+	// producing a valid point on the curve.
+	var p Point
+	p.MultiScalarMult([]*Scalar{dalekScalar}, []*Point{B})
+
+	var check Point
+	check.ScalarBaseMult(dalekScalar)
+
+	checkOnCurve(t, &p, &check)
+	if p.Equal(&check) != 1 {
+		t.Error("MultiScalarMult with zero-value receiver did not match ScalarBaseMult")
+	}
+}
+
+func TestMultiScalarMultReceiverAliasing(t *testing.T) {
+	// The receiver v aliasing one of the input points should produce
+	// the correct result.
+	p := NewGeneratorPoint()
+	p.MultiScalarMult([]*Scalar{dalekScalar}, []*Point{p})
+
+	var check Point
+	check.ScalarBaseMult(dalekScalar)
+
+	checkOnCurve(t, p, &check)
+	if p.Equal(&check) != 1 {
+		t.Error("MultiScalarMult with aliased receiver did not match ScalarBaseMult")
+	}
+}
+
 func TestVarTimeMultiScalarMultMatchesBaseMult(t *testing.T) {
 	varTimeMultiScalarMultMatchesBaseMult := func(x, y, z Scalar) bool {
 		var p, q1, q2, q3, check Point
