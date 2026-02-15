@@ -169,6 +169,15 @@ func TestVarTimeMultiScalarMultMatchesBaseMult(t *testing.T) {
 	}
 }
 
+func TestMultiScalarMult2NoAllocs(t *testing.T) {
+	p := NewIdentityPoint()
+	if allocs := testing.AllocsPerRun(100, func() {
+		p.MultiScalarMult([]*Scalar{dalekScalar, dalekScalar}, []*Point{B, B})
+	}); allocs != 0 {
+		t.Errorf("MultiScalarMult allocated %v times, expected 0", allocs)
+	}
+}
+
 func TestScalarMultSlowMatchesMult(t *testing.T) {
 	scalarMultSlowMatchesMult := func(x, y Scalar) bool {
 		p := NewGeneratorPoint()
