@@ -19,7 +19,7 @@ import (
 
 func main() {
 	Package("filippo.io/edwards25519/field")
-	ConstraintExpr("amd64,gc,!purego")
+	ConstraintExpr("!purego")
 	feMul()
 	feSquare()
 	Generate()
