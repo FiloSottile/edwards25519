@@ -355,6 +355,7 @@ func (v *Point) VarTimeMultiScalarMult(scalars []*Scalar, points []*Point) *Poin
 
 // Select sets v to a if cond == 1 and to b if cond == 0.
 func (v *Point) Select(a, b *Point, cond int) *Point {
+	checkInitialized(a, b)
 	v.x.Select(&a.x, &b.x, cond)
 	v.y.Select(&a.y, &b.y, cond)
 	v.z.Select(&a.z, &b.z, cond)
